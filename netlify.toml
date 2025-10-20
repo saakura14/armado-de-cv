@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Redirección para SPA (muy importante en React)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
