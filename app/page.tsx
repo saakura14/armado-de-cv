@@ -95,7 +95,7 @@ export default function Home() {
       </section>
 
       {/* About */}
-      <section id="sobre-mi" className="scroll-mt-28 px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="sobre-title">
+      <section id="sobre-mi" className="scroll-mt-28 overflow-x-clip px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="sobre-title">
         <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-[0.85fr_1.15fr]">
           <div className="relative mx-auto w-full max-w-sm">
             <div className="absolute -inset-3 -z-10 rotate-2 rounded-[36px] bg-papel" aria-hidden="true" />
