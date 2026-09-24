@@ -12,10 +12,10 @@ function CopyField({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5">
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-stone">{label}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-piedra">{label}</p>
         <p className="break-all font-mono text-sm font-semibold text-ink">{value}</p>
       </div>
-      <button type="button" onClick={copy} className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-plum hover:bg-rose-wash" aria-label={`Copiar ${label}`}>
+      <button type="button" onClick={copy} className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-ciruela hover:bg-petalo-wash" aria-label={`Copiar ${label}`}>
         {copied ? <Check className="h-3.5 w-3.5 text-whatsapp" /> : <Copy className="h-3.5 w-3.5" />}{copied ? 'Copiado' : 'Copiar'}
       </button>
     </div>
@@ -64,24 +64,26 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-plum/50 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="order-title" onClick={onClose}>
-      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-paper p-5 shadow-2xl sm:max-w-lg sm:rounded-3xl sm:p-7" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/50 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="order-title" onClick={onClose}>
+      <div className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-blanco shadow-2xl sm:max-w-lg sm:rounded-3xl" onClick={(event) => event.stopPropagation()}>
+        <div className="overflow-y-auto overscroll-contain p-5 sm:p-7">
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line sm:hidden" aria-hidden="true" />
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose">Tu pedido</p>
-            <h2 id="order-title" className="mt-1 text-2xl font-bold text-plum">{product.name}</h2>
-            {product.subtitle && <p className="text-sm text-stone">{product.subtitle}</p>}
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-rosa-deep">Tu pedido</p>
+            <h2 id="order-title" className="mt-1 font-script text-4xl font-normal leading-none text-rosa">{product.name}</h2>
+            {product.subtitle && <p className="text-sm text-piedra">{product.subtitle}</p>}
           </div>
-          <button ref={closeButton} type="button" onClick={onClose} className="rounded-full p-2 text-stone hover:bg-sand" aria-label="Cerrar"><X className="h-5 w-5" /></button>
+          <button ref={closeButton} type="button" onClick={onClose} className="rounded-full p-2 text-piedra hover:bg-arena" aria-label="Cerrar"><X className="h-5 w-5" /></button>
         </div>
 
         {product.choice && (
           <fieldset className="mt-5">
-            <legend className="text-sm font-semibold text-plum">{product.choice.label}</legend>
+            <legend className="text-sm font-semibold text-ciruela">{product.choice.label}</legend>
             <div className="mt-2 space-y-2">
               {product.choice.options.map((option) => (
-                <label key={option} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm ${choice === option ? 'border-rose bg-rose-wash' : 'border-line bg-white'}`}>
-                  <input type="radio" name="choice" value={option} checked={choice === option} onChange={() => setChoice(option)} className="accent-rose" />
+                <label key={option} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm ${choice === option ? 'border-rosa bg-petalo-wash' : 'border-line bg-white'}`}>
+                  <input type="radio" name="choice" value={option} checked={choice === option} onChange={() => setChoice(option)} className="accent-rosa" />
                   {option}
                 </label>
               ))}
@@ -91,51 +93,57 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
 
         {groups.map((group) => (
           <fieldset key={group.id} className="mt-5">
-            <legend className="flex w-full justify-between gap-2 text-sm font-semibold text-plum"><span>{group.label}</span><span className="shrink-0 text-stone">+{formatARS(group.unitPrice)}{group.options.length > 1 ? ' c/u' : ''}</span></legend>
-            {group.hint && <p className="mt-0.5 text-xs text-stone">{group.hint}</p>}
+            <legend className="flex w-full justify-between gap-2 text-sm font-semibold text-ciruela"><span>{group.label}</span><span className="shrink-0 text-piedra">+{formatARS(group.unitPrice)}{group.options.length > 1 ? ' c/u' : ''}</span></legend>
+            {group.hint && <p className="mt-0.5 text-xs text-piedra">{group.hint}</p>}
             <div className={`mt-2 grid gap-2 ${group.options.length > 2 ? 'grid-cols-2' : ''}`}>
               {group.options.map((option) => {
                 const checked = (picked[group.id] ?? []).includes(option.id)
                 return (
-                  <label key={option.id} className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm ${checked ? 'border-rose bg-rose-wash' : 'border-line bg-white'}`}>
-                    <input type="checkbox" checked={checked} onChange={() => toggle(group.id, option.id)} className="accent-rose" />
+                  <label key={option.id} className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm ${checked ? 'border-rosa bg-petalo-wash' : 'border-line bg-white'}`}>
+                    <input type="checkbox" checked={checked} onChange={() => toggle(group.id, option.id)} className="accent-rosa" />
                     {option.label}
                   </label>
                 )
               })}
             </div>
             {group.otherOptionId && (picked[group.id] ?? []).includes(group.otherOptionId) && (
-              <input value={other[group.id] ?? ''} onChange={(event) => setOther((current) => ({ ...current, [group.id]: event.target.value }))} placeholder={group.id === 'idiomas' ? '¿Qué idioma?' : '¿Qué plataforma?'} aria-label={group.id === 'idiomas' ? 'Otro idioma' : 'Otra plataforma'} className="mt-2 w-full rounded-xl border border-rose bg-white px-3 py-2.5 text-sm outline-none" />
+              <input value={other[group.id] ?? ''} onChange={(event) => setOther((current) => ({ ...current, [group.id]: event.target.value }))} placeholder={group.id === 'idiomas' ? '¿Qué idioma?' : '¿Qué plataforma?'} aria-label={group.id === 'idiomas' ? 'Otro idioma' : 'Otra plataforma'} className="mt-2 w-full rounded-xl border border-rosa bg-white px-3 py-2.5 text-sm outline-none" />
             )}
           </fieldset>
         ))}
 
-        <div className="mt-5 flex items-baseline justify-between rounded-2xl bg-sand px-4 py-3">
-          <span className="text-sm font-semibold text-stone">Total</span>
-          <span className="text-2xl font-extrabold text-plum">{formatARS(total)}</span>
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-line bg-cream p-4">
-          <p className="text-sm font-semibold text-plum">Pagás por transferencia</p>
-          <p className="mt-0.5 text-xs text-stone">Transferí el total y mandame el comprobante por WhatsApp.</p>
+        <div className="mt-5 rounded-2xl border border-line bg-papel p-4">
+          <p className="text-sm font-semibold text-ciruela">Pagás por transferencia</p>
+          <p className="mt-0.5 text-xs text-piedra">Transferí el total y mandame el comprobante por WhatsApp.</p>
           <div className="mt-3 space-y-2">
             <CopyField label="Alias" value={TRANSFER.alias} />
             <CopyField label="CBU / CVU" value={TRANSFER.cbu} />
-            <p className="px-1 text-xs text-stone">Titular: <span className="font-semibold text-ink">{TRANSFER.holder}</span></p>
+            <p className="px-1 text-xs text-piedra">Titular: <span className="font-semibold text-ink">{TRANSFER.holder}</span></p>
           </div>
         </div>
 
-        {product.notes && <ul className="mt-4 space-y-1 text-xs text-stone">{product.notes.map((note) => <li key={note}>· {note}</li>)}</ul>}
+        {product.notes && <ul className="mt-4 space-y-1 text-xs text-piedra">{product.notes.map((note) => <li key={note}>· {note}</li>)}</ul>}
 
-        <label className="mt-5 block text-sm font-semibold text-plum" htmlFor="order-name">Tu nombre (opcional)
-          <input id="order-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Para saber a quién le respondo" className="mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-rose" />
+        <label className="mt-5 block text-sm font-semibold text-ciruela" htmlFor="order-name">Tu nombre (opcional)
+          <input id="order-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Para saber a quién le respondo" className="mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-rosa" />
         </label>
 
-        {missingOther && <p role="alert" className="mt-3 text-xs font-semibold text-rose">Contame qué idioma o plataforma necesitás en el campo de arriba.</p>}
-        <a href={missingOther ? undefined : whatsappUrl(message)} aria-disabled={missingOther} target="_blank" rel="noreferrer" className={`mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-whatsapp py-3.5 font-bold text-white shadow-lg transition-transform ${missingOther ? 'pointer-events-none opacity-50' : 'hover:scale-[1.01] active:scale-[0.99]'}`}>
-          <MessageCircle className="h-5 w-5" />Enviar pedido por WhatsApp
-        </a>
-        <p className="mt-2 text-center text-xs text-stone">Se abre WhatsApp con tu pedido ya escrito. Solo tenés que enviarlo.</p>
+        </div>
+
+        {/* Sticky footer: total and CTA always within thumb reach */}
+        <div className="border-t border-line bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 sm:pb-5">
+          {missingOther && <p role="alert" className="mb-2 text-xs font-semibold text-rosa-deep">Contame qué idioma o plataforma necesitás en el campo de arriba.</p>}
+          <div className="flex items-center gap-3">
+            <div className="shrink-0">
+              <p className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">Total</p>
+              <p className="font-display text-xl font-extrabold text-ciruela">{formatARS(total)}</p>
+            </div>
+            <a href={missingOther ? undefined : whatsappUrl(message)} aria-disabled={missingOther} target="_blank" rel="noreferrer" className={`flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-whatsapp px-4 py-3 font-display text-sm font-bold text-white shadow-lg transition-transform ${missingOther ? 'pointer-events-none opacity-50' : 'hover:scale-[1.01] active:scale-[0.99]'}`}>
+              <MessageCircle className="h-5 w-5" />Enviar pedido
+            </a>
+          </div>
+          <p className="mt-2 text-center text-[11px] text-piedra">Se abre WhatsApp con tu pedido ya escrito.</p>
+        </div>
       </div>
     </div>
   )

@@ -1,19 +1,21 @@
 @import 'tailwindcss';
 
-/* Armado de CV — palette taken from the logo and the flyers */
+/* Armado de CV — brand tokens (see the brand manual) */
 @theme inline {
-  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
-  --font-script: var(--font-great-vibes), 'Brush Script MT', cursive;
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  --font-script: var(--font-cookie), 'Brush Script MT', cursive;
 
-  --color-rose: #d6507a;        /* "Armado de CV" script */
-  --color-rose-soft: #f2a3b3;   /* cherry blossom petals */
-  --color-rose-wash: #fbe9ee;
-  --color-plum: #3f1d2b;        /* logo outline */
-  --color-cream: #f8f2e2;       /* paper in the logo */
-  --color-sand: #e9e0d2;        /* flyer cards */
-  --color-stone: #6f6a62;       /* flyer headings */
-  --color-ink: #2e2328;
-  --color-paper: #fcfaf6;       /* page background */
+  --color-rosa: #c9506d;          /* Rosa CV: brand voice, primary buttons */
+  --color-rosa-deep: #a8435e;     /* Rosa profundo: small pink text on light */
+  --color-petalo: #e8959b;        /* Pétalo: accents, flower */
+  --color-petalo-wash: #fbeaec;
+  --color-ciruela: #43202c;       /* Ciruela: headings, dark surfaces */
+  --color-papel: #f5efd9;         /* Papel: cards, covers */
+  --color-arena: #eae1d3;         /* Arena: Asesorías background, price rings */
+  --color-blanco: #fcfaf7;        /* Page background */
+  --color-piedra: #6f6a62;        /* Secondary text */
+  --color-ink: #3a2a30;           /* Body text */
   --color-line: #e7ddd2;
   --color-whatsapp: #1fa855;
 }
@@ -24,6 +26,7 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -31,11 +34,17 @@ html {
 }
 
 body {
-  background: var(--color-paper);
+  overflow-x: clip;
+  background: var(--color-blanco);
   color: var(--color-ink);
 }
 
+h1, h2, h3 {
+  font-family: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  text-wrap: balance;
+}
+
 :focus-visible {
-  outline: 2px solid var(--color-rose);
+  outline: 2px solid var(--color-rosa);
   outline-offset: 2px;
 }
