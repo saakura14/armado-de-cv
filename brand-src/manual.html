@@ -1,0 +1,176 @@
+<title>Manual de marca Armado de CV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cookie&family=Montserrat:wght@500;600;700;800&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap">
+<style>
+  :root {
+    --rosa: #C9506D; --ciruela: #43202C; --petalo: #E8959B; --papel: #F5EFD9;
+    --blanco: #FCFAF7; --arena: #EAE1D3; --piedra: #6F6A62; --rosa-profundo: #A8435E;
+    --bg: var(--blanco); --surface: #FFFFFF; --ink: var(--ciruela); --text: #3A2A30; --muted: var(--piedra); --line: #E7DDD2; --accent: var(--rosa);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #1E1216; --surface: #2A1A20; --ink: #F8EFF0; --text: #E8DADC; --muted: #BFAFA8; --line: #3E2A31; --accent: #F0A7B4; color-scheme: dark; }
+  }
+  :root[data-theme="dark"] { --bg: #1E1216; --surface: #2A1A20; --ink: #F8EFF0; --text: #E8DADC; --muted: #BFAFA8; --line: #3E2A31; --accent: #F0A7B4; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font: 400 16px/1.65 "Nunito Sans", system-ui, sans-serif; padding-inline: 16px; }
+  main { max-width: 1080px; margin: 0 auto; padding-block: 24px 64px; }
+  h1, h2, h3 { font-family: "Montserrat", system-ui, sans-serif; color: var(--ink); text-wrap: balance; }
+  .script { font-family: "Cookie", "Brush Script MT", cursive; font-weight: 400; }
+  .eyebrow { font: 600 12px/1 "Montserrat", sans-serif; letter-spacing: .32em; text-transform: uppercase; color: var(--accent); }
+  .cover { border-radius: 28px; background: var(--papel); color: var(--ciruela); padding: clamp(28px, 6vw, 64px); display: grid; grid-template-columns: 1.1fr .9fr; gap: 24px; align-items: center; overflow: hidden; position: relative; }
+  .cover h1 { color: var(--ciruela); font-size: clamp(22px, 3vw, 28px); font-weight: 700; letter-spacing: .02em; margin: 14px 0 6px; }
+  .cover p { max-width: 46ch; color: #5a4148; }
+  .cover .big { font-size: clamp(64px, 11vw, 120px); line-height: .9; color: var(--rosa); }
+  .cover img { width: 100%; max-width: 360px; justify-self: center; }
+  section { margin-top: 64px; }
+  section > h2 { font-size: 28px; margin: 6px 0 4px; }
+  section > p.lead { color: var(--muted); max-width: 64ch; margin: 0 0 20px; }
+  .grid { display: grid; gap: 16px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .g4 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
+  .tile h3 { font-size: 15px; margin: 12px 0 2px; }
+  .tile p { margin: 0; font-size: 14px; color: var(--muted); }
+  .stage { border-radius: 14px; display: grid; place-items: center; padding: 28px; min-height: 180px; background: #FFFFFF; }
+  .stage.dark { background: var(--ciruela); }
+  .stage.papel { background: var(--papel); }
+  .stage.arena { background: var(--arena); }
+  .stage img { max-width: 100%; max-height: 190px; }
+  .swatch { border-radius: 18px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+  .swatch i { display: block; height: 104px; }
+  .swatch div { padding: 12px 14px; font-size: 13px; }
+  .swatch b { display: block; font-family: "Montserrat", sans-serif; color: var(--ink); font-size: 14px; }
+  .swatch code { font-size: 12px; color: var(--muted); }
+  .type { display: grid; grid-template-columns: 180px 1fr; gap: 20px; align-items: baseline; padding: 20px 0; border-top: 1px solid var(--line); }
+  .type:last-child { border-bottom: 1px solid var(--line); }
+  .type .name { font: 600 13px/1.4 "Montserrat", sans-serif; color: var(--ink); }
+  .type .name small { display: block; font-weight: 500; color: var(--muted); }
+  .rules li { margin: 6px 0; }
+  .do, .dont { border-radius: 18px; padding: 18px 20px; border: 1px solid var(--line); background: var(--surface); }
+  .do h3 { color: #1b7a4b; margin-top: 0; } .dont h3 { color: #b0304f; margin-top: 0; }
+  :root[data-theme="dark"] .do h3 { color: #6fd6a2; } :root[data-theme="dark"] .dont h3 { color: #ff9db1; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .do h3 { color: #6fd6a2; } :root:not([data-theme="light"]) .dont h3 { color: #ff9db1; } }
+  .post { aspect-ratio: 1; border-radius: 16px; background: var(--papel); padding: 22px; display: flex; flex-direction: column; justify-content: space-between; color: var(--ciruela); }
+  .post .script { font-size: 44px; line-height: .9; color: var(--rosa); }
+  .post .price { align-self: flex-end; width: 84px; height: 84px; border-radius: 50%; background: #fff; border: 6px solid var(--arena); display: grid; place-items: center; font: 800 16px "Montserrat"; color: var(--piedra); }
+  .post small { font: 600 10px "Montserrat"; letter-spacing: .25em; text-transform: uppercase; }
+  .story { aspect-ratio: 9/16; border-radius: 16px; background: var(--ciruela); color: #fff; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+  .story .script { font-size: 40px; line-height: .95; color: var(--petalo); }
+  .story .btn { align-self: center; background: var(--rosa); padding: 10px 16px; border-radius: 99px; font: 700 12px "Montserrat"; }
+  .appicon { width: 96px; height: 96px; border-radius: 22px; background: var(--papel); display: grid; place-items: center; box-shadow: 0 10px 24px -14px rgba(67,32,44,.6); }
+  .appicon img { width: 84px; }
+  .voice { display: grid; gap: 10px; }
+  .voice div { display: grid; grid-template-columns: 170px 1fr; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .voice b { font-family: "Montserrat"; color: var(--ink); font-size: 14px; }
+  @media (max-width: 720px) { .cover { grid-template-columns: 1fr; } .type, .voice div { grid-template-columns: 1fr; gap: 4px; } }
+</style>
+
+<main>
+  <header class="cover">
+    <div>
+      <span class="eyebrow">Manual de identidad · 2026</span>
+      <div class="script big">Armado de CV</div>
+      <h1>Asesoría para tu búsqueda laboral</h1>
+      <p>Cercana, clara y profesional: una hoja de CV, una flor de cerezo y la letra de alguien que te acompaña. Esta guía reúne todo lo necesario para que la marca se vea igual en la web, en Instagram, en WhatsApp y en cada flyer.</p>
+    </div>
+    <img src="brand/logo-vertical.svg" alt="Logo principal de Armado de CV">
+  </header>
+
+  <section id="logo">
+    <span class="eyebrow">01 · Logo</span>
+    <h2>Logo principal</h2>
+    <p class="lead">Es la firma de todo el servicio de armado de CV, LinkedIn y plataformas. Se usa en la web, el perfil de Instagram, los flyers de packs y los documentos que entregás.</p>
+    <div class="grid g2">
+      <div class="tile"><div class="stage"><img src="brand/logo-vertical.svg" alt="Logo vertical"></div><h3>Versión vertical</h3><p>La preferida: perfil, flyers, portadas y piezas cuadradas.</p></div>
+      <div class="tile"><div class="stage"><img src="brand/logo-horizontal.svg" alt="Logo horizontal"></div><h3>Versión horizontal</h3><p>Para espacios bajos: encabezado de la web, firmas de email, banners.</p></div>
+    </div>
+  </section>
+
+  <section id="asesorias">
+    <span class="eyebrow">02 · Submarca</span>
+    <h2>Armado de CV · Asesorías</h2>
+    <p class="lead">Identifica solo la línea de asesorías: e-books de entrevistas y psicotécnicos, sesiones 1 a 1 por Google Meet y test vocacional. Mantiene el mismo logo y suma la palabra ASESORÍAS en Montserrat espaciada. En la web tiene su propia solapa y un fondo arena que la diferencia del servicio de CV.</p>
+    <div class="grid g2">
+      <div class="tile"><div class="stage arena"><img src="brand/asesorias-vertical.svg" alt="Submarca Asesorías vertical"></div><h3>Asesorías · vertical</h3><p>Flyers de e-books, test vocacional y sesiones.</p></div>
+      <div class="tile"><div class="stage arena"><img src="brand/asesorias-horizontal.svg" alt="Submarca Asesorías horizontal"></div><h3>Asesorías · horizontal</h3><p>Encabezado de la sección Asesorías de la web.</p></div>
+    </div>
+  </section>
+
+  <section id="isotipo">
+    <span class="eyebrow">03 · Isotipo y variantes</span>
+    <h2>Isotipo, fondos y tamaños</h2>
+    <p class="lead">El isotipo es la hoja de CV con la flor de cerezo dentro del círculo. Funciona solo cuando el nombre ya está presente o no entra: foto de perfil, favicon, ícono de la app, sellos.</p>
+    <div class="grid g4">
+      <div class="tile"><div class="stage"><img src="brand/isotipo.svg" alt="Isotipo" style="width:140px"></div><h3>Isotipo</h3><p>Perfil de IG y WhatsApp, favicon.</p></div>
+      <div class="tile"><div class="stage dark"><img src="brand/logo-vertical-blanco.svg" alt="Logo sobre ciruela"></div><h3>Sobre ciruela</h3><p>Versión blanca para fondos oscuros y fotos.</p></div>
+      <div class="tile"><div class="stage papel"><div class="appicon"><img src="brand/isotipo.svg" alt="Ícono de app"></div></div><h3>Ícono de app</h3><p>Fondo papel, esquinas redondeadas.</p></div>
+      <div class="tile"><div class="stage"><div style="display:flex;gap:14px;align-items:end"><img src="brand/isotipo.svg" alt="" style="width:64px"><img src="brand/isotipo.svg" alt="" style="width:32px"><img src="brand/isotipo.svg" alt="" style="width:20px"></div></div><h3>Tamaño mínimo</h3><p>Isotipo: 20 px. Logo completo: 120 px de ancho.</p></div>
+    </div>
+    <p class="lead" style="margin-top:16px">Área de resguardo: dejá alrededor del logo un espacio libre igual al alto de la flor. Ningún texto ni imagen entra en esa zona.</p>
+  </section>
+
+  <section id="color">
+    <span class="eyebrow">04 · Color</span>
+    <h2>Paleta</h2>
+    <p class="lead">Sale directamente del logo. El rosa es la voz de la marca; el ciruela da seriedad y contraste; el papel y la arena son los fondos cálidos de los flyers.</p>
+    <div class="grid g4">
+      <div class="swatch"><i style="background:#C9506D"></i><div><b>Rosa CV</b><code>#C9506D · RGB 201 80 109</code><br>Nombre, botones principales, precios destacados.</div></div>
+      <div class="swatch"><i style="background:#43202C"></i><div><b>Ciruela</b><code>#43202C · RGB 67 32 44</code><br>Títulos, texto fuerte, fondos oscuros.</div></div>
+      <div class="swatch"><i style="background:#E8959B"></i><div><b>Pétalo</b><code>#E8959B · RGB 232 149 155</code><br>Detalles, flor, acentos suaves.</div></div>
+      <div class="swatch"><i style="background:#F5EFD9"></i><div><b>Papel</b><code>#F5EFD9 · RGB 245 239 217</code><br>Fondos de tarjetas y portadas.</div></div>
+      <div class="swatch"><i style="background:#EAE1D3"></i><div><b>Arena</b><code>#EAE1D3 · RGB 234 225 211</code><br>Fondo de Asesorías y tarjetas de precio.</div></div>
+      <div class="swatch"><i style="background:#FCFAF7"></i><div><b>Blanco cálido</b><code>#FCFAF7</code><br>Fondo general de la web.</div></div>
+      <div class="swatch"><i style="background:#6F6A62"></i><div><b>Piedra</b><code>#6F6A62 · RGB 111 106 98</code><br>Textos secundarios.</div></div>
+      <div class="swatch"><i style="background:#A8435E"></i><div><b>Rosa profundo</b><code>#A8435E</code><br>"ASESORÍAS" y rosa sobre fondos claros pequeños.</div></div>
+    </div>
+    <p class="lead" style="margin-top:16px">Proporción recomendada: 60 % fondos claros (blanco cálido, papel, arena), 25 % ciruela, 10 % rosa, 5 % pétalo. El verde de WhatsApp (#1FA855) se usa solo en botones de WhatsApp.</p>
+  </section>
+
+  <section id="tipografia">
+    <span class="eyebrow">05 · Tipografía</span>
+    <h2>Tipografías</h2>
+    <p class="lead">Tres familias gratuitas de Google Fonts, fáciles de usar también en Canva.</p>
+    <div class="type"><div class="name">Cookie<small>Marca y títulos cortos</small></div><div class="script" style="font-size:54px;color:var(--accent);line-height:1">Armado de CV · Catálogo</div></div>
+    <div class="type"><div class="name">Montserrat<small>Títulos, botones, bajadas</small></div><div style="font-family:Montserrat"><div style="font-size:26px;font-weight:800;color:var(--ink)">Pack Premium</div><div style="font-size:13px;font-weight:600;letter-spacing:.32em;text-transform:uppercase;color:var(--muted)">Armado de CV · Asesorías</div></div></div>
+    <div class="type"><div class="name">Nunito Sans<small>Textos y descripciones</small></div><div style="font-size:17px">Dos CV nuevos: uno moderno y otro optimizado para los filtros ATS que usan las empresas. Entrega en 3 a 4 días hábiles.</div></div>
+    <ul class="rules">
+      <li>Cookie solo para palabras sueltas o títulos de hasta 4 palabras. Nunca en párrafos, botones ni todo en mayúsculas.</li>
+      <li>Montserrat en mayúsculas con espaciado amplio para bajadas ("ASESORÍAS", "TEST VOCACIONAL").</li>
+      <li>Precios siempre en Montserrat ExtraBold.</li>
+    </ul>
+  </section>
+
+  <section id="aplicaciones">
+    <span class="eyebrow">06 · Aplicaciones</span>
+    <h2>Instagram, stories y app</h2>
+    <p class="lead">Ejemplos de cómo se combinan logo, color y tipografía en las piezas de todos los días.</p>
+    <div class="grid g3">
+      <div class="post"><div><small>Armado de CV</small><div class="script">Pack Medium</div><p style="font:600 13px/1.4 Montserrat;margin:8px 0 0">CV moderno + CV ATS<br>+ carta de presentación</p></div><div class="price">$32.000</div></div>
+      <div class="story"><img src="brand/logo-horizontal-blanco.svg" alt="" style="width:100%"><div><div class="script">¿Tenés una entrevista?</div><p style="font-size:13px;margin:8px 0 0">Preparate con los e-books de Asesorías.</p></div><span class="btn">Escribime "ENTREVISTA"</span></div>
+      <div class="post" style="background:var(--arena)"><div><small>Armado de CV · Asesorías</small><div class="script">Test vocacional</div><p style="font:600 13px/1.4 Montserrat;margin:8px 0 0">CHASIDE + TV-A<br>Devolución por mail o Meet</p></div><div class="price">$30.000</div></div>
+    </div>
+  </section>
+
+  <section id="uso">
+    <span class="eyebrow">07 · Buen uso</span>
+    <h2>Qué sí y qué no</h2>
+    <div class="grid g2">
+      <div class="do"><h3>Sí</h3><ul class="rules"><li>Usar el logo sobre blanco, papel o arena; la versión blanca sobre ciruela o fotos.</li><li>Respetar el área de resguardo.</li><li>Usar el logo de Asesorías solo en e-books, sesiones y test vocacional.</li><li>Fotos luminosas, fondos claros, ropa lisa.</li></ul></div>
+      <div class="dont"><h3>No</h3><ul class="rules"><li>Cambiar los colores de la flor o del nombre.</li><li>Estirar, rotar o sumar sombras al logo.</li><li>Poner el logo sobre fondos rosas saturados.</li><li>Mezclar la submarca Asesorías con los packs de CV.</li></ul></div>
+    </div>
+  </section>
+
+  <section id="voz">
+    <span class="eyebrow">08 · Voz</span>
+    <h2>Cómo habla la marca</h2>
+    <div class="voice">
+      <div><b>Cercana</b><span>Hablamos de vos: "Tu experiencia vale; mi trabajo es que se note".</span></div>
+      <div><b>Clara</b><span>Precio, plazo y qué incluye, siempre a la vista. Nada de letra chica.</span></div>
+      <div><b>Profesional</b><span>Términos correctos (ATS, psicotécnico, reclutador) explicados en simple.</span></div>
+      <div><b>Honesta</b><span>"Prepararte no garantiza un resultado, pero sí te permite mostrarte mejor."</span></div>
+    </div>
+  </section>
+</main>

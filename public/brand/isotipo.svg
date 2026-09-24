@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <title>Armado de CV</title>
+  <defs>
+    <path id="petal" d="M0 0 C -9 -10 -13 -22 -9 -32 C -6 -38 -2 -37 0 -33 C 2 -37 6 -38 9 -32 C 13 -22 9 -10 0 0 Z"/>
+  </defs>
+  <circle cx="100" cy="100" r="94" fill="#FFFFFF" stroke="#43202C" stroke-width="3"/>
+  <g transform="translate(102 101) scale(1.12) translate(-99 -89)">
+  <g stroke="#43202C" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round">
+    <rect x="58" y="48" width="66" height="88" rx="4" fill="#EFE5CB" transform="rotate(-16 91 92)"/>
+    <rect x="62" y="46" width="66" height="88" rx="4" fill="#F2EAD2" transform="rotate(-8 95 90)"/>
+    <path d="M68 42 H126 A4 4 0 0 1 130 46 V124 L118 136 H72 A4 4 0 0 1 68 132 V46 A4 4 0 0 1 72 42 Z" fill="#F5EFD9"/>
+    <path d="M130 124 L118 136 V127 A3 3 0 0 1 121 124 Z" fill="#E8959B"/>
+  </g>
+  <g fill="#43202C">
+    <circle cx="84" cy="60" r="7.5"/>
+    <path d="M71.5 80 C 71.5 71 77 67 84 67 C 91 67 96.5 71 96.5 80 Z"/>
+  </g>
+  <g stroke="#43202C" stroke-width="3.4" stroke-linecap="round">
+    <line x1="75" y1="90" x2="118" y2="90"/>
+    <line x1="75" y1="99" x2="118" y2="99"/>
+    <line x1="75" y1="108" x2="118" y2="108"/>
+    <line x1="75" y1="117" x2="110" y2="117"/>
+    <line x1="75" y1="126" x2="100" y2="126"/>
+  </g>
+  </g>
+  <g transform="translate(140 60) scale(0.78)">
+    <g fill="#E8959B">
+      <use href="#petal" transform="rotate(0)"/>
+      <use href="#petal" transform="rotate(72)"/>
+      <use href="#petal" transform="rotate(144)"/>
+      <use href="#petal" transform="rotate(216)"/>
+      <use href="#petal" transform="rotate(288)"/>
+    </g>
+    <g fill="#EE7F8C" opacity="0.55">
+      <use href="#petal" transform="rotate(0) scale(0.55)"/>
+      <use href="#petal" transform="rotate(72) scale(0.55)"/>
+      <use href="#petal" transform="rotate(144) scale(0.55)"/>
+      <use href="#petal" transform="rotate(216) scale(0.55)"/>
+      <use href="#petal" transform="rotate(288) scale(0.55)"/>
+    </g>
+    <circle r="3.4" fill="#FFF6E6"/>
+    <g fill="#43202C">
+      <circle cx="0" cy="-10" r="1.9"/>
+      <circle cx="9.5" cy="-3.1" r="1.9"/>
+      <circle cx="5.9" cy="8.1" r="1.9"/>
+      <circle cx="-5.9" cy="8.1" r="1.9"/>
+      <circle cx="-9.5" cy="-3.1" r="1.9"/>
+    </g>
+  </g>
+</svg>
