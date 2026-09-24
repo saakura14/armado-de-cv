@@ -15,11 +15,11 @@ export function isAsesorias(pathname: string) {
 }
 
 /** Segmented control that switches between the two lines of the business. */
-export function SectionTabs({ className = '' }: { className?: string }) {
+export function SectionTabs() {
   const pathname = usePathname()
   const active = isAsesorias(pathname) ? '/asesorias' : '/'
   return (
-    <nav aria-label="Secciones" className={`inline-flex rounded-full bg-arena/70 p-1 ${className}`}>
+    <nav aria-label="Secciones" className="inline-flex rounded-full bg-arena/70 p-1">
       {SECTIONS.map((section) => (
         <Link
           key={section.href}
@@ -44,7 +44,7 @@ export function SiteHeader() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={asesorias ? '/brand/asesorias-horizontal.svg' : '/brand/logo-horizontal.svg'} alt="" className="h-11 w-auto sm:h-12" />
         </Link>
-        <SectionTabs className="hidden md:inline-flex" />
+        <div className="hidden md:block"><SectionTabs /></div>
         <a href={whatsappUrl('¡Hola! Quiero hacer una consulta.')} target="_blank" rel="noreferrer" className="hidden items-center gap-2 rounded-full bg-whatsapp px-4 py-2 font-display text-sm font-bold text-white lg:inline-flex">
           <MessageCircle className="h-4 w-4" />Escribime
         </a>
