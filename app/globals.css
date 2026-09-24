@@ -1,0 +1,41 @@
+@import 'tailwindcss';
+
+/* Armado de CV — palette taken from the logo and the flyers */
+@theme inline {
+  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  --font-script: var(--font-great-vibes), 'Brush Script MT', cursive;
+
+  --color-rose: #d6507a;        /* "Armado de CV" script */
+  --color-rose-soft: #f2a3b3;   /* cherry blossom petals */
+  --color-rose-wash: #fbe9ee;
+  --color-plum: #3f1d2b;        /* logo outline */
+  --color-cream: #f8f2e2;       /* paper in the logo */
+  --color-sand: #e9e0d2;        /* flyer cards */
+  --color-stone: #6f6a62;       /* flyer headings */
+  --color-ink: #2e2328;
+  --color-paper: #fcfaf6;       /* page background */
+  --color-line: #e7ddd2;
+  --color-whatsapp: #1fa855;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-rose);
+  outline-offset: 2px;
+}
