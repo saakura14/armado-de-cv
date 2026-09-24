@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Check, Copy, MessageCircle, X } from 'lucide-react'
 import { TRANSFER, formatARS, whatsappUrl, type Product } from '@/lib/catalog'
 
@@ -23,7 +23,8 @@ function CopyField({ label, value }: { label: string; value: string }) {
 }
 
 export function OrderDialog({ product, onClose }: { product: Product; onClose: () => void }) {
-  const [extras, setExtras] = useState<string[]>([])
+  const [picked, setPicked] = useState<Record<string, string[]>>({})
+  const [other, setOther] = useState<Record<string, string>>({})
   const [choice, setChoice] = useState(product.choice?.options[0] ?? '')
   const [name, setName] = useState('')
   const closeButton = useRef<HTMLButtonElement>(null)
@@ -36,25 +37,30 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
   }, [onClose])
 
-  const selected = (product.extras ?? []).filter((extra) => extras.includes(extra.id))
-  const total = product.price + selected.reduce((sum, extra) => sum + (extra.price ?? 0), 0)
-  const hasQuote = selected.some((extra) => extra.price === null)
+  const groups = product.extras ?? []
+  const lines = groups.flatMap((group) => (picked[group.id] ?? []).map((optionId) => {
+    const option = group.options.find((item) => item.id === optionId)!
+    const detail = optionId === group.otherOptionId && other[group.id]?.trim() ? `: ${other[group.id].trim()}` : ''
+    return { key: `${group.id}-${optionId}`, text: `${option.label}${detail}`, price: group.unitPrice }
+  }))
+  const total = product.price + lines.reduce((sum, line) => sum + line.price, 0)
+  const missingOther = groups.some((group) => group.otherOptionId && (picked[group.id] ?? []).includes(group.otherOptionId) && !other[group.id]?.trim())
 
-  const message = useMemo(() => {
-    const lines = [
-      '¡Hola! Quiero contratar:',
-      `• ${product.name}${product.subtitle ? ` — ${product.subtitle}` : ''} (${formatARS(product.price)})`,
-    ]
-    if (product.choice && choice) lines.push(`• ${product.choice.label.replace('¿', '').replace('?', '')}: ${choice}`)
-    for (const extra of selected) lines.push(`• Extra: ${extra.label}${extra.price === null ? ' (quiero consultar el precio)' : ` (+${formatARS(extra.price)})`}`)
-    lines.push(`Total: ${formatARS(total)}${hasQuote ? ' + versión en inglés a consultar' : ''}`)
-    if (name.trim()) lines.push(`Mi nombre: ${name.trim()}`)
-    lines.push('¿Cómo seguimos?')
-    return lines.join('\n')
-  }, [product, choice, selected, total, hasQuote, name])
+  const message = [
+    '¡Hola! Quiero contratar:',
+    `• ${product.name}${product.subtitle ? ` — ${product.subtitle}` : ''} (${formatARS(product.price)})`,
+    ...(product.choice && choice ? [`• E-book: ${choice}`] : []),
+    ...lines.map((line) => `• Extra: ${line.text} (+${formatARS(line.price)})`),
+    `Total: ${formatARS(total)}`,
+    ...(name.trim() ? [`Mi nombre: ${name.trim()}`] : []),
+    '¿Cómo seguimos?',
+  ].join('\n')
 
-  function toggle(id: string) {
-    setExtras((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
+  function toggle(groupId: string, optionId: string) {
+    setPicked((current) => {
+      const list = current[groupId] ?? []
+      return { ...current, [groupId]: list.includes(optionId) ? list.filter((item) => item !== optionId) : [...list, optionId] }
+    })
   }
 
   return (
@@ -83,26 +89,30 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
           </fieldset>
         )}
 
-        {product.extras && (
-          <fieldset className="mt-5">
-            <legend className="text-sm font-semibold text-plum">Sumá extras (opcional)</legend>
-            <div className="mt-2 space-y-2">
-              {product.extras.map((extra) => (
-                <label key={extra.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 text-sm ${extras.includes(extra.id) ? 'border-rose bg-rose-wash' : 'border-line bg-white'}`}>
-                  <input type="checkbox" checked={extras.includes(extra.id)} onChange={() => toggle(extra.id)} className="mt-0.5 accent-rose" />
-                  <span className="flex-1">
-                    <span className="flex justify-between gap-2"><span>{extra.label}</span><span className="shrink-0 font-semibold text-plum">{extra.price === null ? 'A consultar' : `+${formatARS(extra.price)}`}</span></span>
-                    {extra.hint && <span className="mt-0.5 block text-xs text-stone">{extra.hint}</span>}
-                  </span>
-                </label>
-              ))}
+        {groups.map((group) => (
+          <fieldset key={group.id} className="mt-5">
+            <legend className="flex w-full justify-between gap-2 text-sm font-semibold text-plum"><span>{group.label}</span><span className="shrink-0 text-stone">+{formatARS(group.unitPrice)}{group.options.length > 1 ? ' c/u' : ''}</span></legend>
+            {group.hint && <p className="mt-0.5 text-xs text-stone">{group.hint}</p>}
+            <div className={`mt-2 grid gap-2 ${group.options.length > 2 ? 'grid-cols-2' : ''}`}>
+              {group.options.map((option) => {
+                const checked = (picked[group.id] ?? []).includes(option.id)
+                return (
+                  <label key={option.id} className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm ${checked ? 'border-rose bg-rose-wash' : 'border-line bg-white'}`}>
+                    <input type="checkbox" checked={checked} onChange={() => toggle(group.id, option.id)} className="accent-rose" />
+                    {option.label}
+                  </label>
+                )
+              })}
             </div>
+            {group.otherOptionId && (picked[group.id] ?? []).includes(group.otherOptionId) && (
+              <input value={other[group.id] ?? ''} onChange={(event) => setOther((current) => ({ ...current, [group.id]: event.target.value }))} placeholder={group.id === 'idiomas' ? '¿Qué idioma?' : '¿Qué plataforma?'} aria-label={group.id === 'idiomas' ? 'Otro idioma' : 'Otra plataforma'} className="mt-2 w-full rounded-xl border border-rose bg-white px-3 py-2.5 text-sm outline-none" />
+            )}
           </fieldset>
-        )}
+        ))}
 
         <div className="mt-5 flex items-baseline justify-between rounded-2xl bg-sand px-4 py-3">
           <span className="text-sm font-semibold text-stone">Total</span>
-          <span className="text-2xl font-extrabold text-plum">{formatARS(total)}{hasQuote && <span className="ml-1 text-xs font-semibold text-stone">+ inglés a consultar</span>}</span>
+          <span className="text-2xl font-extrabold text-plum">{formatARS(total)}</span>
         </div>
 
         <div className="mt-5 rounded-2xl border border-line bg-cream p-4">
@@ -121,7 +131,8 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
           <input id="order-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Para saber a quién le respondo" className="mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-normal outline-none focus:border-rose" />
         </label>
 
-        <a href={whatsappUrl(message)} target="_blank" rel="noreferrer" className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-whatsapp py-3.5 font-bold text-white shadow-lg transition-transform hover:scale-[1.01] active:scale-[0.99]">
+        {missingOther && <p role="alert" className="mt-3 text-xs font-semibold text-rose">Contame qué idioma o plataforma necesitás en el campo de arriba.</p>}
+        <a href={missingOther ? undefined : whatsappUrl(message)} aria-disabled={missingOther} target="_blank" rel="noreferrer" className={`mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-whatsapp py-3.5 font-bold text-white shadow-lg transition-transform ${missingOther ? 'pointer-events-none opacity-50' : 'hover:scale-[1.01] active:scale-[0.99]'}`}>
           <MessageCircle className="h-5 w-5" />Enviar pedido por WhatsApp
         </a>
         <p className="mt-2 text-center text-xs text-stone">Se abre WhatsApp con tu pedido ya escrito. Solo tenés que enviarlo.</p>

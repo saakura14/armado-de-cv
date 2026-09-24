@@ -11,7 +11,7 @@ export function ProductGrid({ products }: { products: Product[] }) {
 
   return (
     <>
-      <div className="mt-10 grid gap-6 md:grid-cols-3">
+      <div className={`mt-12 grid gap-x-6 gap-y-12 ${products.length >= 4 ? 'md:grid-cols-2 xl:grid-cols-4' : products.length === 3 ? 'md:grid-cols-3' : ''}`}>
         {products.map((product) => (
           <article key={product.id} className={`relative flex flex-col rounded-[28px] bg-sand p-6 pt-10 shadow-[0_18px_40px_-28px_rgba(63,29,43,0.45)] ${product.popular ? 'ring-2 ring-rose' : ''}`}>
             {product.popular && <span className="absolute left-6 top-0 -translate-y-1/2 rounded-full bg-rose px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white">Más elegido</span>}

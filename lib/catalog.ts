@@ -5,6 +5,9 @@ export const CONTACT = {
   whatsappLabel: '11 5106-0953',
   instagram: 'armadodecv.ok',
   email: 'ayuda.armadodecv@gmail.com',
+  whatsappChannel: 'https://whatsapp.com/channel/0029VbBCcipC1Fu5TJUJI01P',
+  instagramChannel: 'https://www.instagram.com/channel/AbZlBmFI1h04VlJz/',
+  testimonials: 'https://www.instagram.com/p/DOyrbETjlLI/',
 }
 
 export const TRANSFER = {
@@ -13,10 +16,14 @@ export const TRANSFER = {
   holder: 'Valeria Yanina Gil',
 }
 
-export type Extra = {
+/** A group of add-ons priced per selected option (e.g. each language costs the same). */
+export type ExtraGroup = {
   id: string
   label: string
-  price: number | null // null = "a consultar"
+  unitPrice: number
+  options: { id: string; label: string }[]
+  /** Option id that asks the customer to type what they need ("Otro"). */
+  otherOptionId?: string
   hint?: string
 }
 
@@ -29,23 +36,56 @@ export type Product = {
   priceNote?: string
   features: string[]
   highlight?: string
-  /** Opciones de las que el cliente elige una (por ejemplo, qué e-book). */
+  /** Options the customer picks exactly one of (e.g. which e-book). */
   choice?: { label: string; options: string[] }
-  extras?: Extra[]
+  extras?: ExtraGroup[]
   notes?: string[]
-  image?: string
   popular?: boolean
 }
 
-const CV_EXTRAS: Extra[] = [
-  { id: 'express', label: 'Versión Express (entrega en 24 hs)', price: 15000 },
-  { id: 'ingles', label: 'Versión en inglés', price: null, hint: 'Te paso el precio por WhatsApp' },
-  { id: 'zonajobs', label: 'Carga de perfil en Zonajobs', price: 15000 },
-  { id: 'bumeran', label: 'Carga de perfil en Bumeran', price: 15000 },
-  { id: 'computrabajo', label: 'Carga de perfil en Computrabajo', price: 15000 },
-]
+export const EXPRESS: ExtraGroup = {
+  id: 'express',
+  label: 'Entrega express',
+  unitPrice: 15000,
+  options: [{ id: 'express', label: 'Versión Express: dentro de las 24 hs hábiles' }],
+}
 
-const ZOOM_NOTE = 'El Zoom requiere turno previo.'
+export const LANGUAGES: ExtraGroup = {
+  id: 'idiomas',
+  label: 'Versión en otro idioma',
+  unitPrice: 15000,
+  hint: 'Cada idioma suma una versión completa de tu CV.',
+  options: [
+    { id: 'ingles', label: 'Inglés' },
+    { id: 'italiano', label: 'Italiano' },
+    { id: 'portugues', label: 'Portugués' },
+    { id: 'frances', label: 'Francés' },
+    { id: 'espanol', label: 'Español' },
+    { id: 'aleman', label: 'Alemán' },
+    { id: 'otro-idioma', label: 'Otro idioma' },
+  ],
+  otherOptionId: 'otro-idioma',
+}
+
+export const PLATFORMS: ExtraGroup = {
+  id: 'plataformas',
+  label: 'Carga de tu perfil en plataformas de empleo',
+  unitPrice: 15000,
+  hint: 'Armo y cargo tu perfil completo en cada plataforma que elijas.',
+  options: [
+    { id: 'zonajobs', label: 'Zonajobs' },
+    { id: 'bumeran', label: 'Bumeran' },
+    { id: 'computrabajo', label: 'Computrabajo' },
+    { id: 'hiringroom', label: 'HiringRoom' },
+    { id: 'indeed', label: 'Indeed' },
+    { id: 'otra-plataforma', label: 'Otra plataforma' },
+  ],
+  otherOptionId: 'otra-plataforma',
+}
+
+const CV_EXTRAS = [EXPRESS, LANGUAGES, PLATFORMS]
+
+const MEET_NOTE = 'La videollamada por Google Meet se coordina con turno previo.'
 const MATERIAL_NOTE = 'El material se envía luego de completar el consentimiento informado y la transferencia total.'
 
 export const PRODUCTS: Product[] = [
@@ -60,7 +100,6 @@ export const PRODUCTS: Product[] = [
       '2 CV nuevos: uno moderno + uno optimizado para filtros ATS (mismo rubro)',
     ],
     extras: CV_EXTRAS,
-    image: '/img/flyer-cv.webp',
   },
   {
     id: 'cv-medium',
@@ -87,6 +126,19 @@ export const PRODUCTS: Product[] = [
       'Carta de presentación',
     ],
     extras: CV_EXTRAS,
+  },
+  {
+    id: 'linkedin',
+    category: 'cv',
+    name: 'Perfil de LinkedIn',
+    subtitle: 'Sin pack de CV',
+    price: 40000,
+    features: [
+      'Armado de tu perfil de LinkedIn completo',
+      'Titular, extracto, experiencia y aptitudes pensados para que te encuentren los reclutadores',
+      '¿También necesitás CV? El Pack Premium incluye LinkedIn',
+    ],
+    extras: [EXPRESS],
   },
   {
     id: 'ebook',
@@ -128,15 +180,15 @@ export const PRODUCTS: Product[] = [
     id: 'asesoria-premium',
     category: 'asesorias',
     name: 'Pack Premium',
-    subtitle: 'Pack Plus + sesión por Zoom',
+    subtitle: 'Pack Plus + sesión 1 a 1',
     price: 60000,
     features: [
       'Los 2 e-books completos',
-      'Sesión individual por Zoom de 60 a 90 minutos',
+      'Sesión individual por Google Meet de 60 a 90 minutos',
       'Feedback personalizado para potenciar tu perfil y gestionar tu ansiedad',
     ],
-    highlight: 'Zoom con turno previo',
-    notes: [ZOOM_NOTE, MATERIAL_NOTE],
+    highlight: 'Google Meet con turno previo',
+    notes: [MEET_NOTE, MATERIAL_NOTE],
   },
   {
     id: 'test-vocacional',
@@ -150,20 +202,21 @@ export const PRODUCTS: Product[] = [
     ],
     extras: [
       {
-        id: 'zoom',
-        label: 'Devolución personalizada por Zoom (uno a uno)',
-        price: 30000,
-        hint: 'Recomendaciones por ejes, tolerancia a la frustración vocacional y plan de objetivos. Con turno previo.',
+        id: 'devolucion',
+        label: 'Devolución personalizada',
+        unitPrice: 30000,
+        options: [{ id: 'meet', label: 'Devolución 1 a 1 por Google Meet' }],
+        hint: 'Recomendaciones prácticas por ejes, tolerancia a la frustración vocacional y plan de intervención con objetivos claros. Con turno previo.',
       },
     ],
     notes: ['Este instrumento no constituye diagnóstico ni evaluación psicométrica estandarizada. Debe utilizarse como herramienta de orientación.'],
   },
 ]
 
-export const DELIVERY_NOTE = 'Demora de cualquier pack de CV: 3 a 4 días hábiles. Versión Express dentro de las 24 hs: +$15.000.'
+export const DELIVERY_NOTE = 'Demora de cualquier pack de CV: 3 a 4 días hábiles. Versión Express dentro de las 24 hs hábiles: +$15.000.'
 
 const ars = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
-export const formatARS = (value: number) => ars.format(value)
+export const formatARS = (value: number) => ars.format(value).replace(/\s/g, '')
 
 export function whatsappUrl(message: string) {
   return `https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent(message)}`
