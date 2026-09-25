@@ -1,5 +1,5 @@
 import { Lock, ShieldCheck } from 'lucide-react'
-import { SakuraSays } from './sakura'
+import { AskSakura } from './sakura-chat'
 
 export function SectionTitle({ script, title, text, id, align = 'center' }: { script: string; title: string; text?: string; id?: string; align?: 'center' | 'left' }) {
   return (
@@ -38,7 +38,7 @@ export function Faq({ items }: { items: { q: string; a: string }[] }) {
     <section id="preguntas" className="scroll-mt-28 px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="faq-title">
       <div className="mx-auto max-w-3xl">
         <SectionTitle id="faq-title" script="Preguntas" title="Frecuentes" />
-        <SakuraSays className="mx-auto mt-8 max-w-xl">¡Hola! Soy la versión anime de Valeria 🌸 Acá te dejo las dudas que más nos llegan. Si la tuya no está, escribinos por WhatsApp.</SakuraSays>
+        <AskSakura />
         <div className="mt-8 space-y-3">
           {items.map((item) => (
             <details key={item.q} className="group rounded-2xl border border-line bg-white px-5 py-4 open:border-rosa">

@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { AuthPanel } from '@/components/auth-panel'
-import { SakuraSays } from '@/components/sakura'
 import { clearPending, loadPending, type PendingOrder } from '@/lib/cart'
 import { formatARS } from '@/lib/catalog'
 import { errorMessage, supabase } from '@/lib/supabase'
@@ -79,7 +78,6 @@ export default function CheckoutPage() {
       <div className="mx-auto grid max-w-5xl items-start gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="space-y-4 lg:sticky lg:top-28">
           <Summary order={pending} />
-          <SakuraSays>{user ? 'Completá tus datos y te muestro cómo transferir. ¡Ya casi!' : 'Creá tu cuenta en un minuto: ahí vas a ver tu pedido y descargar tu material.'}</SakuraSays>
           {pending.notes.length > 0 && (
             <ul className="space-y-1.5 rounded-3xl bg-papel p-5 text-xs leading-relaxed text-ink">{pending.notes.map((item) => <li key={item} className="flex gap-2"><span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rosa" aria-hidden="true" />{item}</li>)}</ul>
           )}
