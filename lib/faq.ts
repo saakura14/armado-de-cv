@@ -32,7 +32,7 @@ export async function getFaqs(options: { sections?: Faq['section'][]; onPageOnly
   return ((data as Faq[] | null) ?? []).map((faq) => ({ ...faq, answer: fillPrices(faq.answer, prices) }))
 }
 
-const STOPWORDS = new Set(['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del', 'a', 'al', 'y', 'o', 'que', 'en', 'es', 'se', 'me', 'mi', 'mis', 'tu', 'te', 'lo', 'le', 'por', 'para', 'con', 'como', 'cual', 'hay', 'si', 'no', 'yo', 'vos', 'hola', 'quiero', 'queria', 'quisiera', 'saber', 'puedo', 'tengo', 'tiene', 'son', 'esta', 'este', 'eso', 'hacen', 'hace', 'ustedes', 'buenas', 'buen', 'dia', 'gracias', 'consulta'])
+const STOPWORDS = new Set(['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del', 'a', 'al', 'y', 'o', 'que', 'en', 'es', 'se', 'me', 'mi', 'mis', 'tu', 'te', 'lo', 'le', 'por', 'para', 'con', 'como', 'cual', 'hay', 'si', 'no', 'yo', 'vos', 'hola', 'quiero', 'queria', 'quisiera', 'saber', 'puedo', 'tengo', 'tiene', 'son', 'esta', 'este', 'eso', 'hacen', 'hace', 'ustedes', 'buenas', 'buen', 'dia', 'gracias', 'consulta', 'trabajan', 'trabajas', 'trabaja', 'gente', 'persona', 'personas', 'alguien', 'otro', 'otros', 'otra', 'otras'])
 
 export function normalize(text: string) {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9ñ\s]/g, ' ')
