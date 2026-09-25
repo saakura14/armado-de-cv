@@ -20,7 +20,7 @@ const DELIVERY_LABEL: Record<Delivery, string> = {
   session: 'Incluye sesión 1 a 1 por Meet',
   course: 'Curso pre-grabado',
 }
-const EDITABLE_CATEGORIES: Category[] = ['cv', 'asesorias', 'vocacional', 'sesion']
+const EDITABLE_CATEGORIES: Category[] = ['cv', 'guias', 'asesorias', 'vocacional', 'sesion']
 
 function ProductEditor({ product, groups, onChanged }: { product: ProductRow; groups: GroupRow[]; onChanged: () => void }) {
   const [open, setOpen] = useState(false)
@@ -189,7 +189,7 @@ export function ProductsAdmin() {
     if (!name) return
     const { error } = await supabase.from('products').insert({
       id: `${slugify(name)}-${Date.now().toString(36).slice(-4)}`, name, category: newCategory, price: 0, active: false,
-      delivery: newCategory === 'sesion' ? 'session' : newCategory === 'asesorias' ? 'digital' : 'service',
+      delivery: newCategory === 'sesion' ? 'session' : newCategory === 'asesorias' || newCategory === 'guias' ? 'digital' : 'service',
       session_minutes: newCategory === 'sesion' ? 60 : null, sort: 99,
     })
     if (error) flash.show('error', errorMessage(error))

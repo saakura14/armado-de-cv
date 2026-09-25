@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Publishable (public) credentials: safe to ship in the browser. Every table is protected by RLS.
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wdcijkjmdfypltbafdol.supabase.co'
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_CksvQRs2oz0m36dP50WX8A_1QBUcpXQ'
+export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://wdcijkjmdfypltbafdol.supabase.co'
+export const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_CksvQRs2oz0m36dP50WX8A_1QBUcpXQ'
 
 const isBrowser = typeof window !== 'undefined'
 

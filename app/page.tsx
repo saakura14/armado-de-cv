@@ -29,7 +29,7 @@ const steps = [
 ]
 
 export default async function Home() {
-  const [cvProducts, faqs] = await Promise.all([getProducts(['cv']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
+  const [cvProducts, guides, faqs] = await Promise.all([getProducts(['cv']), getProducts(['guias']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
   const extraPrice = (id: string) => cvProducts.flatMap((product) => product.extras).find((group) => group.id === id)?.unitPrice ?? 15000
   const price = { language: extraPrice('idiomas') }
   return (
@@ -82,6 +82,16 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Self-service guides (only shown once at least one is published) */}
+      {guides.length > 0 && (
+        <section id="guias" className="scroll-mt-28 bg-arena/40 px-4 py-16 sm:px-6 lg:py-20" aria-labelledby="guias-title">
+          <div className="mx-auto max-w-6xl">
+            <SectionTitle id="guias-title" script="Guías" title="Para tu búsqueda laboral" text="E-books prácticos para aprovechar LinkedIn, los portales de empleo y los filtros ATS. Los descargás apenas confirmo tu pago." />
+            <ProductGrid products={guides} tone="asesorias" />
+          </div>
+        </section>
+      )}
 
       {/* Cross-link to the Asesorías line */}
       <section className="px-4 sm:px-6">
