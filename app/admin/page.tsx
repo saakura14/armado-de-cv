@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { BookOpen, CreditCard, Loader2, PlayCircle, ShoppingBag, Tag, Video } from 'lucide-react'
+import { BookOpen, CreditCard, Loader2, HelpCircle, PlayCircle, ShoppingBag, Tag, Video } from 'lucide-react'
 import { AuthPanel } from '@/components/auth-panel'
 import { CoursesAdmin } from '@/components/admin/courses-admin'
 import { EbooksAdmin } from '@/components/admin/ebooks-admin'
+import { FaqsAdmin } from '@/components/admin/faqs-admin'
 import { OrdersAdmin } from '@/components/admin/orders-admin'
 import { PaymentAdmin } from '@/components/admin/payment-admin'
 import { ProductsAdmin } from '@/components/admin/products-admin'
@@ -19,6 +20,7 @@ const TABS = [
   { id: 'productos', label: 'Packs y precios', icon: Tag },
   { id: 'ebooks', label: 'E-books', icon: BookOpen },
   { id: 'cursos', label: 'Cursos', icon: PlayCircle },
+  { id: 'sakura', label: 'Sakura (preguntas)', icon: HelpCircle },
   { id: 'pago', label: 'Datos de pago', icon: CreditCard },
 ] as const
 type TabId = (typeof TABS)[number]['id']
@@ -77,6 +79,7 @@ export default function AdminPage() {
           {tab === 'productos' && <ProductsAdmin />}
           {tab === 'ebooks' && <EbooksAdmin />}
           {tab === 'cursos' && <CoursesAdmin />}
+          {tab === 'sakura' && <FaqsAdmin />}
           {tab === 'pago' && <PaymentAdmin />}
         </div>
       </div>

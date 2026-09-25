@@ -4,6 +4,7 @@ import { Clock, MessageCircle, Video } from 'lucide-react'
 import { ProductGrid } from '@/components/product-grid'
 import { Faq, HowToBuy, SectionTitle } from '@/components/sections'
 import { getProducts, whatsappUrl } from '@/lib/catalog'
+import { getFaqs } from '@/lib/faq'
 
 export const metadata: Metadata = {
   title: 'Asesorías: entrevistas, psicotécnicos y test vocacional',
@@ -26,15 +27,8 @@ const steps = [
   { title: 'Recibí tu material', text: 'Los e-books se habilitan en "Mi cuenta" al confirmar el pago; las sesiones por Meet se coordinan con turno.' },
 ]
 
-const faqs = [
-  { q: '¿Cómo recibo los e-books?', a: 'Son archivos Word que podés leer desde el celular, la tablet o la computadora. Los descargás desde "Mi cuenta" apenas confirmo tu pago.' },
-  { q: '¿Cómo es la sesión 1 a 1?', a: 'Es una videollamada por Google Meet de 60 a 90 minutos. Una vez confirmado el pago coordinamos día y horario por WhatsApp y te paso el link de la reunión.' },
-  { q: '¿El test vocacional es un diagnóstico?', a: 'No. Es una herramienta de orientación: no constituye diagnóstico ni evaluación psicométrica estandarizada.' },
-  { q: '¿Me garantiza pasar la entrevista o el psicotécnico?', a: 'Prepararte no garantiza un resultado, pero sí te permite mostrarte mejor: con menos ansiedad, más claridad y coherencia al responder. Nada de falsear respuestas.' },
-]
-
 export default async function AsesoriasPage() {
-  const [prepProducts, vocational] = await Promise.all([getProducts(['asesorias', 'sesion']), getProducts(['vocacional'])])
+  const [prepProducts, vocational, faqs] = await Promise.all([getProducts(['asesorias', 'sesion']), getProducts(['vocacional']), getFaqs({ sections: ['asesorias'], onPageOnly: true })])
   return (
     <div className="bg-arena/45">
       {/* Hero */}
@@ -105,7 +99,7 @@ export default async function AsesoriasPage() {
       </section>
 
       <HowToBuy steps={steps} note="El material se envía únicamente luego de completar el consentimiento informado y la transferencia total." />
-      <div className="bg-blanco"><Faq items={faqs} /></div>
+      <div className="bg-blanco"><Faq items={faqs.map((faq) => ({ q: faq.question, a: faq.answer }))} /></div>
     </div>
   )
 }

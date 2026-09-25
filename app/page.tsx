@@ -4,6 +4,7 @@ import { ArrowRight, Camera, Clock, Megaphone, MessageCircle, Star } from 'lucid
 import { ProductGrid } from '@/components/product-grid'
 import { Faq, HowToBuy, SectionTitle } from '@/components/sections'
 import { CONTACT, formatARS, getProducts, whatsappUrl } from '@/lib/catalog'
+import { getFaqs } from '@/lib/faq'
 
 // Prices are edited from /admin; the page refreshes them every minute.
 export const revalidate = 60
@@ -25,22 +26,10 @@ const steps = [
   { title: 'Coordinamos', text: 'Me escribís por WhatsApp con tu número de pedido y arranco con tu CV.' },
 ]
 
-function buildFaqs(price: { express: number; language: number; platform: number; linkedin: number }) {
-  return [
-    { q: '¿Qué es un CV optimizado para filtros ATS?', a: 'Muchas empresas usan sistemas (ATS) que leen los CV automáticamente antes de que los vea una persona. El CV ATS está armado con la estructura y las palabras clave que esos sistemas reconocen, para que tu postulación no quede descartada por el formato.' },
-    { q: '¿Cuánto tarda mi CV?', a: '3 a 4 días hábiles desde que tengo toda tu información y el pago confirmado. No trabajo fines de semana, y si contratás después de las 17 hs empiezo al día siguiente por la tarde. Con la versión Express, dentro de las 24 hs hábiles por ' + formatARS(price.express) + ' extra (avisame antes de empezar).' },
-    { q: '¿Hacen el CV en otros idiomas?', a: 'Sí: inglés, italiano, portugués, francés, español, alemán y otros a consultar. Cada idioma suma ' + formatARS(price.language) + '.' },
-    { q: '¿En qué plataformas cargan mi perfil?', a: 'Zonajobs, Bumeran, Computrabajo, HiringRoom, Indeed y otras a consultar: ' + formatARS(price.platform) + ' cada una, sumadas a cualquier pack. LinkedIn sin pack cuesta ' + formatARS(price.linkedin) + '; el Pack Premium ya lo incluye.' },
-    { q: '¿Cómo pago?', a: 'Por transferencia bancaria. Cuando confirmás tu pedido en la web te muestro los datos para transferir y subís el comprobante ahí mismo. Empiezo a trabajar una vez abonado el total.' },
-    { q: '¿Puedo pedir cambios?', a: 'Sí. Te paso un boceto para ajustarlo juntos y, una vez entregado, tenés 24 hs para pedir cambios sin costo. Pasado ese plazo, cada cambio cuesta $5.000.' },
-  { q: '¿Puedo mezclar rubros en un pack?', a: 'Es 1 pack por persona y por rubro: mezclar muchos rubros hace que el CV no funcione bien con los filtros ATS. Si apuntás a dos rubros distintos, lo ideal son dos packs.' },
-  ]
-}
-
 export default async function Home() {
-  const cvProducts = await getProducts(['cv'])
+  const [cvProducts, faqs] = await Promise.all([getProducts(['cv']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
   const extraPrice = (id: string) => cvProducts.flatMap((product) => product.extras).find((group) => group.id === id)?.unitPrice ?? 15000
-  const price = { express: extraPrice('express'), language: extraPrice('idiomas'), platform: extraPrice('plataformas'), linkedin: cvProducts.find((product) => product.id === 'linkedin')?.price ?? 40000 }
+  const price = { language: extraPrice('idiomas') }
   return (
     <>
       {/* Hero */}
@@ -152,7 +141,7 @@ export default async function Home() {
       </section>
 
       <HowToBuy steps={steps} note="Al confirmar el pedido aceptás los términos y condiciones: no hay devoluciones de packs contratados una vez iniciado el trabajo." />
-      <Faq items={buildFaqs(price)} />
+      <Faq items={faqs.map((faq) => ({ q: faq.question, a: faq.answer }))} />
     </>
   )
 }
