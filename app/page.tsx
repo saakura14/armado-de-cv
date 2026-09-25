@@ -3,34 +3,44 @@ import Link from 'next/link'
 import { ArrowRight, Camera, Clock, Megaphone, MessageCircle, Star } from 'lucide-react'
 import { ProductGrid } from '@/components/product-grid'
 import { Faq, HowToBuy, SectionTitle } from '@/components/sections'
-import { CONTACT, DELIVERY_NOTE, PRODUCTS, formatARS, whatsappUrl } from '@/lib/catalog'
+import { CONTACT, formatARS, getProducts, whatsappUrl } from '@/lib/catalog'
 
-const cvProducts = PRODUCTS.filter((product) => product.category === 'cv')
+// Prices are edited from /admin; the page refreshes them every minute.
+export const revalidate = 60
+
+const DELIVERY_NOTE = 'Demora de cualquier pack: 3 a 4 días hábiles desde que tengo toda tu información (no trabajo fines de semana). Versión Express dentro de las 24 hs hábiles.'
 
 // iconos.webp is a 2x2 sheet: people · info · payment · handshake
 const promises = [
   { position: '0% 0%', title: 'Atención personalizada', text: 'Trabajo sobre tu experiencia real y tu rubro, sin plantillas genéricas.' },
   { position: '100% 0%', title: 'Todo claro desde el inicio', text: 'Sabés qué incluye cada pack, cuánto cuesta y cuándo lo recibís.' },
-  { position: '0% 100%', title: 'Pago simple', text: 'Transferencia bancaria y comprobante por WhatsApp.' },
+  { position: '0% 100%', title: 'Pago simple', text: 'Transferencia bancaria y subís el comprobante desde la web.' },
   { position: '100% 100%', title: 'Acompañamiento', text: 'Te acompaño hasta la entrega y respondo tus dudas.' },
 ]
 
 const steps = [
   { title: 'Elegí tu pack', text: 'Tocá "Lo quiero", sumá idiomas, plataformas o entrega express y mirá el total.' },
-  { title: 'Enviá el pedido', text: 'Se abre WhatsApp con tu pedido ya escrito. Solo lo enviás.' },
-  { title: 'Transferí', text: 'Al alias armado.cv y mandame el comprobante.' },
-  { title: 'Recibí tu CV', text: 'En 3 a 4 días hábiles, o en 24 hs hábiles con la versión Express.' },
+  { title: 'Confirmá el pedido', text: 'Ingresá con Google o tu email y aceptá las condiciones.' },
+  { title: 'Transferí', text: 'Te muestro los datos para transferir y subís el comprobante ahí mismo.' },
+  { title: 'Coordinamos', text: 'Me escribís por WhatsApp con tu número de pedido y arranco con tu CV.' },
 ]
 
-const faqs = [
-  { q: '¿Qué es un CV optimizado para filtros ATS?', a: 'Muchas empresas usan sistemas (ATS) que leen los CV automáticamente antes de que los vea una persona. El CV ATS está armado con la estructura y las palabras clave que esos sistemas reconocen, para que tu postulación no quede descartada por el formato.' },
-  { q: '¿Cuánto tarda mi CV?', a: 'Cualquier pack se entrega en 3 a 4 días hábiles desde que se confirma el pago. Con la versión Express, dentro de las 24 hs hábiles por $15.000 extra.' },
-  { q: '¿Hacen el CV en otros idiomas?', a: 'Sí: inglés, italiano, portugués, francés, español, alemán y otros a consultar. Cada idioma suma $15.000.' },
-  { q: '¿En qué plataformas cargan mi perfil?', a: 'Zonajobs, Bumeran, Computrabajo, HiringRoom, Indeed y otras a consultar: $15.000 cada una, sumadas a cualquier pack. LinkedIn sin pack cuesta $40.000; el Pack Premium ya lo incluye.' },
-  { q: '¿Cómo pago?', a: 'Por transferencia bancaria al alias armado.cv (titular Valeria Yanina Gil). Después me mandás el comprobante por WhatsApp y arrancamos.' },
-]
+function buildFaqs(price: { express: number; language: number; platform: number; linkedin: number }) {
+  return [
+    { q: '¿Qué es un CV optimizado para filtros ATS?', a: 'Muchas empresas usan sistemas (ATS) que leen los CV automáticamente antes de que los vea una persona. El CV ATS está armado con la estructura y las palabras clave que esos sistemas reconocen, para que tu postulación no quede descartada por el formato.' },
+    { q: '¿Cuánto tarda mi CV?', a: '3 a 4 días hábiles desde que tengo toda tu información y el pago confirmado. No trabajo fines de semana, y si contratás después de las 17 hs empiezo al día siguiente por la tarde. Con la versión Express, dentro de las 24 hs hábiles por ' + formatARS(price.express) + ' extra (avisame antes de empezar).' },
+    { q: '¿Hacen el CV en otros idiomas?', a: 'Sí: inglés, italiano, portugués, francés, español, alemán y otros a consultar. Cada idioma suma ' + formatARS(price.language) + '.' },
+    { q: '¿En qué plataformas cargan mi perfil?', a: 'Zonajobs, Bumeran, Computrabajo, HiringRoom, Indeed y otras a consultar: ' + formatARS(price.platform) + ' cada una, sumadas a cualquier pack. LinkedIn sin pack cuesta ' + formatARS(price.linkedin) + '; el Pack Premium ya lo incluye.' },
+    { q: '¿Cómo pago?', a: 'Por transferencia bancaria. Cuando confirmás tu pedido en la web te muestro los datos para transferir y subís el comprobante ahí mismo. Empiezo a trabajar una vez abonado el total.' },
+    { q: '¿Puedo pedir cambios?', a: 'Sí. Te paso un boceto para ajustarlo juntos y, una vez entregado, tenés 24 hs para pedir cambios sin costo. Pasado ese plazo, cada cambio cuesta $5.000.' },
+  { q: '¿Puedo mezclar rubros en un pack?', a: 'Es 1 pack por persona y por rubro: mezclar muchos rubros hace que el CV no funcione bien con los filtros ATS. Si apuntás a dos rubros distintos, lo ideal son dos packs.' },
+  ]
+}
 
-export default function Home() {
+export default async function Home() {
+  const cvProducts = await getProducts(['cv'])
+  const extraPrice = (id: string) => cvProducts.flatMap((product) => product.extras).find((group) => group.id === id)?.unitPrice ?? 15000
+  const price = { express: extraPrice('express'), language: extraPrice('idiomas'), platform: extraPrice('plataformas'), linkedin: cvProducts.find((product) => product.id === 'linkedin')?.price ?? 40000 }
   return (
     <>
       {/* Hero */}
@@ -71,7 +81,7 @@ export default function Home() {
           <div className="mt-12 grid gap-4 md:grid-cols-2">
             <div className="rounded-3xl bg-petalo-wash px-6 py-5">
               <h3 className="font-bold text-ciruela">Idiomas y plataformas</h3>
-              <p className="mt-1 text-sm leading-relaxed text-ink">Sumá a cualquier pack versiones en inglés, italiano, portugués, francés, alemán u otro idioma, y la carga de tu perfil en Zonajobs, Bumeran, Computrabajo, HiringRoom, Indeed u otras. <b>{formatARS(15000)} cada uno.</b></p>
+              <p className="mt-1 text-sm leading-relaxed text-ink">Sumá a cualquier pack versiones en inglés, italiano, portugués, francés, alemán u otro idioma, y la carga de tu perfil en Zonajobs, Bumeran, Computrabajo, HiringRoom, Indeed u otras. <b>{formatARS(price.language)} cada uno.</b></p>
             </div>
             <div className="rounded-3xl bg-petalo-wash px-6 py-5">
               <h3 className="font-bold text-ciruela">Plazos de entrega</h3>
@@ -141,8 +151,8 @@ export default function Home() {
         </div>
       </section>
 
-      <HowToBuy steps={steps} />
-      <Faq items={faqs} />
+      <HowToBuy steps={steps} note="Al confirmar el pedido aceptás los términos y condiciones: no hay devoluciones de packs contratados una vez iniciado el trabajo." />
+      <Faq items={buildFaqs(price)} />
     </>
   )
 }

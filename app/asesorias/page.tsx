@@ -3,15 +3,15 @@ import Image from 'next/image'
 import { Clock, MessageCircle, Video } from 'lucide-react'
 import { ProductGrid } from '@/components/product-grid'
 import { Faq, HowToBuy, SectionTitle } from '@/components/sections'
-import { PRODUCTS, whatsappUrl } from '@/lib/catalog'
+import { getProducts, whatsappUrl } from '@/lib/catalog'
 
 export const metadata: Metadata = {
   title: 'Asesorías: entrevistas, psicotécnicos y test vocacional',
   description: 'E-books para preparar entrevistas laborales y psicotécnicos, sesiones 1 a 1 por Google Meet y test de orientación vocacional.',
 }
 
-const prepProducts = PRODUCTS.filter((product) => product.category === 'asesorias')
-const vocational = PRODUCTS.filter((product) => product.category === 'vocacional')
+// Prices are edited from /admin; the page refreshes them every minute.
+export const revalidate = 60
 
 const topics = [
   { title: 'Checklist de preparación', items: ['Checklists + errores frecuentes', 'Guía del día de la evaluación laboral, paso a paso', 'Qué hacer mientras esperás los resultados', 'Manejo de ansiedad en entrevistas y tests'] },
@@ -21,28 +21,28 @@ const topics = [
 
 const steps = [
   { title: 'Elegí', text: 'Un e-book, un pack o el test vocacional. Tocá "Lo quiero".' },
-  { title: 'Enviá el pedido', text: 'Se abre WhatsApp con tu pedido ya escrito.' },
-  { title: 'Transferí y confirmá', text: 'Al alias armado.cv, mandame el comprobante y completá el consentimiento informado.' },
-  { title: 'Recibí tu material', text: 'Los e-books te llegan al confirmar el pago; las sesiones por Meet se coordinan con turno.' },
+  { title: 'Confirmá el pedido', text: 'Ingresá con Google o tu email y aceptá las condiciones y el consentimiento informado.' },
+  { title: 'Transferí', text: 'Te muestro los datos para transferir y subís el comprobante ahí mismo.' },
+  { title: 'Recibí tu material', text: 'Los e-books se habilitan en "Mi cuenta" al confirmar el pago; las sesiones por Meet se coordinan con turno.' },
 ]
 
 const faqs = [
-  { q: '¿Cómo recibo los e-books?', a: 'Son archivos Word que podés leer desde el celular, la tablet o la computadora. Te los envío apenas completás el consentimiento informado y la transferencia total.' },
+  { q: '¿Cómo recibo los e-books?', a: 'Son archivos Word que podés leer desde el celular, la tablet o la computadora. Los descargás desde "Mi cuenta" apenas confirmo tu pago.' },
   { q: '¿Cómo es la sesión 1 a 1?', a: 'Es una videollamada por Google Meet de 60 a 90 minutos. Una vez confirmado el pago coordinamos día y horario por WhatsApp y te paso el link de la reunión.' },
   { q: '¿El test vocacional es un diagnóstico?', a: 'No. Es una herramienta de orientación: no constituye diagnóstico ni evaluación psicométrica estandarizada.' },
   { q: '¿Me garantiza pasar la entrevista o el psicotécnico?', a: 'Prepararte no garantiza un resultado, pero sí te permite mostrarte mejor: con menos ansiedad, más claridad y coherencia al responder. Nada de falsear respuestas.' },
 ]
 
-export default function AsesoriasPage() {
+export default async function AsesoriasPage() {
+  const [prepProducts, vocational] = await Promise.all([getProducts(['asesorias', 'sesion']), getProducts(['vocacional'])])
   return (
     <div className="bg-arena/45">
       {/* Hero */}
       <section className="px-4 pb-10 pt-10 sm:px-6 lg:pb-20 lg:pt-16">
         <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/asesorias-horizontal.svg" alt="Armado de CV · Asesorías" className="h-14 w-auto sm:h-16" />
-            <h1 className="mt-6 text-[32px] font-extrabold leading-[1.12] text-ciruela sm:text-5xl">¿Tenés una entrevista o un psicotécnico y no sabés qué esperar?</h1>
+            <p className="font-script text-5xl leading-none text-rosa sm:text-6xl">Preparate con calma</p>
+            <h1 className="mt-3 text-[32px] font-extrabold leading-[1.12] text-ciruela sm:text-5xl">¿Tenés una entrevista o un psicotécnico y no sabés qué esperar?</h1>
             <p className="mt-5 text-lg leading-relaxed text-piedra">Preparate con guías prácticas, ejercitación y feedback personalizado. Menos ansiedad, más claridad y más confianza en tu propio recorrido.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a href="#precios" className="inline-flex min-h-12 items-center justify-center rounded-full bg-ciruela px-7 py-3.5 font-display font-bold text-white transition-colors hover:bg-rosa">Ver e-books y packs</a>
@@ -100,7 +100,7 @@ export default function AsesoriasPage() {
         <div className="mx-auto max-w-6xl">
           <SectionTitle id="vocacional-title" script="Test vocacional" title="Orientación para elegir tu camino" text="Batería CHASIDE y Test Vocacional versión profesional adaptada (TV-A), con devolución por email o en un encuentro 1 a 1 por Google Meet." />
           <div className="mx-auto max-w-md"><ProductGrid products={vocational} tone="asesorias" /></div>
-          <p className="mx-auto mt-8 max-w-2xl rounded-3xl bg-arena px-6 py-4 text-center text-sm text-piedra">{vocational[0]?.notes?.[0]}</p>
+          {vocational[0]?.notes[0] && <p className="mx-auto mt-8 max-w-2xl rounded-3xl bg-arena px-6 py-4 text-center text-sm text-piedra">{vocational[0].notes[0]}</p>}
         </div>
       </section>
 

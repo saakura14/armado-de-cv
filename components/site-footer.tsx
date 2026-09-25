@@ -5,7 +5,7 @@ import { CONTACT, whatsappUrl } from '@/lib/catalog'
 export function SiteFooter() {
   return (
     <footer className="bg-ciruela px-4 pb-10 pt-12 text-white/80 sm:px-6">
-      <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-[1.2fr_1fr_1fr]">
+      <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-[1.2fr_1fr_1fr_1fr]">
         <div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/logo-horizontal-blanco.svg" alt="Armado de CV" className="h-12 w-auto" />
@@ -16,8 +16,19 @@ export function SiteFooter() {
           <ul className="mt-4 space-y-2 text-sm">
             <li><Link href="/" className="hover:text-white">Armado de CV</Link></li>
             <li><Link href="/asesorias" className="hover:text-white">Asesorías</Link></li>
+            <li><Link href="/cursos" className="hover:text-white">Cursos</Link></li>
+            <li><Link href="/cuenta" className="hover:text-white">Mi cuenta</Link></li>
             <li><a href={CONTACT.testimonials} target="_blank" rel="noreferrer" className="hover:text-white">Testimonios</a></li>
           </ul>
+        </div>
+        <div>
+          <h2 className="font-display text-xs font-semibold uppercase tracking-[0.3em] text-petalo">Legales</h2>
+          <ul className="mt-4 space-y-2 text-sm">
+            <li><Link href="/terminos" className="hover:text-white">Términos y condiciones</Link></li>
+            <li><Link href="/privacidad" className="hover:text-white">Política de privacidad</Link></li>
+            <li><Link href="/terminos#devoluciones" className="hover:text-white">Cambios y devoluciones</Link></li>
+          </ul>
+          <Link href="/arrepentimiento" className="mt-4 inline-flex rounded-full border border-white/40 px-4 py-2 font-display text-xs font-bold text-white hover:bg-white hover:text-ciruela">Botón de arrepentimiento</Link>
         </div>
         <div>
           <h2 className="font-display text-xs font-semibold uppercase tracking-[0.3em] text-petalo">Contacto</h2>

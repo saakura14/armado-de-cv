@@ -1,5 +1,4 @@
-import { ShieldCheck } from 'lucide-react'
-import { TRANSFER } from '@/lib/catalog'
+import { Lock, ShieldCheck } from 'lucide-react'
 
 export function SectionTitle({ script, title, text, id, align = 'center' }: { script: string; title: string; text?: string; id?: string; align?: 'center' | 'left' }) {
   return (
@@ -26,11 +25,7 @@ export function HowToBuy({ steps, note }: { steps: { title: string; text: string
             </li>
           ))}
         </ol>
-        <div className="mx-auto mt-10 flex max-w-2xl flex-col items-center gap-1 rounded-3xl bg-white/10 px-6 py-5 text-center text-sm sm:flex-row sm:justify-center sm:gap-6">
-          <span>Alias: <b className="font-mono">{TRANSFER.alias}</b></span>
-          <span className="hidden sm:inline" aria-hidden="true">·</span>
-          <span>Titular: <b>{TRANSFER.holder}</b></span>
-        </div>
+        <p className="mx-auto mt-10 flex max-w-2xl items-center justify-center gap-2 rounded-3xl bg-white/10 px-6 py-4 text-center text-sm"><Lock className="h-4 w-4 shrink-0 text-petalo" />Pagás por transferencia bancaria. Los datos para transferir te aparecen al confirmar tu pedido.</p>
         {note && <p className="mx-auto mt-4 flex max-w-2xl items-start justify-center gap-2 text-center text-xs text-white/70"><ShieldCheck className="h-4 w-4 shrink-0" />{note}</p>}
       </div>
     </section>
