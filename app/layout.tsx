@@ -10,7 +10,7 @@ const montserrat = Montserrat({ subsets: ['latin'], variable: '--font-montserrat
 const nunito = Nunito_Sans({ subsets: ['latin'], variable: '--font-nunito', display: 'swap' })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://armadodecv.vercel.app'),
+  metadataBase: new URL('https://www.armadodecv.com'),
   title: { default: 'Armado de CV — Tu CV listo para llegar a la entrevista', template: '%s · Armado de CV' },
   description: 'CV modernos y optimizados para filtros ATS, perfil de LinkedIn, cartas de presentación y carga en plataformas de empleo. Asesorías para entrevistas, psicotécnicos y test vocacional.',
   applicationName: 'Armado de CV',

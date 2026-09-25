@@ -12,6 +12,10 @@ export function ProductGrid({ products, tone = 'cv' }: { products: Product[]; to
   const ring = tone === 'cv' ? 'border-blanco' : 'border-arena'
   const columns = products.length >= 4 ? 'md:grid-cols-2 xl:grid-cols-4' : products.length === 3 ? 'md:grid-cols-3' : products.length === 2 ? 'md:grid-cols-2' : ''
 
+  if (products.length === 0) {
+    return <p className="mx-auto mt-10 max-w-md rounded-3xl bg-arena px-6 py-5 text-center text-sm text-piedra">No pudimos cargar los precios en este momento. Escribime por WhatsApp y te paso todo.</p>
+  }
+
   return (
     <>
       <div className={`mt-14 grid gap-x-6 gap-y-14 ${columns}`}>
@@ -26,7 +30,7 @@ export function ProductGrid({ products, tone = 'cv' }: { products: Product[]; to
             {product.subtitle && <h3 className="mt-2 pr-16 font-display text-xs font-semibold uppercase tracking-[0.18em] text-ciruela/80">{product.subtitle}</h3>}
             <ul className="mt-5 flex-1 space-y-2.5 text-[15px] leading-snug">
               {product.features.map((feature) => <li key={feature} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-rosa" />{feature}</li>)}
-              {product.choice && <li className="flex gap-2 text-sm text-piedra"><Check className="mt-0.5 h-4 w-4 shrink-0 text-rosa" />Elegís entre: {product.choice.options.join(' · ')}</li>}
+              {product.choice && <li className="flex gap-2 text-sm text-piedra"><Check className="mt-0.5 h-4 w-4 shrink-0 text-rosa" />Elegís entre: {product.choice.options.map((option) => option.label).join(' · ')}</li>}
             </ul>
             {product.highlight && <p className="mt-4 self-start rounded-full bg-petalo-wash px-3 py-1 font-display text-xs font-semibold text-rosa-deep">{product.highlight}</p>}
             <button type="button" onClick={() => setSelected(product)} className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ciruela px-5 py-3 font-display text-sm font-bold text-white transition-colors hover:bg-rosa active:scale-[0.98]">
