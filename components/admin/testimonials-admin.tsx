@@ -5,16 +5,16 @@ import { Plus, Star, Trash2 } from 'lucide-react'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, Field, cardClass, inputClass, useFlash } from './ui'
 
-type Row = { id: string; name: string; text: string; service: string | null; rating: number; active: boolean; sort: number }
+type Row = { id: string; name: string; text: string; service: string | null; rating: number; active: boolean; sort: number; instagram: string | null }
 
 function TestimonialEditor({ item, onChanged }: { item: Row; onChanged: () => void }) {
-  const [form, setForm] = useState({ name: item.name, text: item.text, service: item.service ?? '', rating: item.rating, active: item.active, sort: String(item.sort) })
+  const [form, setForm] = useState({ name: item.name, text: item.text, service: item.service ?? '', instagram: item.instagram ?? '', rating: item.rating, active: item.active, sort: String(item.sort) })
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
 
   async function save() {
     setBusy(true)
-    const { error } = await supabase.from('testimonials').update({ name: form.name.trim(), text: form.text.trim(), service: form.service.trim() || null, rating: form.rating, active: form.active, sort: Number(form.sort) || 0 }).eq('id', item.id)
+    const { error } = await supabase.from('testimonials').update({ name: form.name.trim(), text: form.text.trim(), service: form.service.trim() || null, instagram: form.instagram.trim().replace(/^@/, '') || null, rating: form.rating, active: form.active, sort: Number(form.sort) || 0 }).eq('id', item.id)
     setBusy(false)
     if (error) flash.show('error', errorMessage(error)); else { flash.show('ok', 'Guardado. Se ve en la web en 1 minuto.'); onChanged() }
   }
@@ -31,6 +31,7 @@ function TestimonialEditor({ item, onChanged }: { item: Row; onChanged: () => vo
         <Field label="Nombre (ej: Lucía G.)"><input value={form.name} onChange={(event) => setForm((c) => ({ ...c, name: event.target.value }))} className={inputClass} /></Field>
         <Field label="Servicio (opcional)"><input value={form.service} onChange={(event) => setForm((c) => ({ ...c, service: event.target.value }))} placeholder="Pack Premium" className={inputClass} /></Field>
       </div>
+      <Field label="Instagram de la clienta (sin @, opcional)"><input value={form.instagram} onChange={(event) => setForm((c) => ({ ...c, instagram: event.target.value }))} placeholder="usuario" className={inputClass} /></Field>
       <Field label="Testimonio"><textarea rows={3} value={form.text} onChange={(event) => setForm((c) => ({ ...c, text: event.target.value }))} className={inputClass} /></Field>
       <div className="flex flex-wrap items-center gap-4 text-sm">
         <div className="flex items-center gap-1" role="radiogroup" aria-label="Estrellas">
