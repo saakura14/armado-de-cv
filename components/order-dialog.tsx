@@ -6,6 +6,7 @@ import { ArrowRight, Check, Plus, Sparkles, Video, X, Zap } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS, whatsappUrl, type ExtraGroup, type Product } from '@/lib/catalog'
 import { savePending } from '@/lib/cart'
+import { track } from '@/lib/pixel'
 
 // Short codes read well everywhere (flag emojis render as letters on Windows).
 const LANGUAGE_CODE: Record<string, string> = { ingles: 'EN', italiano: 'IT', portugues: 'PT', frances: 'FR', espanol: 'ES', aleman: 'DE', 'otro-idioma': '+' }
@@ -44,6 +45,8 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
   const [choice, setChoice] = useState(product.choice?.options[0]?.id ?? '')
   const [pulse, setPulse] = useState(0)
   const closeButton = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => { track('ViewContent', { content_name: product.name, content_ids: [product.id], value: product.price, currency: 'ARS' }) }, [product])
 
   useEffect(() => {
     closeButton.current?.focus()

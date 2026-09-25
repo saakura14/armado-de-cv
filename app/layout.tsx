@@ -4,6 +4,7 @@ import { SiteHeader } from '@/components/site-header'
 import { BottomNav } from '@/components/bottom-nav'
 import { SiteFooter } from '@/components/site-footer'
 import { SakuraChat } from '@/components/sakura-chat'
+import { MetaPixel } from '@/components/meta-pixel'
 import './globals.css'
 
 const cookie = Cookie({ subsets: ['latin'], variable: '--font-cookie', display: 'swap', weight: '400' })
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <SiteFooter />
         <BottomNav />
         <SakuraChat />
+        <MetaPixel />
       </body>
     </html>
   )
