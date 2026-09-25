@@ -11,6 +11,7 @@ import { formatARS, whatsappUrl } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, needsCoordination, type Order } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
+import { track } from '@/lib/pixel'
 
 type Payment = { alias: string; cbu: string; holder: string; bank: string | null }
 
@@ -42,7 +43,10 @@ export default function OrderPage() {
     const { error: uploadError } = await supabase.storage.from('receipts').upload(path, file, { contentType: file.type || undefined })
     const { error: rpcError } = uploadError ? { error: uploadError } : await supabase.rpc('submit_receipt', { p_order: order.id, p_path: path })
     if (rpcError) setError(errorMessage(rpcError))
-    else await load()
+    else {
+      track('Purchase', { value: order.total, currency: 'ARS', content_ids: order.order_items.map((item) => item.product_id) })
+      await load()
+    }
     setUploading(false)
   }
 

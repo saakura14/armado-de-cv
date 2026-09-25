@@ -9,6 +9,7 @@ import { clearPending, loadPending, type PendingOrder } from '@/lib/cart'
 import { formatARS } from '@/lib/catalog'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
+import { track } from '@/lib/pixel'
 
 function Summary({ order }: { order: PendingOrder }) {
   return (
@@ -36,7 +37,11 @@ export default function CheckoutPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => { setPending(loadPending()) }, [])
+  useEffect(() => {
+    const order = loadPending()
+    setPending(order)
+    if (order) track('InitiateCheckout', { value: order.total, currency: 'ARS', content_ids: [order.item.product_id] })
+  }, [])
   useEffect(() => {
     if (!profile) return
     setName((current) => current || profile.full_name || '')
@@ -51,6 +56,7 @@ export default function CheckoutPage() {
       p_items: [pending.item], p_accept_terms: accepted, p_name: name, p_phone: phone, p_note: note,
     })
     if (rpcError) { setError(errorMessage(rpcError)); setBusy(false); return }
+    track('Lead', { value: pending.total, currency: 'ARS', content_ids: [pending.item.product_id] })
     clearPending()
     router.replace(`/cuenta/pedido/${data as string}`)
   }
