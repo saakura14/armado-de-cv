@@ -58,7 +58,7 @@ export default async function AsesoriasPage() {
       {/* Prep products */}
       <section id="precios" className="scroll-mt-28 bg-blanco px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="prep-title">
         <div className="mx-auto max-w-6xl">
-          <SectionTitle id="prep-title" script="Preparación" title="Entrevistas y psicotécnicos" text="Guías en formato Word con ejercitación guiada, para leer desde el celular, la tablet o la computadora." />
+          <SectionTitle id="prep-title" script="Preparación" title="Entrevistas y psicotécnicos" text="Guías en PDF con ejercitación guiada, para leer desde el celular, la tablet o la computadora." />
           <ProductGrid products={prepProducts} tone="asesorias" />
           <div className="mt-14 grid gap-4 lg:grid-cols-3">
             {topics.map((topic) => (
