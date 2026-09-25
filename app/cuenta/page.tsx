@@ -48,10 +48,21 @@ export default function AccountPage() {
   async function download(item: EbookAccess) {
     if (!item.ebooks?.file_path) { setError('Este e-book todavía no está disponible para descargar. Escribime y te lo envío.'); return }
     setDownloading(item.ebook_id); setError('')
-    const { data, error: urlError } = await supabase.storage.from('ebooks').createSignedUrl(item.ebooks.file_path, 120, { download: true })
+    // The function stamps the buyer's email and order number on every page.
+    const { data, error: downloadError } = await supabase.functions.invoke('ebook-download', { body: { ebook_id: item.ebook_id } })
     setDownloading('')
-    if (urlError || !data) { setError(errorMessage(urlError)); return }
-    window.location.href = data.signedUrl
+    if (downloadError || !(data instanceof Blob)) {
+      const context = (downloadError as { context?: Response } | null)?.context
+      const detail = context ? await context.json().then((body: { error?: string }) => body.error).catch(() => null) : null
+      setError(detail ?? errorMessage(downloadError ?? 'No se pudo descargar el e-book.'))
+      return
+    }
+    const extension = item.ebooks.file_path.split('.').pop() ?? 'pdf'
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(data)
+    link.download = `${item.ebooks.title}.${extension}`
+    link.click()
+    window.setTimeout(() => URL.revokeObjectURL(link.href), 10000)
   }
 
   async function saveProfile(event: React.FormEvent) {

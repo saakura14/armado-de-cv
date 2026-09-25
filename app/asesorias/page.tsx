@@ -48,8 +48,8 @@ export default async function AsesoriasPage() {
             </ul>
           </div>
           <div className="relative mx-auto w-full max-w-sm">
-            <div className="absolute -inset-3 -z-10 -rotate-2 rounded-[36px] bg-white" aria-hidden="true" />
-            <Image src="/img/valeria-cv.webp" alt="Valeria, de Armado de CV Asesorías" width={768} height={1344} priority className="h-auto max-h-[520px] w-full rounded-[32px] object-cover object-top" />
+            <div className="absolute inset-x-4 bottom-0 top-28 -z-10 rounded-t-full bg-petalo-wash" aria-hidden="true" />
+            <Image src="/img/valeria-cv-recorte.png" alt="Valeria, de Armado de CV Asesorías" width={768} height={945} priority className="h-auto w-full" />
           </div>
         </div>
       </section>
