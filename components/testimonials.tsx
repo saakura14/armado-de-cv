@@ -2,11 +2,11 @@ import { Star } from 'lucide-react'
 import { CONTACT } from '@/lib/catalog'
 import { supabase } from '@/lib/supabase'
 
-type Testimonial = { id: string; name: string; text: string; service: string | null; rating: number }
+type Testimonial = { id: string; name: string; text: string; service: string | null; rating: number; instagram: string | null }
 
 /** Client reviews (managed in /admin), scrollable on phones, plus the link to the Instagram post. */
 export async function Testimonials() {
-  const { data } = await supabase.from('testimonials').select('id, name, text, service, rating').eq('active', true).order('sort').limit(9)
+  const { data } = await supabase.from('testimonials').select('id, name, text, service, rating, instagram').eq('active', true).order('sort').limit(9)
   const items = (data as Testimonial[] | null) ?? []
 
   return (
@@ -26,6 +26,7 @@ export async function Testimonials() {
               </div>
               <blockquote className="mt-3 flex-1 leading-relaxed text-ink">“{item.text}”</blockquote>
               <p className="mt-4 font-display text-sm font-bold text-ciruela">{item.name}</p>
+              {item.instagram && <a href={`https://www.instagram.com/${item.instagram}/`} target="_blank" rel="noreferrer" className="text-sm font-semibold text-rosa-deep hover:underline">@{item.instagram}</a>}
               {item.service && <p className="text-xs text-piedra">{item.service}</p>}
             </li>
           ))}
