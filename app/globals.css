@@ -39,9 +39,12 @@ body {
   color: var(--color-ink);
 }
 
-h1, h2, h3 {
-  font-family: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
-  text-wrap: balance;
+/* In the base layer so utilities like font-script can override it. */
+@layer base {
+  h1, h2, h3 {
+    font-family: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+    text-wrap: balance;
+  }
 }
 
 :focus-visible {

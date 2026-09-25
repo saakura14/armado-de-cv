@@ -39,7 +39,7 @@ export default async function Home() {
       <section className="relative overflow-hidden bg-white lg:bg-[#dfe3e6]">
         <Image src="/img/hero-banner.jpg" alt="" width={1472} height={704} priority className="pointer-events-none absolute inset-y-0 -right-[120px] hidden h-full w-auto max-w-none lg:block xl:right-0" />
         <div className="relative mx-auto max-w-6xl lg:min-h-[600px]">
-          <div className="relative z-10 px-4 pb-6 pt-10 sm:px-6 lg:max-w-[500px] lg:py-24">
+          <div className="relative z-10 px-4 pb-6 pt-10 sm:px-6 lg:max-w-[460px] lg:py-24 xl:max-w-[500px]">
             <p className="font-script text-4xl leading-none text-rosa">Hola, soy Valeria</p>
             <h1 className="mt-3 text-[34px] font-extrabold leading-[1.1] text-ciruela sm:text-5xl">Tu CV listo para pasar los filtros y llegar a la entrevista</h1>
             <p className="mt-5 text-lg leading-relaxed text-piedra">CV modernos y optimizados para ATS, perfil de LinkedIn, cartas de presentación y carga en plataformas de empleo. Armado para vos, no con plantillas.</p>
