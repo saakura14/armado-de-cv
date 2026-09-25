@@ -13,7 +13,7 @@ export const CONTACT = {
 
 export const SITE_URL = 'https://www.armadodecv.com'
 
-export type Category = 'cv' | 'asesorias' | 'vocacional' | 'curso' | 'sesion'
+export type Category = 'cv' | 'asesorias' | 'vocacional' | 'curso' | 'sesion' | 'guias'
 export type Delivery = 'service' | 'digital' | 'session' | 'course'
 
 export type ExtraOption = { id: string; label: string; isOther: boolean }
@@ -38,7 +38,7 @@ export type Product = {
   extras: ExtraGroup[]
 }
 
-export const CATEGORY_LABEL: Record<Category, string> = { cv: 'Armado de CV', asesorias: 'Asesorías', vocacional: 'Test vocacional', curso: 'Curso', sesion: 'Sesión 1 a 1' }
+export const CATEGORY_LABEL: Record<Category, string> = { cv: 'Armado de CV', asesorias: 'Asesorías', vocacional: 'Test vocacional', curso: 'Curso', sesion: 'Sesión 1 a 1', guias: 'Guías de búsqueda' }
 
 type Row = {
   id: string; category: Category; delivery: Delivery; name: string; subtitle: string | null; price: number; price_note: string | null

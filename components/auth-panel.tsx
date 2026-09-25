@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
-import { errorMessage, supabase } from '@/lib/supabase'
+import { SUPABASE_KEY, SUPABASE_URL, errorMessage, supabase } from '@/lib/supabase'
 
 function GoogleIcon() {
   return (
@@ -15,8 +15,17 @@ function GoogleIcon() {
   )
 }
 
-// Turn on once the Google provider is configured in Supabase (Authentication → Providers → Google).
-const GOOGLE_ENABLED = false
+/** The Google button shows up by itself once the provider is enabled in Supabase (Sign In / Providers → Google). */
+function useGoogleEnabled() {
+  const [enabled, setEnabled] = useState(false)
+  useEffect(() => {
+    fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_KEY } })
+      .then((response) => response.json())
+      .then((settings: { external?: { google?: boolean } }) => setEnabled(Boolean(settings.external?.google)))
+      .catch(() => setEnabled(false))
+  }, [])
+  return enabled
+}
 
 /** Sign in with Google or email + password. Pages using useSession() re-render once the session exists. */
 export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?: string; text?: string }) {
@@ -27,6 +36,7 @@ export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?:
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
+  const googleEnabled = useGoogleEnabled()
 
   async function google() {
     setError('')
@@ -61,7 +71,7 @@ export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?:
     <div className="mx-auto w-full max-w-md rounded-[28px] bg-white p-6 shadow-[0_22px_44px_-30px_rgba(67,32,44,0.55)] sm:p-8">
       <p className="font-script text-4xl leading-none text-rosa">{title}</p>
       {text && <p className="mt-2 text-sm leading-relaxed text-piedra">{text}</p>}
-      {GOOGLE_ENABLED && (
+      {googleEnabled && (
         <>
           <button type="button" onClick={google} className="mt-6 flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-line bg-white px-5 py-3 font-display text-sm font-bold text-ink transition-colors hover:border-ciruela">
         <GoogleIcon />Continuar con Google
@@ -69,7 +79,7 @@ export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?:
           <div className="my-5 flex items-center gap-3 text-xs text-piedra"><span className="h-px flex-1 bg-line" />o con tu email<span className="h-px flex-1 bg-line" /></div>
         </>
       )}
-      {!GOOGLE_ENABLED && <div className="mt-6" />}
+      {!googleEnabled && <div className="mt-6" />}
       <div className="grid grid-cols-2 rounded-full bg-arena/70 p-1 text-sm font-semibold" role="tablist">
         {(['login', 'signup'] as const).map((value) => (
           <button key={value} type="button" role="tab" aria-selected={mode === value} onClick={() => { setMode(value); setError(''); setInfo('') }} className={`rounded-full py-2 font-display ${mode === value ? 'bg-white text-ciruela shadow-sm' : 'text-piedra'}`}>
