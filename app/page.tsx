@@ -1,10 +1,12 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, Camera, Clock, Megaphone, MessageCircle, Star } from 'lucide-react'
+import { ArrowRight, Camera, Clock, Megaphone } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { ProductGrid } from '@/components/product-grid'
 import { Faq, HowToBuy, SectionTitle } from '@/components/sections'
 import { CONTACT, formatARS, getProducts, whatsappUrl } from '@/lib/catalog'
 import { getFaqs } from '@/lib/faq'
+import { Testimonials } from '@/components/testimonials'
 
 // Prices are edited from /admin; the page refreshes them every minute.
 export const revalidate = 60
@@ -33,20 +35,21 @@ export default async function Home() {
   return (
     <>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-white">
-        <div className="relative mx-auto max-w-6xl lg:min-h-[560px]">
-          <Image src="/img/hero-banner.webp" alt="" width={1472} height={704} priority className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-auto max-w-none object-cover object-right lg:block" />
-          <div className="relative z-10 px-4 pb-6 pt-10 sm:px-6 lg:max-w-[560px] lg:py-24">
+      {/* On desktop the photo is anchored to the viewport edge; the background matches its wall so there is no seam. */}
+      <section className="relative overflow-hidden bg-white lg:bg-[#dfe3e6]">
+        <Image src="/img/hero-banner.jpg" alt="" width={1472} height={704} priority className="pointer-events-none absolute inset-y-0 -right-[120px] hidden h-full w-auto max-w-none lg:block xl:right-0" />
+        <div className="relative mx-auto max-w-6xl lg:min-h-[600px]">
+          <div className="relative z-10 px-4 pb-6 pt-10 sm:px-6 lg:max-w-[460px] lg:py-24 xl:max-w-[500px]">
             <p className="font-script text-4xl leading-none text-rosa">Hola, soy Valeria</p>
             <h1 className="mt-3 text-[34px] font-extrabold leading-[1.1] text-ciruela sm:text-5xl">Tu CV listo para pasar los filtros y llegar a la entrevista</h1>
             <p className="mt-5 text-lg leading-relaxed text-piedra">CV modernos y optimizados para ATS, perfil de LinkedIn, cartas de presentación y carga en plataformas de empleo. Armado para vos, no con plantillas.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a href="#precios" className="inline-flex min-h-12 items-center justify-center rounded-full bg-rosa px-7 py-3.5 font-display font-bold text-white shadow-lg shadow-rosa/25 transition-colors hover:bg-rosa-deep">Ver packs y precios</a>
-              <a href={whatsappUrl('¡Hola! Quiero consultar por el armado de mi CV.')} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-ciruela/15 px-6 py-3 font-display font-bold text-ciruela hover:border-whatsapp hover:text-whatsapp"><MessageCircle className="h-5 w-5" />Consultar</a>
+              <a href={whatsappUrl('¡Hola! Quiero consultar por el armado de mi CV.')} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-ciruela/15 px-6 py-3 font-display font-bold text-ciruela hover:border-whatsapp hover:text-whatsapp"><WhatsAppIcon className="h-5 w-5" />Consultar</a>
             </div>
             <p className="mt-6 flex items-center gap-2 text-sm text-piedra"><Clock className="h-4 w-4 text-rosa" />3 a 4 días hábiles · Express en 24 hs hábiles</p>
           </div>
-          <Image src="/img/hero-banner.webp" alt="Valeria mostrando un CV y un perfil de LinkedIn en el celular" width={1472} height={704} priority className="h-64 w-full object-cover object-[78%_center] sm:h-80 lg:hidden" />
+          <Image src="/img/hero-banner.jpg" alt="Valeria mostrando un CV y un perfil de LinkedIn en el celular" width={1472} height={704} priority className="h-64 w-full object-cover object-[78%_center] sm:h-80 lg:hidden" />
         </div>
       </section>
 
@@ -98,7 +101,7 @@ export default async function Home() {
         <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-[0.85fr_1.15fr]">
           <div className="relative mx-auto w-full max-w-sm">
             <div className="absolute -inset-3 -z-10 rotate-2 rounded-[36px] bg-papel" aria-hidden="true" />
-            <Image src="/img/valeria-retrato.webp" alt="Valeria, de Armado de CV" width={768} height={1344} className="h-auto w-full rounded-[32px] object-cover" />
+            <Image src="/img/valeria-retrato.jpg" alt="Valeria, de Armado de CV" width={768} height={1060} className="h-auto w-full rounded-[32px] object-cover" />
           </div>
           <div>
             <SectionTitle align="left" id="sobre-title" script="Sobre mí" title="Valeria · Armado de CV" />
@@ -115,17 +118,12 @@ export default async function Home() {
       {/* Testimonials + community */}
       <section className="bg-white px-4 py-16 sm:px-6" aria-labelledby="comunidad-title">
         <div className="mx-auto max-w-5xl">
-          <div className="rounded-[32px] bg-papel px-6 py-10 text-center">
-            <p className="font-script text-[52px] leading-none text-rosa" aria-hidden="true">Testimonios</p>
-            <h2 className="mt-1 text-xs font-semibold uppercase tracking-[0.35em] text-ciruela sm:text-sm">Lo que dicen mis clientes</h2>
-            <p className="mx-auto mt-4 max-w-xl text-piedra">Personas que armaron su CV, se prepararon para su entrevista y hoy están trabajando.</p>
-            <a href={CONTACT.testimonials} target="_blank" rel="noreferrer" className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-full bg-ciruela px-6 py-3 font-display font-bold text-white transition-colors hover:bg-rosa"><Star className="h-4 w-4" />Ver testimonios en Instagram</a>
-          </div>
+          <Testimonials />
 
           <h2 id="comunidad-title" className="mt-14 text-center text-xs font-semibold uppercase tracking-[0.35em] text-ciruela sm:text-sm">Sumate a la comunidad</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             <a href={CONTACT.whatsappChannel} target="_blank" rel="noreferrer" className="flex items-center gap-4 rounded-3xl border border-line bg-blanco p-5 hover:border-whatsapp md:flex-col md:text-center">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-whatsapp/10"><MessageCircle className="h-7 w-7 text-whatsapp" /></span>
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-whatsapp/10"><WhatsAppIcon className="h-7 w-7 text-whatsapp" /></span>
               <span><span className="block font-bold text-ciruela">Ofertas laborales</span><span className="text-sm text-piedra">Canal de WhatsApp con búsquedas en Buenos Aires y Argentina.</span></span>
             </a>
             <a href={CONTACT.instagramChannel} target="_blank" rel="noreferrer" className="flex items-center gap-4 rounded-3xl border border-line bg-blanco p-5 hover:border-rosa md:flex-col md:text-center">

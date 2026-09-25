@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Armado de CV',
     description: 'Tu CV listo para pasar los filtros y llegar a la entrevista.',
-    images: ['/img/hero-banner.webp'],
+    images: ['/img/hero-banner.jpg'],
     locale: 'es_AR',
     type: 'website',
   },

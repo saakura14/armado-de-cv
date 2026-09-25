@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, CheckCircle2, Loader2, MessageCircle, Upload } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Loader2, Upload } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { AuthPanel } from '@/components/auth-panel'
 import { CopyField } from '@/components/copy-field'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
@@ -110,7 +111,7 @@ export default function OrderPage() {
           <div className="rounded-[28px] bg-ciruela p-6 text-white sm:p-8">
             <p className="font-script text-4xl leading-none text-petalo">Coordinemos</p>
             <p className="mt-2 text-sm leading-relaxed text-white/85">Escribime por WhatsApp para arrancar: te pido la información que necesito{order.order_items.some((item) => item.products?.delivery === 'session') ? ' y coordinamos día y horario para la videollamada' : ''}.</p>
-            <a href={whatsappUrl(whatsappMessage)} target="_blank" rel="noreferrer" className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-full bg-whatsapp px-5 py-3 font-display text-sm font-bold text-white"><MessageCircle className="h-5 w-5" />Escribirme por WhatsApp</a>
+            <a href={whatsappUrl(whatsappMessage)} target="_blank" rel="noreferrer" className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-full bg-whatsapp px-5 py-3 font-display text-sm font-bold text-white"><WhatsAppIcon className="h-5 w-5" />Escribirme por WhatsApp</a>
           </div>
         )}
 

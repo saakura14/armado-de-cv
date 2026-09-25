@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { HelpCircle, MessageCircle, Tag, UserRound } from 'lucide-react'
+import { HelpCircle, Tag, UserRound } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { whatsappUrl } from '@/lib/catalog'
 
 // Thumb-reachable actions on phones; on desktop a floating WhatsApp button does the job.
@@ -20,11 +21,11 @@ export function BottomNav() {
           <li><Link href={`${base}#precios`} className={`${item} text-ciruela`}><Tag className="h-5 w-5 text-rosa" />Precios</Link></li>
           <li><Link href={`${base}#como-comprar`} className={`${item} text-ciruela`}><HelpCircle className="h-5 w-5 text-rosa" />Cómo comprar</Link></li>
           <li><Link href="/cuenta" aria-current={pathname.startsWith('/cuenta') ? 'page' : undefined} className={`${item} text-ciruela`}><UserRound className="h-5 w-5 text-rosa" />Mi cuenta</Link></li>
-          <li><a href={whatsapp} target="_blank" rel="noreferrer" className={`${item} text-whatsapp`}><MessageCircle className="h-5 w-5" />WhatsApp</a></li>
+          <li><a href={whatsapp} target="_blank" rel="noreferrer" className={`${item} text-whatsapp`}><WhatsAppIcon className="h-5 w-5" />WhatsApp</a></li>
         </ul>
       </nav>
       <a href={whatsapp} target="_blank" rel="noreferrer" aria-label="Escribime por WhatsApp" className="fixed bottom-6 right-6 z-30 hidden h-14 w-14 items-center justify-center rounded-full bg-whatsapp text-white shadow-xl transition-transform hover:scale-105 lg:flex">
-        <MessageCircle className="h-7 w-7" />
+        <WhatsAppIcon className="h-7 w-7" />
       </a>
     </>
   )

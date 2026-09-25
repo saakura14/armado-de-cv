@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
-import { Clock, MessageCircle, Video } from 'lucide-react'
+import { Clock, Video } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { ProductGrid } from '@/components/product-grid'
 import { Faq, HowToBuy, SectionTitle } from '@/components/sections'
 import { getProducts, whatsappUrl } from '@/lib/catalog'
@@ -40,7 +41,7 @@ export default async function AsesoriasPage() {
             <p className="mt-5 text-lg leading-relaxed text-piedra">Preparate con guías prácticas, ejercitación y feedback personalizado. Menos ansiedad, más claridad y más confianza en tu propio recorrido.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a href="#precios" className="inline-flex min-h-12 items-center justify-center rounded-full bg-ciruela px-7 py-3.5 font-display font-bold text-white transition-colors hover:bg-rosa">Ver e-books y packs</a>
-              <a href={whatsappUrl('ENTREVISTA')} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-ciruela/15 bg-white/60 px-6 py-3 font-display font-bold text-ciruela hover:border-whatsapp hover:text-whatsapp"><MessageCircle className="h-5 w-5" />Escribime &quot;ENTREVISTA&quot;</a>
+              <a href={whatsappUrl('ENTREVISTA')} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-ciruela/15 bg-white/60 px-6 py-3 font-display font-bold text-ciruela hover:border-whatsapp hover:text-whatsapp"><WhatsAppIcon className="h-5 w-5" />Escribime &quot;ENTREVISTA&quot;</a>
             </div>
             <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm text-piedra">
               <li className="flex items-center gap-2"><Clock className="h-4 w-4 text-rosa" />Acceso inmediato al confirmar el pago</li>
