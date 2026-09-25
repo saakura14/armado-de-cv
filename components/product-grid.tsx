@@ -20,7 +20,7 @@ export function ProductGrid({ products, tone = 'cv' }: { products: Product[]; to
     <>
       <div className={`mt-14 grid gap-x-6 gap-y-14 ${columns}`}>
         {products.map((product) => (
-          <article key={product.id} className={`relative flex flex-col rounded-[28px] ${card} p-6 pt-11 shadow-[0_22px_44px_-30px_rgba(67,32,44,0.55)] ${product.popular ? 'ring-2 ring-rosa' : ''}`}>
+          <article key={product.id} className={`group relative flex flex-col rounded-[28px] ${card} p-6 pt-11 shadow-[0_22px_44px_-30px_rgba(67,32,44,0.55)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_60px_-30px_rgba(67,32,44,0.7)] ${product.popular ? 'ring-2 ring-rosa' : ''}`}>
             {product.popular && <span className="absolute left-6 top-0 -translate-y-1/2 rounded-full bg-rosa px-3 py-1 font-display text-[11px] font-bold uppercase tracking-wider text-white">Más elegido</span>}
             <div className={`absolute -top-8 right-5 flex h-[92px] w-[92px] flex-col items-center justify-center rounded-full border-[7px] ${ring} bg-white text-center shadow-sm`}>
               <span className="font-display text-[17px] font-extrabold leading-none text-ciruela">{formatARS(product.price)}</span>

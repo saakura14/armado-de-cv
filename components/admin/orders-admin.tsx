@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { FileText, MessageCircle, RefreshCw } from 'lucide-react'
+import { FileText, RefreshCw } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, type Order, type OrderStatus } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
@@ -81,7 +82,7 @@ function OrderCard({ order, buyer, onChanged }: { order: Order; buyer?: Buyer; o
 
       <div className="mt-4 flex flex-wrap gap-2">
         {order.receipt_path ? <Button variant="secondary" onClick={openReceipt}><FileText className="h-4 w-4" />Ver comprobante</Button> : <span className="self-center text-sm text-piedra">Sin comprobante todavía</span>}
-        {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-whatsapp/40 px-4 py-2 font-display text-sm font-bold text-whatsapp"><MessageCircle className="h-4 w-4" />WhatsApp</a>}
+        {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-whatsapp/40 px-4 py-2 font-display text-sm font-bold text-whatsapp"><WhatsAppIcon className="h-4 w-4" />WhatsApp</a>}
       </div>
 
       <label className="mt-4 block text-xs font-semibold uppercase tracking-wider text-piedra">Mensaje para el cliente (lo ve en su pedido)

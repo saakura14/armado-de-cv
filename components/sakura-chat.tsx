@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Loader2, MessageCircle, Send, X } from 'lucide-react'
+import { Loader2, Send, X } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { whatsappUrl } from '@/lib/catalog'
 import { getFaqs, rankFaqs, type Faq } from '@/lib/faq'
 import { SAKURA_IMAGE } from './sakura'
@@ -40,7 +41,7 @@ export function SakuraChat() {
     getFaqs().then((list) => {
       setFaqs(list)
       const starters = [...list.filter((faq) => faq.section === section), ...list.filter((faq) => faq.section === 'general')].slice(0, 4)
-      setMessages([{ from: 'sakura', text: '¡Hola! Soy Sakura, la versión anime de Valeria 🌸 Escribime tu duda o elegí una de estas:', suggestions: starters }])
+      setMessages([{ from: 'sakura', text: '¡Hola! Soy Sakura 🌸 Escribime tu duda o elegí una de estas:', suggestions: starters }])
     })
   }, [open, faqs, section])
 
@@ -107,7 +108,7 @@ export function SakuraChat() {
                 <Avatar size="h-7 w-7" />
                 <div className="max-w-[85%] space-y-2">
                   <p className="whitespace-pre-line rounded-3xl rounded-bl-md bg-white px-4 py-2.5 text-sm leading-relaxed text-ink shadow-sm">{message.text}</p>
-                  {message.whatsapp && <a href={message.whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full bg-whatsapp px-4 py-2 font-display text-xs font-bold text-white"><MessageCircle className="h-4 w-4" />Escribirle a Valeria</a>}
+                  {message.whatsapp && <a href={message.whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full bg-whatsapp px-4 py-2 font-display text-xs font-bold text-white"><WhatsAppIcon className="h-4 w-4" />Escribirle a Valeria</a>}
                   {message.suggestions && (
                     <div className="flex flex-col items-start gap-1.5">
                       {index > 0 && <p className="px-1 text-[11px] font-semibold uppercase tracking-wider text-piedra">También te puede servir</p>}

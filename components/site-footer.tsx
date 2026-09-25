@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { Camera, Mail, MessageCircle } from 'lucide-react'
+import { Camera, Mail } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { CONTACT, whatsappUrl } from '@/lib/catalog'
 
 export function SiteFooter() {
@@ -33,7 +34,7 @@ export function SiteFooter() {
         <div>
           <h2 className="font-display text-xs font-semibold uppercase tracking-[0.3em] text-petalo">Contacto</h2>
           <ul className="mt-4 space-y-2 text-sm">
-            <li><a href={whatsappUrl('¡Hola! Quiero hacer una consulta.')} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 hover:text-white"><MessageCircle className="h-4 w-4" />{CONTACT.whatsappLabel}</a></li>
+            <li><a href={whatsappUrl('¡Hola! Quiero hacer una consulta.')} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 hover:text-white"><WhatsAppIcon className="h-4 w-4" />{CONTACT.whatsappLabel}</a></li>
             <li><a href={`https://instagram.com/${CONTACT.instagram}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 hover:text-white"><Camera className="h-4 w-4" />@{CONTACT.instagram}</a></li>
             <li><a href={`mailto:${CONTACT.email}`} className="inline-flex items-center gap-2 break-all hover:text-white"><Mail className="h-4 w-4 shrink-0" />{CONTACT.email}</a></li>
           </ul>

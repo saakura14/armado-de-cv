@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { MessageCircle, UserRound } from 'lucide-react'
+import { UserRound } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { whatsappUrl } from '@/lib/catalog'
 import { useSession } from '@/lib/use-session'
 
@@ -62,7 +63,7 @@ export function SiteHeader() {
             <UserRound className="h-4 w-4" /><span className="hidden sm:inline">{user ? 'Mi cuenta' : 'Ingresar'}</span>
           </Link>
           <a href={whatsappUrl('¡Hola! Quiero hacer una consulta.')} target="_blank" rel="noreferrer" className="hidden min-h-10 items-center gap-2 rounded-full bg-whatsapp px-4 py-2 font-display text-sm font-bold text-white lg:inline-flex">
-            <MessageCircle className="h-4 w-4" />Escribime
+            <WhatsAppIcon className="h-4 w-4" />Escribime
           </a>
         </div>
       </div>
