@@ -117,10 +117,6 @@ export default function OrderPage() {
         {!coordination && order.status === 'delivered' && (
           <Link href="/cuenta#ebooks" className="flex min-h-12 items-center justify-center rounded-full bg-ciruela px-5 py-3 font-display text-sm font-bold text-white">Ir a mis e-books</Link>
         )}
-
-        {order.status === 'pending_payment' && (
-          <button type="button" onClick={async () => { if (!window.confirm('¿Cancelar este pedido?')) return; const { error: rpcError } = await supabase.rpc('cancel_my_order', { p_order: order.id }); if (rpcError) setError(errorMessage(rpcError)); else load() }} className="mx-auto block text-sm font-semibold text-piedra underline hover:text-rosa-deep">Cancelar pedido</button>
-        )}
       </div>
     </section>
   )

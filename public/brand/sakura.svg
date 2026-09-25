@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-labelledby="sakura-title">
+  <title id="sakura-title">Sakura, la versión anime de Valeria</title>
+  <defs>
+    <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5A1420"/>
+      <stop offset="0.45" stop-color="#95282A"/>
+      <stop offset="1" stop-color="#D2552F"/>
+    </linearGradient>
+    <linearGradient id="hairFront" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6A1823"/>
+      <stop offset="1" stop-color="#B8402C"/>
+    </linearGradient>
+    <radialGradient id="iris" cx="0.5" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#A8743F"/>
+      <stop offset="0.6" stop-color="#6B4226"/>
+      <stop offset="1" stop-color="#3A2214"/>
+    </radialGradient>
+    <linearGradient id="skinShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F3CDBE"/>
+      <stop offset="1" stop-color="#FBE3D6"/>
+    </linearGradient>
+    <clipPath id="eyeL"><path d="M140 202 C145 176 178 172 191 193 C185 219 150 224 140 202 Z"/></clipPath>
+    <clipPath id="eyeR"><path d="M260 202 C255 176 222 172 209 193 C215 219 250 224 260 202 Z"/></clipPath>
+    <clipPath id="circle"><circle cx="200" cy="200" r="200"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#circle)">
+    <circle cx="200" cy="200" r="200" fill="#FBEAEC"/>
+    <circle cx="200" cy="200" r="168" fill="#F5EFD9"/>
+
+    <!-- back hair -->
+    <path d="M200 66 C122 66 88 124 88 206 C88 288 78 348 66 410 L152 410 C142 350 138 300 138 252 L262 252 C262 300 258 350 248 410 L334 410 C322 348 312 288 312 206 C312 124 278 66 200 66 Z" fill="url(#hair)"/>
+
+    <!-- neck -->
+    <path d="M178 272 L178 330 L222 330 L222 272 Z" fill="url(#skinShade)"/>
+    <path d="M178 300 C190 312 210 312 222 300 L222 285 C210 296 190 296 178 285 Z" fill="#EBBBA9" opacity="0.7"/>
+
+    <!-- black shirt -->
+    <path d="M58 410 C64 360 108 330 170 320 L200 368 L230 320 C292 330 336 360 342 410 Z" fill="#1F1A1E"/>
+    <path d="M176 318 L200 368 L224 318 L214 316 L200 346 L186 316 Z" fill="url(#skinShade)"/>
+    <path d="M170 320 L158 346 L192 352 L186 316 Z" fill="#2E272B" stroke="#141013" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M230 320 L242 346 L208 352 L214 316 Z" fill="#2E272B" stroke="#141013" stroke-width="1.5" stroke-linejoin="round"/>
+    <circle cx="200" cy="384" r="3" fill="#3B3337"/>
+
+    <!-- front locks over the shoulders -->
+    <path d="M132 214 C122 280 118 340 98 410 L150 410 C154 350 154 290 150 228 Z" fill="url(#hairFront)"/>
+    <path d="M268 214 C278 280 282 340 302 410 L250 410 C246 350 246 290 250 228 Z" fill="url(#hairFront)"/>
+
+    <!-- face -->
+    <path d="M126 188 C126 128 160 104 200 104 C240 104 274 128 274 188 C274 234 256 266 230 284 C216 294 208 298 200 298 C192 298 184 294 170 284 C144 266 126 234 126 188 Z" fill="#FBE3D6"/>
+    <ellipse cx="150" cy="238" rx="16" ry="8" fill="#F4A3A6" opacity="0.45"/>
+    <ellipse cx="250" cy="238" rx="16" ry="8" fill="#F4A3A6" opacity="0.45"/>
+
+    <!-- brows -->
+    <path d="M141 164 C150 152 170 151 186 159" fill="none" stroke="#5A1E22" stroke-width="5" stroke-linecap="round"/>
+    <path d="M259 164 C250 152 230 151 214 159" fill="none" stroke="#5A1E22" stroke-width="5" stroke-linecap="round"/>
+
+    <!-- left eye -->
+    <path d="M140 202 C145 176 178 172 191 193 C185 219 150 224 140 202 Z" fill="#FFFFFF"/>
+    <g clip-path="url(#eyeL)">
+      <ellipse cx="167" cy="200" rx="15" ry="20" fill="url(#iris)"/>
+      <ellipse cx="167" cy="201" rx="7" ry="10" fill="#23140D"/>
+      <path d="M143 186 L190 186 L190 193 C176 188 156 189 143 194 Z" fill="#E9D6D0" opacity="0.6"/>
+    </g>
+    <circle cx="173" cy="192" r="5" fill="#FFFFFF"/>
+    <circle cx="161" cy="209" r="2.5" fill="#FFFFFF" opacity="0.85"/>
+    <path d="M138 201 C145 177 178 171 193 192" fill="none" stroke="#2A1518" stroke-width="5" stroke-linecap="round"/>
+    <path d="M140 198 L127 186" stroke="#2A1518" stroke-width="4" stroke-linecap="round"/>
+    <path d="M149 215 C160 221 176 220 185 211" fill="none" stroke="#7A4A45" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+
+    <!-- right eye -->
+    <path d="M260 202 C255 176 222 172 209 193 C215 219 250 224 260 202 Z" fill="#FFFFFF"/>
+    <g clip-path="url(#eyeR)">
+      <ellipse cx="233" cy="200" rx="15" ry="20" fill="url(#iris)"/>
+      <ellipse cx="233" cy="201" rx="7" ry="10" fill="#23140D"/>
+      <path d="M257 186 L210 186 L210 193 C224 188 244 189 257 194 Z" fill="#E9D6D0" opacity="0.6"/>
+    </g>
+    <circle cx="239" cy="192" r="5" fill="#FFFFFF"/>
+    <circle cx="227" cy="209" r="2.5" fill="#FFFFFF" opacity="0.85"/>
+    <path d="M262 201 C255 177 222 171 207 192" fill="none" stroke="#2A1518" stroke-width="5" stroke-linecap="round"/>
+    <path d="M260 198 L273 186" stroke="#2A1518" stroke-width="4" stroke-linecap="round"/>
+    <path d="M251 215 C240 221 224 220 215 211" fill="none" stroke="#7A4A45" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+
+    <!-- nose & smile -->
+    <path d="M201 222 C199 230 198 234 203 236" fill="none" stroke="#D69A88" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M184 256 C193 263 208 264 218 253" fill="none" stroke="#C0505E" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M188 258 C196 266 208 266 214 257 C206 261 196 261 188 258 Z" fill="#D9737C" opacity="0.8"/>
+
+    <!-- front hair: center part, framing the face -->
+    <path d="M200 92 C162 92 128 114 120 176 C117 198 119 218 124 236 C130 196 146 150 197 108 Z" fill="url(#hairFront)"/>
+    <path d="M200 92 C238 92 272 114 280 176 C283 198 281 218 276 236 C270 196 254 150 203 108 Z" fill="url(#hairFront)"/>
+    <path d="M200 92 C188 94 182 100 178 108 C186 104 194 103 200 104 C206 103 214 104 222 108 C218 100 212 94 200 92 Z" fill="#5A1420"/>
+    <!-- hair shine -->
+    <path d="M150 118 C162 106 178 100 192 99" fill="none" stroke="#E4745A" stroke-width="4" stroke-linecap="round" opacity="0.55"/>
+    <path d="M250 118 C238 106 222 100 208 99" fill="none" stroke="#E4745A" stroke-width="4" stroke-linecap="round" opacity="0.55"/>
+
+    <!-- sakura hair pin -->
+    <g transform="translate(270 132)">
+      <g fill="#E8959B" stroke="#C9506D" stroke-width="1.5" stroke-linejoin="round">
+        <path d="M0 0 C-9 -9 -8 -22 -3 -26 L0 -22 L3 -26 C8 -22 9 -9 0 0 Z"/>
+        <path d="M0 0 C-9 -9 -8 -22 -3 -26 L0 -22 L3 -26 C8 -22 9 -9 0 0 Z" transform="rotate(72)"/>
+        <path d="M0 0 C-9 -9 -8 -22 -3 -26 L0 -22 L3 -26 C8 -22 9 -9 0 0 Z" transform="rotate(144)"/>
+        <path d="M0 0 C-9 -9 -8 -22 -3 -26 L0 -22 L3 -26 C8 -22 9 -9 0 0 Z" transform="rotate(216)"/>
+        <path d="M0 0 C-9 -9 -8 -22 -3 -26 L0 -22 L3 -26 C8 -22 9 -9 0 0 Z" transform="rotate(288)"/>
+      </g>
+      <circle r="5" fill="#C9506D"/>
+      <circle r="2" fill="#FBEAEC"/>
+    </g>
+  </g>
+</svg>
