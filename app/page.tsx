@@ -20,7 +20,7 @@ const promises = [
 
 const steps = [
   { title: 'Elegí tu pack', text: 'Tocá "Lo quiero", sumá idiomas, plataformas o entrega express y mirá el total.' },
-  { title: 'Confirmá el pedido', text: 'Ingresá con Google o tu email y aceptá las condiciones.' },
+  { title: 'Confirmá el pedido', text: 'Creá tu cuenta o ingresá y aceptá las condiciones.' },
   { title: 'Transferí', text: 'Te muestro los datos para transferir y subís el comprobante ahí mismo.' },
   { title: 'Coordinamos', text: 'Me escribís por WhatsApp con tu número de pedido y arranco con tu CV.' },
 ]

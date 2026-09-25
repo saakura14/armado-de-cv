@@ -18,7 +18,8 @@ export function isAsesorias(pathname: string) {
 /** Current section, or null outside the two sales pages (cuenta, admin, legales...). */
 function activeSection(pathname: string) {
   if (isAsesorias(pathname)) return '/asesorias'
-  return pathname === '/' ? '/' : null
+  // Revalidated (ISR) renders of the home page report "/index" instead of "/".
+  return pathname === '/' || pathname === '/index' ? '/' : null
 }
 
 /** Text tabs with an underline: inline next to the logo on desktop, full-width row on phones. */
