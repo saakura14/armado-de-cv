@@ -29,11 +29,11 @@ export default function CoursePlayerPage() {
     Promise.all([
       supabase.from('courses').select('id, title, description').eq('id', id).maybeSingle(),
       supabase.from('lessons').select('*').eq('course_id', id).order('position'),
-      supabase.from('course_access').select('course_id').eq('course_id', id).eq('user_id', user.id).maybeSingle(),
+      supabase.from('course_access').select('expires_at').eq('course_id', id).eq('user_id', user.id).maybeSingle(),
     ]).then(([c, l, a]) => {
       setCourse((c.data as Course | null) ?? null)
       setLessons((l.data as Lesson[] | null) ?? [])
-      setHasAccess(Boolean(a.data))
+      setHasAccess(Boolean(a.data && new Date((a.data as { expires_at: string }).expires_at) > new Date()))
     })
     try { setSeen(JSON.parse(localStorage.getItem(SEEN_KEY(id)) ?? '[]')) } catch { /* progress is optional */ }
   }, [id, user])
@@ -64,7 +64,7 @@ export default function CoursePlayerPage() {
       <div className="mx-auto max-w-6xl">
         <Link href="/cuenta" className="inline-flex items-center gap-1.5 text-sm font-semibold text-piedra hover:text-ciruela"><ArrowLeft className="h-4 w-4" />Mi cuenta</Link>
         <h1 className="mt-3 text-2xl font-extrabold text-ciruela sm:text-3xl">{course.title}</h1>
-        {!hasAccess && <p className="mt-3 rounded-xl bg-petalo-wash px-4 py-3 text-sm text-rosa-deep">Estás viendo las clases de muestra. Cuando confirme tu pago se habilita el curso completo.</p>}
+        {!hasAccess && <p className="mt-3 rounded-xl bg-petalo-wash px-4 py-3 text-sm text-rosa-deep">Estás viendo las clases de muestra. El curso completo se habilita cuando confirmo tu pago y queda disponible por 12 meses.</p>}
         {error && <p role="alert" className="mt-3 rounded-xl bg-petalo-wash px-4 py-3 text-sm font-semibold text-rosa-deep">{error}</p>}
 
         {lessons.length === 0 ? <p className="mt-8 text-piedra">Todavía no hay clases disponibles.</p> : (

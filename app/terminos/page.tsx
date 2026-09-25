@@ -18,7 +18,7 @@ export default function TermsPage() {
           <li>Los precios están expresados en pesos argentinos y son los publicados en el sitio al momento de confirmar el pedido. El total se calcula automáticamente con los extras elegidos.</li>
           <li>El pago se realiza por transferencia bancaria. Los datos para transferir se muestran una vez confirmado el pedido.</li>
           <li>Después de transferir, subís el comprobante desde tu pedido. Los trabajos se comienzan <b>una vez abonado el monto total</b> y verificado el pago.</li>
-          <li>Un pedido sin pago puede cancelarse si no se abona dentro de los 7 días corridos.</li>
+          <li><b>Una vez realizado el pedido, no se puede cancelar.</b></li>
         </ul>
       </Clause>
 
@@ -49,14 +49,14 @@ export default function TermsPage() {
         <ul>
           <li>Los cursos se ven desde tu cuenta en este sitio, iniciando sesión con el mismo email con el que compraste. El acceso se habilita al aprobarse el pago.</li>
           <li>El acceso es personal: no compartas tu cuenta ni los links de las clases. Si detecto un uso compartido, puedo suspender el acceso.</li>
-          <li>Tenés acceso al curso durante al menos 12 meses desde la compra, y mientras el curso siga publicado.</li>
+          <li>Tenés acceso al curso durante <b>12 meses</b> desde que se aprueba el pago. La fecha de vencimiento la ves en Mi cuenta.</li>
         </ul>
       </Clause>
 
       <Clause title="6. Sesiones 1 a 1 por Google Meet">
         <ul>
           <li>Las sesiones se coordinan por WhatsApp con turno previo, una vez confirmado el pago. El día, el horario y el link de la videollamada quedan visibles en Mi cuenta.</li>
-          <li>Podés reprogramar avisando con al menos 24 hs de anticipación. Si no te presentás sin avisar, la sesión se considera realizada.</li>
+          <li>Podés reprogramar avisando con al menos 24 hs de anticipación. <b>Si no te presentás sin avisar, la sesión se considera realizada y para una nueva sesión hay que volver a abonarla.</b></li>
           <li>Las sesiones son un espacio de preparación y acompañamiento. No reemplazan una consulta psicológica ni un tratamiento profesional.</li>
         </ul>
       </Clause>
