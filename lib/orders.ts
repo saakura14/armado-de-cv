@@ -14,6 +14,12 @@ export type OrderItem = {
   ebooks?: { title: string } | null
 }
 
+export type ReceiptReading = {
+  veredicto: 'aprobar' | 'revisar'
+  motivo: string
+  leido?: { destinatario: string | null; alias: string | null; cbu: string | null; monto: number | null; fecha: string | null; operacion: string | null }
+}
+
 export type Order = {
   id: string
   number: number
@@ -30,6 +36,8 @@ export type Order = {
   delivered_at: string | null
   /** Instant e-book access: 'pending' until the admin checks the transfer arrived. */
   payment_check: 'pending' | 'ok' | 'rejected' | null
+  /** What the automatic receipt reading saw (verify-receipt), for the admin. */
+  receipt_ai: ReceiptReading | null
   created_at: string
   order_items: OrderItem[]
 }

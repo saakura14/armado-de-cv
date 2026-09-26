@@ -21,6 +21,7 @@ export default function OrderPage() {
   const [order, setOrder] = useState<Order | null | undefined>(undefined)
   const [payment, setPayment] = useState<Payment | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
@@ -42,11 +43,15 @@ export default function OrderPage() {
     const path = `${user.id}/${order.number}-${Date.now()}.${extension}`
     const { error: uploadError } = await supabase.storage.from('receipts').upload(path, file, { contentType: file.type || undefined })
     const { error: rpcError } = uploadError ? { error: uploadError } : await supabase.rpc('submit_receipt', { p_order: order.id, p_path: path })
-    if (rpcError) setError(errorMessage(rpcError))
-    else {
-      track('Purchase', { value: order.total, currency: 'ARS', content_ids: order.order_items.map((item) => item.product_id) })
-      await load()
+    if (rpcError) { setError(errorMessage(rpcError)); setUploading(false); return }
+    track('Purchase', { value: order.total, currency: 'ARS', content_ids: order.order_items.map((item) => item.product_id) })
+    // E-books and guides: the receipt is read and, if everything matches, they unlock right away.
+    if (isDigitalOnly(order)) {
+      setVerifying(true)
+      await supabase.functions.invoke('verify-receipt', { body: { order_id: order.id } })
+      setVerifying(false)
     }
+    await load()
     setUploading(false)
   }
 
@@ -108,6 +113,7 @@ export default function OrderPage() {
               {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}{order.receipt_path ? 'Subir otro comprobante' : 'Elegir archivo'}
               <input type="file" accept="image/*,application/pdf" className="sr-only" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadReceipt(file); event.target.value = '' }} />
             </label>
+            {verifying && <p role="status" className="mt-3 flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm text-ink"><Loader2 className="h-4 w-4 animate-spin text-rosa" />Verificando tu comprobante…</p>}
             {error && <p role="alert" className="mt-3 rounded-xl bg-petalo-wash px-3 py-2 text-sm font-semibold text-rosa-deep">{error}</p>}
           </div>
         )}
