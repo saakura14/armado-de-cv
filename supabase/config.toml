@@ -1,0 +1,10 @@
+# Supabase project: wdcijkjmdfypltbafdol (armadodecv.com)
+# Per-function settings, mirroring what is deployed.
+
+[functions.ebook-download]
+# Requires the buyer's session token.
+verify_jwt = true
+
+[functions.admin-upload]
+# Authenticates with a short-lived token from public.admin_upload_tokens instead of a session.
+verify_jwt = false

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
+import { PasswordInput } from '@/components/password-input'
 import { SUPABASE_KEY, SUPABASE_URL, errorMessage, supabase } from '@/lib/supabase'
 
 function GoogleIcon() {
@@ -27,9 +28,10 @@ function useGoogleEnabled() {
   return enabled
 }
 
-/** Sign in with Google or email + password. Pages using useSession() re-render once the session exists. */
+/** Sign in with Google or email + password, or ask for a password-reset email.
+ *  Pages using useSession() re-render once the session exists. */
 export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?: string; text?: string }) {
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -37,6 +39,10 @@ export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?:
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const googleEnabled = useGoogleEnabled()
+
+  function switchMode(next: typeof mode) {
+    setMode(next); setError(''); setInfo('')
+  }
 
   async function google() {
     setError('')
@@ -48,7 +54,12 @@ export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?:
     event.preventDefault()
     setBusy(true); setError(''); setInfo('')
     try {
-      if (mode === 'login') {
+      if (mode === 'forgot') {
+        // The email link opens /cuenta/nueva-clave with a recovery session.
+        const { error: authError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/cuenta/nueva-clave` })
+        if (authError) throw authError
+        setInfo('Si hay una cuenta con ese email, te llega un mensaje con un enlace para crear una contraseña nueva. Revisá también la carpeta de spam.')
+      } else if (mode === 'login') {
         const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
         if (authError) throw authError
       } else {
@@ -71,7 +82,7 @@ export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?:
     <div className="mx-auto w-full max-w-md rounded-[28px] bg-white p-6 shadow-[0_22px_44px_-30px_rgba(67,32,44,0.55)] sm:p-8">
       <p className="font-script text-4xl leading-none text-rosa">{title}</p>
       {text && <p className="mt-2 text-sm leading-relaxed text-piedra">{text}</p>}
-      {googleEnabled && (
+      {googleEnabled && mode !== 'forgot' && (
         <>
           <button type="button" onClick={google} className="mt-6 flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-line bg-white px-5 py-3 font-display text-sm font-bold text-ink transition-colors hover:border-ciruela">
         <GoogleIcon />Continuar con Google
@@ -79,14 +90,21 @@ export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?:
           <div className="my-5 flex items-center gap-3 text-xs text-piedra"><span className="h-px flex-1 bg-line" />o con tu email<span className="h-px flex-1 bg-line" /></div>
         </>
       )}
-      {!googleEnabled && <div className="mt-6" />}
-      <div className="grid grid-cols-2 rounded-full bg-arena/70 p-1 text-sm font-semibold" role="tablist">
-        {(['login', 'signup'] as const).map((value) => (
-          <button key={value} type="button" role="tab" aria-selected={mode === value} onClick={() => { setMode(value); setError(''); setInfo('') }} className={`rounded-full py-2 font-display ${mode === value ? 'bg-white text-ciruela shadow-sm' : 'text-piedra'}`}>
-            {value === 'login' ? 'Ingresar' : 'Crear cuenta'}
-          </button>
-        ))}
-      </div>
+      {(!googleEnabled || mode === 'forgot') && <div className="mt-6" />}
+      {mode === 'forgot' ? (
+        <div>
+          <p className="font-display text-base font-bold text-ciruela">Recuperá tu contraseña</p>
+          <p className="mt-1 text-sm leading-relaxed text-piedra">Escribí el email con el que creaste tu cuenta y te mandamos un enlace para crear una contraseña nueva.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 rounded-full bg-arena/70 p-1 text-sm font-semibold" role="tablist">
+          {(['login', 'signup'] as const).map((value) => (
+            <button key={value} type="button" role="tab" aria-selected={mode === value} onClick={() => switchMode(value)} className={`rounded-full py-2 font-display ${mode === value ? 'bg-white text-ciruela shadow-sm' : 'text-piedra'}`}>
+              {value === 'login' ? 'Ingresar' : 'Crear cuenta'}
+            </button>
+          ))}
+        </div>
+      )}
       <form onSubmit={submit} className="mt-4 space-y-3">
         {mode === 'signup' && (
           <label className="block text-sm font-semibold text-ciruela">Nombre y apellido
@@ -96,14 +114,22 @@ export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?:
         <label className="block text-sm font-semibold text-ciruela">Email
           <input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" className={input} />
         </label>
-        <label className="block text-sm font-semibold text-ciruela">Contraseña
-          <input required type="password" minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className={input} />
-        </label>
+        {mode !== 'forgot' && (
+          <label className="block text-sm font-semibold text-ciruela">Contraseña
+            <PasswordInput required minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className={input} />
+          </label>
+        )}
+        {mode === 'login' && (
+          <button type="button" onClick={() => switchMode('forgot')} className="text-sm font-semibold text-rosa-deep underline-offset-2 hover:underline">¿Olvidaste tu contraseña?</button>
+        )}
         {error && <p role="alert" className="rounded-xl bg-petalo-wash px-3 py-2 text-sm font-semibold text-rosa-deep">{error}</p>}
         {info && <p role="status" className="rounded-xl bg-arena px-3 py-2 text-sm text-ink">{info}</p>}
         <button disabled={busy} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ciruela px-5 py-3 font-display text-sm font-bold text-white transition-colors hover:bg-rosa disabled:opacity-60">
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />}{mode === 'login' ? 'Ingresar' : 'Crear mi cuenta'}
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}{mode === 'login' ? 'Ingresar' : mode === 'signup' ? 'Crear mi cuenta' : 'Enviarme el enlace'}
         </button>
+        {mode === 'forgot' && (
+          <button type="button" onClick={() => switchMode('login')} className="w-full text-center text-sm font-semibold text-piedra hover:text-ciruela">Volver a ingresar</button>
+        )}
       </form>
     </div>
   )

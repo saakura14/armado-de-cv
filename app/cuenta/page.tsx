@@ -171,6 +171,7 @@ export default function AccountPage() {
               <label className="mt-4 block text-sm font-semibold text-ciruela">Nombre y apellido<input value={name} onChange={(event) => setName(event.target.value)} className={input} /></label>
               <label className="mt-3 block text-sm font-semibold text-ciruela">WhatsApp<input value={phone} onChange={(event) => setPhone(event.target.value)} type="tel" className={input} /></label>
               <button className="mt-4 min-h-10 w-full rounded-full border border-ciruela px-4 py-2 font-display text-sm font-bold text-ciruela hover:bg-ciruela hover:text-white">{saved ? '¡Guardado!' : 'Guardar'}</button>
+              <Link href="/cuenta/nueva-clave" className="mt-3 block text-center text-sm font-semibold text-rosa-deep hover:underline">Cambiar contraseña</Link>
             </form>
           </div>
         )}

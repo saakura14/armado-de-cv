@@ -17,6 +17,9 @@ export function errorMessage(error: unknown) {
   if (/User already registered/i.test(message)) return 'Ya existe una cuenta con ese email. Probá ingresar.'
   if (/Password should be at least/i.test(message)) return 'La contraseña tiene que tener al menos 6 caracteres.'
   if (/Email not confirmed/i.test(message)) return 'Tenés que confirmar tu email antes de ingresar.'
+  if (/should be different from the old password/i.test(message)) return 'La contraseña nueva tiene que ser distinta de la anterior.'
+  if (/rate limit|only request this after/i.test(message)) return 'Pediste muchos enlaces seguidos. Esperá unos minutos y probá de nuevo.'
+  if (/Auth session missing/i.test(message)) return 'El enlace venció o ya se usó. Pedí uno nuevo desde "¿Olvidaste tu contraseña?".'
   if (/Failed to fetch|NetworkError/i.test(message)) return 'No hay conexión. Revisá tu internet y probá de nuevo.'
   return message
 }

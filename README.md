@@ -1,23 +1,33 @@
-# Armado de CV — Asesorías
+# Armado de CV
 
-Sitio de venta de **Armado de CV**: packs de CV (moderno + optimizado ATS), LinkedIn y carta de presentación; e-books y asesorías para entrevistas y psicotécnicos; test vocacional.
+Tienda online de **Armado de CV** (Valeria Gil): packs de CV (moderno + optimizado ATS), LinkedIn, carta de presentación, asesorías para entrevistas y psicotécnicos, test vocacional, guías digitales y cursos.
 
-- Cada producto tiene **"Lo quiero"**: el cliente elige extras, ve el total y envía el pedido armado por **WhatsApp** (11 5106-0953).
-- Pago por **transferencia** (alias `armado.cv`).
-- Instagram: [@armadodecv.ok](https://instagram.com/armadodecv.ok) · Email: ayuda.armadodecv@gmail.com
+**Sitio:** https://www.armadodecv.com · Instagram [@armadodecv.ok](https://instagram.com/armadodecv.ok) · WhatsApp 11 5106-0953 · ayuda.armadodecv@gmail.com
 
-## Editar precios y productos
-Todo el catálogo está en [`lib/catalog.ts`](lib/catalog.ts): precios, extras, textos, datos de contacto y de transferencia.
+📘 **Documentación funcional y técnica completa:** [`docs/DOCUMENTACION.md`](docs/DOCUMENTACION.md)
+
+## Cómo funciona en pocas palabras
+- El cliente elige productos y extras, crea su cuenta (Google o email) y confirma el pedido: los precios se calculan en el servidor.
+- Paga por transferencia y sube el comprobante en "Mi cuenta".
+- Desde `/admin`, Valeria aprueba el pago. Eso libera los e-books (con sello del comprador) y los cursos, y crea las sesiones 1 a 1 para agendar.
+- Precios, e-books, cursos, preguntas de Sakura, testimonios y datos de pago se editan desde el panel, sin tocar código.
 
 ## Stack
-Next.js 16 (App Router) + React 19 + Tailwind CSS 4 · Montserrat + Great Vibes · desplegado en Vercel.
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Supabase (Auth, Postgres con RLS, Storage, Edge Functions) · Vercel · dominio en GoDaddy.
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Próximas etapas
-- Cuentas de clientes y descarga automática de e-books luego de aprobar el pago.
-- Agenda de turnos para las sesiones por Zoom.
-- Panel para ver pedidos.
+## Estructura
+| Carpeta | Contenido |
+|---|---|
+| `app/` | Páginas (inicio, asesorías, cursos, comprar, cuenta, admin, legales) |
+| `components/` | Componentes de la interfaz y pestañas del panel (`admin/`) |
+| `lib/` | Cliente de Supabase, catálogo, pedidos, sesión, Sakura, píxel |
+| `supabase/migrations/` | Historial completo de la base de datos |
+| `supabase/functions/` | Edge Functions (`ebook-download`, `admin-upload`) |
+| `docs/` | Documentación |
+
+Cada merge a `main` se despliega automáticamente en Vercel.
