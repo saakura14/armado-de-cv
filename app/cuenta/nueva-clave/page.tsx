@@ -53,12 +53,12 @@ export default function NewPasswordPage() {
           <form onSubmit={submit} className="mt-4 space-y-3">
             <p className="text-sm text-piedra">Cuenta: <b className="text-ink">{user.email}</b></p>
             <label className="block text-sm font-semibold text-ciruela">Contraseña nueva
-              <PasswordInput required minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" className={input} />
+              <PasswordInput required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" className={input} />
             </label>
             <label className="block text-sm font-semibold text-ciruela">Repetila
-              <PasswordInput required minLength={6} value={repeat} onChange={(event) => setRepeat(event.target.value)} autoComplete="new-password" className={input} />
+              <PasswordInput required minLength={8} value={repeat} onChange={(event) => setRepeat(event.target.value)} autoComplete="new-password" className={input} />
             </label>
-            <p className="text-xs text-piedra">Mínimo 6 caracteres.</p>
+            <p className="text-xs text-piedra">Mínimo 8 caracteres.</p>
             {error && <p role="alert" className="rounded-xl bg-petalo-wash px-3 py-2 text-sm font-semibold text-rosa-deep">{error}</p>}
             <button disabled={busy} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ciruela px-5 py-3 font-display text-sm font-bold text-white transition-colors hover:bg-rosa disabled:opacity-60">
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}Guardar contraseña

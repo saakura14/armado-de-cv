@@ -15,7 +15,7 @@ export function errorMessage(error: unknown) {
   const message = typeof error === 'object' && error && 'message' in error ? String((error as { message: unknown }).message) : String(error)
   if (/Invalid login credentials/i.test(message)) return 'El email o la contraseña no coinciden.'
   if (/User already registered/i.test(message)) return 'Ya existe una cuenta con ese email. Probá ingresar.'
-  if (/Password should be at least/i.test(message)) return 'La contraseña tiene que tener al menos 6 caracteres.'
+  if (/Password should be at least|password.*(weak|short)/i.test(message)) return 'La contraseña es muy corta o débil: usá al menos 8 caracteres.'
   if (/Email not confirmed/i.test(message)) return 'Tenés que confirmar tu email antes de ingresar.'
   if (/should be different from the old password/i.test(message)) return 'La contraseña nueva tiene que ser distinta de la anterior.'
   if (/rate limit|only request this after/i.test(message)) return 'Pediste muchos enlaces seguidos. Esperá unos minutos y probá de nuevo.'

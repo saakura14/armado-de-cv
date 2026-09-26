@@ -1,7 +1,7 @@
 // Reads a transfer receipt for a digital-only order and decides whether the e-books can be unlocked
 // right away. Approves only when the receipt goes to the store's account, for the exact amount, with a
 // plausible date and no signs of editing. Anything doubtful stays for the admin to review.
-// Needs the ANTHROPIC_API_KEY secret; without it only the basic file checks apply.
+// Needs the ANTHROPIC_API_KEY secret. Without it nothing is approved automatically: the admin approves every payment.
 import { createClient } from 'npm:@supabase/supabase-js@2.57.4'
 
 const cors = {
@@ -82,6 +82,10 @@ Deno.serve(async (req) => {
   if (!order || order.user_id !== user.id) return json(404, { error: 'Pedido no encontrado' })
   if (order.status !== 'payment_review' || !order.receipt_path) return json(200, { status: order.status })
 
+  // Without the reading key the admin approves every payment by hand.
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+  if (!apiKey) return json(200, { status: order.status })
+
   const { data: eligible } = await admin.rpc('instant_eligible', { p_order: orderId })
   if (!eligible) return json(200, { status: order.status })   // CV packs, repeated files, etc.: the admin reviews
 
@@ -90,9 +94,6 @@ Deno.serve(async (req) => {
     if (error) return json(500, { error: 'No se pudo registrar la verificación' })
     return json(200, { status })
   }
-
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
-  if (!apiKey) return finish({ veredicto: 'aprobar', motivo: 'Lectura automática no configurada: solo controles básicos del archivo.' }, null, true)
 
   const { data: file } = await admin.storage.from('receipts').download(order.receipt_path)
   if (!file) return finish({ veredicto: 'revisar', motivo: 'No se pudo abrir el comprobante.' }, null, false)

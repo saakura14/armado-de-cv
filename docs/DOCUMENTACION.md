@@ -107,7 +107,9 @@ Todo el catálogo se edita desde **Panel → Packs y precios**. Precios vigentes
 
 Tipos de entrega (`delivery`):
 - **service**: trabajo de Valeria. Después del pago se coordina por WhatsApp.
-- **digital**: e-books y guías. Si el pedido es **solo digital**, se habilitan **al instante** cuando el cliente sube el comprobante (ver 2.3).
+- **digital**: e-books y guías. Se descargan apenas Valeria aprueba el pago, y el pedido pasa solo a "Entregado".
+
+> **Entrega al instante (desactivada).** El sistema está preparado para entregar e-books al instante: la función `verify-receipt` lee el comprobante con IA y controla destinatario, monto exacto, fecha, señales de edición y un número de operación no repetido. Hoy está **apagada** a pedido de Valeria, porque no está cargada la clave `ANTHROPIC_API_KEY` (tiene costo por comprobante). Sin esa clave, todo pedido espera su aprobación. Para activarla alcanza con cargar la clave en Supabase → Edge Functions → Secrets y volver a poner en la web los textos de entrega inmediata.
 - **session**: incluye una sesión 1 a 1 por Meet que se agenda.
 - **course**: curso pregrabado, disponible 12 meses.
 
@@ -118,23 +120,7 @@ Tipos de entrega (`delivery`):
 3. Si no tiene cuenta, la crea ahí mismo con Google o con email y contraseña.
 4. Al confirmar, el servidor **recalcula todos los precios** (el navegador no decide el total) y crea el pedido.
 5. Ve los datos de transferencia (alias `armado.cv`, CBU y titular) con botones de copiar, transfiere y **sube el comprobante** (imagen o PDF).
-6. **Pedidos solo de e-books o guías (entrega al instante):** al subir el comprobante, el sistema lo controla y, si pasa, el pedido queda **Entregado** y los e-books listos para descargar en ese momento. Los controles son:
-   - que sea una imagen (JPG, PNG, WEBP) o un PDF real, no un archivo vacío o diminuto;
-   - que ese mismo archivo no se haya usado en otro pedido;
-   - que la persona no tenga un pago rechazado antes;
-   - que no tenga más de 2 entregas sin verificar.
-
-   Además, la función `verify-receipt` **lee el comprobante con IA** (Claude) y exige cinco cosas:
-   - destinatario = titular, alias o CBU de la cuenta de Valeria;
-   - **monto exacto** del pedido;
-   - fecha entre el día anterior al pedido y hoy;
-   - ninguna señal de edición;
-   - un **número de operación** nunca usado en otro pedido.
-
-   Lo leído queda visible en el panel. Sin la clave `ANTHROPIC_API_KEY` solo se aplican los controles del archivo.
-
-   Si algo no pasa, queda en "Revisando pago" como siempre. Valeria después controla su banco en **Panel → Pedidos → Verificar transferencia**: "Me llegó la transferencia" lo da por bueno, y "No llegó: quitar acceso" le saca los e-books y cancela el pedido.
-7. **Resto de los pedidos:** Valeria revisa el comprobante en el panel y aprueba el pago. En ese momento:
+6. Valeria revisa el comprobante en el panel, controla su banco y **aprueba el pago** (todos los pedidos, incluidos los de e-books). En ese momento:
    - se habilitan los **e-books** en Mi cuenta,
    - se habilitan los **cursos** (por 12 meses),
    - se crean las **sesiones 1 a 1** "a agendar",
@@ -164,7 +150,7 @@ Tipos de entrega (`delivery`):
 
 ### 2.6 Panel de administración (`/admin`)
 
-Solo entran las cuentas **ayuda.armadodecv@gmail.com** y **valeeria.gil@gmail.com**. Se marcan como admin automáticamente **solo si ingresan con Google**, porque el registro con email y contraseña no confirma que el email sea de quien lo usa. La cuenta actual de valeeria.gil ya es admin.
+**La única administradora es valeeria.gil@gmail.com.** Toda cuenta nueva es cliente, sin excepciones. Sumar otra administradora es un cambio manual y deliberado en la base (`update profiles set role = 'admin' ...`).
 
 | Pestaña | Para qué sirve |
 |---|---|
@@ -327,6 +313,11 @@ El historial completo está en `supabase/migrations/`. Se aplica en orden por fe
 - Los **e-books** no se pueden descargar directo del almacenamiento: solo a través de la función que agrega el sello con el email.
 - Los **datos de transferencia** solo los ven usuarios logueados.
 - El repositorio es **público**: el CBU está reemplazado por un marcador en las migraciones y los e-books pagos no se suben.
+- **Una sola administradora.** Las cuentas nuevas siempre son cliente, y un cliente no puede cambiar su rol ni el email de su perfil.
+- **Anti-spam:** máximo 5 pedidos sin pagar por persona en 24 horas.
+- **Contraseñas:** mínimo 8 caracteres para cuentas nuevas y cambios de contraseña.
+- **Encabezados HTTP:** HSTS (Vercel), `X-Frame-Options: DENY` y `frame-ancestors 'none'` (no se puede embeber la web), `nosniff`, `Referrer-Policy` y `Permissions-Policy`. Sin `X-Powered-By`.
+- Recomendado: doble verificación (2FA) en GitHub, Vercel, Supabase, GoDaddy, Google, Meta y Canva.
 
 ### 3.5 Funciones del servidor (Edge Functions)
 
@@ -389,7 +380,6 @@ Buena práctica: **borrar el token** de `admin_upload_tokens` apenas se termina 
 |---|---|
 | Cambiar un precio o un texto de pack | Panel → Packs y precios (impacta en la web en ≤ 1 minuto) |
 | Aprobar un pago | Panel → Pedidos → abrir el comprobante → "Aprobar pago" |
-| Verificar ventas de e-books entregadas al instante | Panel → Pedidos → "Verificar transferencia" → "Me llegó la transferencia" o "No llegó: quitar acceso" |
 | Ver visitas | Vercel → proyecto armadodecv → Analytics |
 | Agendar una sesión 1 a 1 | Panel → Sesiones → fecha + link de Meet |
 | Subir o reemplazar un e-book | Panel → E-books |
@@ -471,3 +461,4 @@ Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebook
 | #11 | Recuperar contraseña, mostrar/ocultar contraseña, cambiar contraseña desde Mi cuenta; base de datos y funciones versionadas en el repositorio; esta documentación |
 | #12 | E-books y guías al instante al subir el comprobante (con verificación posterior en el panel) y contador de visitas de Vercel |
 | #13 | Lectura del comprobante con IA, consentimiento informado dentro de los términos, encabezados de seguridad y corrección del alta automática de administradores (solo con Google) |
+| #14 | Aprobación manual de todos los pagos (entrega al instante apagada), única admin, contraseñas de 8 caracteres, email del perfil protegido y límite anti-spam de pedidos sin pagar |
