@@ -8,7 +8,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { AuthPanel } from '@/components/auth-panel'
 import { CopyField } from '@/components/copy-field'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
-import { ORDER_SELECT, STATUS, formatDate, needsCoordination, type Order } from '@/lib/orders'
+import { ORDER_SELECT, STATUS, formatDate, isDigitalOnly, needsCoordination, type Order } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 import { track } from '@/lib/pixel'
@@ -57,6 +57,7 @@ export default function OrderPage() {
   const status = STATUS[order.status]
   const awaitingPayment = order.status === 'pending_payment' || order.status === 'payment_review'
   const coordination = needsCoordination(order)
+  const digitalOnly = isDigitalOnly(order)
   const whatsappMessage = `¡Hola! Soy ${order.customer_name ?? ''}. Te escribo por mi pedido #${order.number} (${order.order_items.map((item) => item.product_name).join(', ')}). Ya hice la transferencia de ${formatARS(order.total)}.`
 
   return (
@@ -101,7 +102,7 @@ export default function OrderPage() {
             {order.receipt_path ? (
               <p className="mt-2 flex items-center gap-2 text-sm text-whatsapp"><CheckCircle2 className="h-5 w-5" />Comprobante recibido. Si te equivocaste podés subir otro.</p>
             ) : (
-              <p className="mt-1 text-sm text-piedra">Una captura de pantalla o el PDF que te da tu banco.</p>
+              <p className="mt-1 text-sm text-piedra">Una captura de pantalla o el PDF que te da tu banco.{digitalOnly ? ' Apenas lo subas, tus e-books quedan listos para descargar.' : ''}</p>
             )}
             <label className={`mt-3 flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-3 font-display text-sm font-bold ${order.receipt_path ? 'border border-line bg-white text-ciruela' : 'bg-ciruela text-white hover:bg-rosa'}`}>
               {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}{order.receipt_path ? 'Subir otro comprobante' : 'Elegir archivo'}
@@ -120,7 +121,11 @@ export default function OrderPage() {
         )}
 
         {!coordination && order.status === 'delivered' && (
-          <Link href="/cuenta#ebooks" className="flex min-h-12 items-center justify-center rounded-full bg-ciruela px-5 py-3 font-display text-sm font-bold text-white">Ir a mis e-books</Link>
+          <div className="rounded-[28px] bg-ciruela p-6 text-white sm:p-8">
+            <p className="font-script text-4xl leading-none text-petalo">¡Ya son tuyos!</p>
+            <p className="mt-2 text-sm leading-relaxed text-white/85">Tus e-books están listos para descargar en Mi cuenta. ¡Que los disfrutes!</p>
+            <Link href="/cuenta#ebooks" className="mt-4 flex min-h-12 items-center justify-center rounded-full bg-white px-5 py-3 font-display text-sm font-bold text-ciruela">Ir a mis e-books</Link>
+          </div>
         )}
       </div>
     </section>

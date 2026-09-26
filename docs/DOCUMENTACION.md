@@ -107,7 +107,7 @@ Todo el catálogo se edita desde **Panel → Packs y precios**. Precios vigentes
 
 Tipos de entrega (`delivery`):
 - **service**: trabajo de Valeria. Después del pago se coordina por WhatsApp.
-- **digital**: e-books. Se descargan apenas se aprueba el pago y el pedido pasa solo a "Entregado".
+- **digital**: e-books y guías. Si el pedido es **solo digital**, se habilitan **al instante** cuando el cliente sube el comprobante (ver 2.3).
 - **session**: incluye una sesión 1 a 1 por Meet que se agenda.
 - **course**: curso pregrabado, disponible 12 meses.
 
@@ -118,7 +118,14 @@ Tipos de entrega (`delivery`):
 3. Si no tiene cuenta, la crea ahí mismo con Google o con email y contraseña.
 4. Al confirmar, el servidor **recalcula todos los precios** (el navegador no decide el total) y crea el pedido.
 5. Ve los datos de transferencia (alias `armado.cv`, CBU y titular) con botones de copiar, transfiere y **sube el comprobante** (imagen o PDF).
-6. Valeria revisa el comprobante en el panel y aprueba el pago. En ese momento:
+6. **Pedidos solo de e-books o guías (entrega al instante):** al subir el comprobante, el sistema lo controla y, si pasa, el pedido queda **Entregado** y los e-books listos para descargar en ese momento. Los controles son:
+   - que sea una imagen o un PDF real (no un archivo vacío o diminuto);
+   - que ese mismo archivo no se haya usado en otro pedido;
+   - que la persona no tenga un pago rechazado antes;
+   - que no tenga más de 2 entregas sin verificar.
+
+   Si algo no pasa, queda en "Revisando pago" como siempre. Valeria después controla su banco en **Panel → Pedidos → Verificar transferencia**: "Me llegó la transferencia" lo da por bueno, y "No llegó: quitar acceso" le saca los e-books y cancela el pedido.
+7. **Resto de los pedidos:** Valeria revisa el comprobante en el panel y aprueba el pago. En ese momento:
    - se habilitan los **e-books** en Mi cuenta,
    - se habilitan los **cursos** (por 12 meses),
    - se crean las **sesiones 1 a 1** "a agendar",
@@ -203,7 +210,7 @@ Navegador ──► Vercel (Next.js, www.armadodecv.com)
 | Servicio | Uso | Cuenta |
 |---|---|---|
 | **GitHub** | Código: `saakura14/armado-de-cv` (repositorio **público**) | saakura14 |
-| **Vercel** | Hosting y despliegue automático; proyecto "armadodecv" | — |
+| **Vercel** | Hosting, despliegue automático y **Web Analytics** (visitas, plan gratuito, sin cookies); proyecto "armadodecv" | — |
 | **Supabase** | Base de datos, login, archivos y funciones | proyecto `wdcijkjmdfypltbafdol` |
 | **GoDaddy** | Dominio armadodecv.com y DNS | — |
 | **Google Cloud** | Login con Google; proyecto "Armado de CV" (`armado-de-cv-509716`), marca verificada | valeeria.gil@gmail.com |
@@ -286,7 +293,9 @@ El historial completo está en `supabase/migrations/`. Se aplica en orden por fe
 | Función | Quién | Qué hace |
 |---|---|---|
 | `create_order(items, accept_terms, name, phone, note)` | Cliente | Valida productos, e-book elegido y extras; calcula el total en el servidor; exige aceptar términos; guarda nombre y teléfono en el perfil. |
-| `submit_receipt(order, path)` | Cliente | Asocia el comprobante (en su propia carpeta) y pasa el pedido a "Revisando pago". |
+| `submit_receipt(order, path)` | Cliente | Asocia el comprobante (en su propia carpeta) y pasa el pedido a "Revisando pago". Si el pedido es solo digital y pasa los controles (tipo y tamaño de archivo, huella del archivo no repetida, sin pagos rechazados, máximo 2 sin verificar), habilita todo y lo marca Entregado con `payment_check = 'pending'`. Devuelve el estado final. |
+| `admin_review_instant_payment(order, received, note)` | Admin | Transferencia verificada (`ok`) o no llegó (`rejected`): quita los accesos que dio ese pedido y lo cancela. |
+| `grant_order_access(order)` | Interna | Otorga e-books y cursos y crea sesiones; la usan las dos funciones anteriores. No se puede llamar desde la web. |
 | `admin_set_order_status(order, status, note)` | Admin | Cambia el estado. La primera vez que se aprueba el pago otorga e-books y cursos, crea las sesiones y marca como entregados los pedidos solo digitales. |
 | `admin_update_session(...)` | Admin | Fecha, link de Meet, estado y nota de una sesión. |
 | `is_admin()` | Todos | Usada por las políticas de seguridad. |
@@ -368,7 +377,9 @@ Buena práctica: **borrar el token** de `admin_upload_tokens` apenas se termina 
 | Tarea | Dónde |
 |---|---|
 | Cambiar un precio o un texto de pack | Panel → Packs y precios (impacta en la web en ≤ 1 minuto) |
-| Aprobar un pago | Panel → Pedidos → abrir el comprobante → "Pago confirmado" |
+| Aprobar un pago | Panel → Pedidos → abrir el comprobante → "Aprobar pago" |
+| Verificar ventas de e-books entregadas al instante | Panel → Pedidos → "Verificar transferencia" → "Me llegó la transferencia" o "No llegó: quitar acceso" |
+| Ver visitas | Vercel → proyecto armadodecv → Analytics |
 | Agendar una sesión 1 a 1 | Panel → Sesiones → fecha + link de Meet |
 | Subir o reemplazar un e-book | Panel → E-books |
 | Agregar una pregunta a Sakura | Panel → Sakura (preguntas) |
@@ -447,3 +458,4 @@ Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebook
 | #9 | Píxel de Meta listo para activar |
 | #10 | Foto a la cintura e Instagram en testimonios |
 | #11 | Recuperar contraseña, mostrar/ocultar contraseña, cambiar contraseña desde Mi cuenta; base de datos y funciones versionadas en el repositorio; esta documentación |
+| #12 | E-books y guías al instante al subir el comprobante (con verificación posterior en el panel) y contador de visitas de Vercel |

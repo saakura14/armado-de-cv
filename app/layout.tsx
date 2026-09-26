@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Cookie, Montserrat, Nunito_Sans } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
 import { SiteHeader } from '@/components/site-header'
 import { BottomNav } from '@/components/bottom-nav'
 import { SiteFooter } from '@/components/site-footer'
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <BottomNav />
         <SakuraChat />
         <MetaPixel />
+        <Analytics />
       </body>
     </html>
   )
