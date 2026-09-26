@@ -39,8 +39,7 @@ export default function TermsPage() {
 
       <Clause title="4. E-books">
         <ul>
-          <li>Los e-books y guías se entregan en formato digital y se habilitan para descargar en <Link href="/cuenta" className="font-semibold text-rosa-deep underline">Mi cuenta</Link> apenas subís el comprobante de la transferencia. Cuando el pedido incluye otros servicios, se habilitan cuando se aprueba el pago.</li>
-          <li>La entrega inmediata está sujeta a la acreditación de la transferencia. Si el pago no se acredita, el acceso se da de baja y el pedido se cancela. Cada descarga lleva el email de quien compró.</li>
+          <li>Los e-books y guías se entregan en formato digital y se habilitan para descargar en <Link href="/cuenta" className="font-semibold text-rosa-deep underline">Mi cuenta</Link> cuando confirmo que la transferencia se acreditó. Cada descarga lleva el email de quien compró.</li>
           <li>
             <b>Consentimiento informado (Asesorías).</b> Al aceptar estos términos para comprar e-books, packs o sesiones de Asesorías, prestás tu consentimiento informado: entendés que el material y las sesiones son de preparación y orientación, que no garantizan un resultado en entrevistas ni en tests, que no constituyen diagnóstico ni reemplazan una evaluación o tratamiento psicológico o profesional, y que tu participación es voluntaria. Nada de lo que trabajamos busca falsear respuestas.
           </li>

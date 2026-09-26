@@ -116,9 +116,10 @@ export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?:
         </label>
         {mode !== 'forgot' && (
           <label className="block text-sm font-semibold text-ciruela">Contraseña
-            <PasswordInput required minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className={input} />
+            <PasswordInput required minLength={mode === 'signup' ? 8 : undefined} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className={input} />
           </label>
         )}
+        {mode === 'signup' && <p className="-mt-1 text-xs text-piedra">Mínimo 8 caracteres.</p>}
         {mode === 'login' && (
           <button type="button" onClick={() => switchMode('forgot')} className="text-sm font-semibold text-rosa-deep underline-offset-2 hover:underline">¿Olvidaste tu contraseña?</button>
         )}

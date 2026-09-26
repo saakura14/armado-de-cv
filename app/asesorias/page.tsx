@@ -99,7 +99,7 @@ export default async function AsesoriasPage() {
         </div>
       </section>
 
-      <HowToBuy steps={steps} note="El consentimiento informado se acepta junto con los términos al confirmar el pedido. Los e-books se habilitan apenas subís el comprobante de la transferencia." />
+      <HowToBuy steps={steps} note="El consentimiento informado se acepta junto con los términos al confirmar el pedido. Los e-books se habilitan apenas confirmo tu pago." />
       <div className="bg-blanco"><Faq items={faqs.map((faq) => ({ q: faq.question, a: faq.answer }))} /></div>
     </div>
   )

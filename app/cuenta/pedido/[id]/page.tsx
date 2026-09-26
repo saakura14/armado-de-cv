@@ -107,7 +107,7 @@ export default function OrderPage() {
             {order.receipt_path ? (
               <p className="mt-2 flex items-center gap-2 text-sm text-whatsapp"><CheckCircle2 className="h-5 w-5" />Comprobante recibido. Si te equivocaste podés subir otro.</p>
             ) : (
-              <p className="mt-1 text-sm text-piedra">Una captura de pantalla o el PDF que te da tu banco.{digitalOnly ? ' Apenas lo subas, tus e-books quedan listos para descargar.' : ''}</p>
+              <p className="mt-1 text-sm text-piedra">Una captura de pantalla o el PDF que te da tu banco.{digitalOnly ? ' Apenas confirmo tu pago, tus e-books quedan listos para descargar.' : ''}</p>
             )}
             <label className={`mt-3 flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-3 font-display text-sm font-bold ${order.receipt_path ? 'border border-line bg-white text-ciruela' : 'bg-ciruela text-white hover:bg-rosa'}`}>
               {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}{order.receipt_path ? 'Subir otro comprobante' : 'Elegir archivo'}
