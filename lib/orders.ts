@@ -28,6 +28,8 @@ export type Order = {
   admin_note: string | null
   paid_at: string | null
   delivered_at: string | null
+  /** Instant e-book access: 'pending' until the admin checks the transfer arrived. */
+  payment_check: 'pending' | 'ok' | 'rejected' | null
   created_at: string
   order_items: OrderItem[]
 }
@@ -41,6 +43,11 @@ export const STATUS: Record<OrderStatus, { label: string; tone: string; text: st
   in_progress: { label: 'En proceso', tone: 'bg-rosa/15 text-rosa-deep', text: 'Estoy trabajando en tu pedido.' },
   delivered: { label: 'Entregado', tone: 'bg-ciruela text-white', text: '¡Listo! Tu pedido está entregado.' },
   cancelled: { label: 'Cancelado', tone: 'bg-line text-piedra', text: 'Este pedido fue cancelado.' },
+}
+
+/** Orders with only e-books and guides unlock as soon as the receipt is uploaded. */
+export function isDigitalOnly(order: Order) {
+  return order.order_items.every((item) => item.products?.delivery === 'digital')
 }
 
 /** Orders with CV packs, tests or sessions need a WhatsApp conversation after paying. */

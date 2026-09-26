@@ -8,9 +8,10 @@ import { ORDER_SELECT, STATUS, formatDate, type Order, type OrderStatus } from '
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass, inputClass, useFlash } from './ui'
 
-type Filter = 'activos' | OrderStatus | 'todos'
+type Filter = 'activos' | 'verificar' | OrderStatus | 'todos'
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'activos', label: 'Para atender' },
+  { id: 'verificar', label: 'Verificar transferencia' },
   { id: 'payment_review', label: 'Revisar pago' },
   { id: 'pending_payment', label: 'Sin pagar' },
   { id: 'paid', label: 'Pagados' },
@@ -44,6 +45,17 @@ function OrderCard({ order, buyer, onChanged }: { order: Order; buyer?: Buyer; o
     onChanged()
   }
 
+  // E-books unlocked on upload: confirm the transfer arrived, or take the access back.
+  async function reviewInstant(received: boolean) {
+    if (!received && !window.confirm(`¿No llegó la transferencia del pedido #${order.number}? Se le quita el acceso a los e-books y el pedido queda cancelado.`)) return
+    setBusy(received ? 'received' : 'rejected')
+    const { error } = await supabase.rpc('admin_review_instant_payment', { p_order: order.id, p_received: received, p_note: note.trim() || null })
+    setBusy('')
+    if (error) { flash.show('error', errorMessage(error)); return }
+    flash.show('ok', received ? 'Listo: transferencia verificada.' : 'Acceso quitado y pedido cancelado.')
+    onChanged()
+  }
+
   async function openReceipt() {
     if (!order.receipt_path) return
     const { data, error } = await supabase.storage.from('receipts').createSignedUrl(order.receipt_path, 300)
@@ -69,6 +81,19 @@ function OrderCard({ order, buyer, onChanged }: { order: Order; buyer?: Buyer; o
           <p className="mt-2 font-display text-xl font-extrabold text-ciruela">{formatARS(order.total)}</p>
         </div>
       </div>
+
+      {order.payment_check === 'pending' && (
+        <div className="mt-4 rounded-2xl border border-rosa/40 bg-petalo-wash p-4 text-sm">
+          <p className="font-bold text-rosa-deep">E-books entregados al instante: verificá la transferencia</p>
+          <p className="mt-1 text-ink">El cliente ya puede descargar. Fijate en tu banco que haya llegado {formatARS(order.total)} y confirmalo.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button variant="success" busy={busy === 'received'} onClick={() => reviewInstant(true)}>Me llegó la transferencia</Button>
+            <Button variant="danger" busy={busy === 'rejected'} onClick={() => reviewInstant(false)}>No llegó: quitar acceso</Button>
+          </div>
+        </div>
+      )}
+      {order.payment_check === 'ok' && <p className="mt-3 text-xs font-semibold text-whatsapp">✓ Transferencia verificada</p>}
+      {order.payment_check === 'rejected' && <p className="mt-3 text-xs font-semibold text-rosa-deep">✗ Transferencia no acreditada: se quitó el acceso</p>}
 
       <ul className="mt-4 space-y-2 rounded-2xl bg-papel p-4 text-sm">
         {order.order_items.map((item) => (
@@ -111,7 +136,8 @@ export function OrdersAdmin() {
   const load = useCallback(async () => {
     setLoading(true)
     let query = supabase.from('orders').select(ORDER_SELECT).order('created_at', { ascending: false }).limit(100)
-    if (filter === 'activos') query = query.in('status', ['payment_review', 'paid', 'in_progress'])
+    if (filter === 'activos') query = query.or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending')
+    else if (filter === 'verificar') query = query.eq('payment_check', 'pending')
     else if (filter !== 'todos') query = query.eq('status', filter)
     const { data, error: loadError } = await query
     if (loadError) setError(errorMessage(loadError))
