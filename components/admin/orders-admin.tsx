@@ -92,6 +92,17 @@ function OrderCard({ order, buyer, onChanged }: { order: Order; buyer?: Buyer; o
           </div>
         </div>
       )}
+      {order.receipt_ai && (
+        <div className={`mt-3 rounded-2xl p-3 text-xs ${order.receipt_ai.veredicto === 'aprobar' ? 'bg-whatsapp/10 text-ink' : 'bg-arena text-ink'}`}>
+          <p className="font-bold">{order.receipt_ai.veredicto === 'aprobar' ? 'Lectura del comprobante: coincide' : 'Lectura del comprobante: revisalo vos'}</p>
+          <p className="mt-1">{order.receipt_ai.motivo}</p>
+          {order.receipt_ai.leido && (
+            <p className="mt-1 text-piedra">
+              Destinatario: {order.receipt_ai.leido.destinatario ?? '—'} · Alias: {order.receipt_ai.leido.alias ?? '—'} · Monto: {order.receipt_ai.leido.monto != null ? formatARS(order.receipt_ai.leido.monto) : '—'} · Fecha: {order.receipt_ai.leido.fecha ?? '—'} · Operación: {order.receipt_ai.leido.operacion ?? '—'}
+            </p>
+          )}
+        </div>
+      )}
       {order.payment_check === 'ok' && <p className="mt-3 text-xs font-semibold text-whatsapp">✓ Transferencia verificada</p>}
       {order.payment_check === 'rejected' && <p className="mt-3 text-xs font-semibold text-rosa-deep">✗ Transferencia no acreditada: se quitó el acceso</p>}
 

@@ -8,3 +8,7 @@ verify_jwt = true
 [functions.admin-upload]
 # Authenticates with a short-lived token from public.admin_upload_tokens instead of a session.
 verify_jwt = false
+
+[functions.verify-receipt]
+# Requires the buyer's session token. Uses the ANTHROPIC_API_KEY secret to read receipts.
+verify_jwt = true

@@ -119,10 +119,19 @@ Tipos de entrega (`delivery`):
 4. Al confirmar, el servidor **recalcula todos los precios** (el navegador no decide el total) y crea el pedido.
 5. Ve los datos de transferencia (alias `armado.cv`, CBU y titular) con botones de copiar, transfiere y **sube el comprobante** (imagen o PDF).
 6. **Pedidos solo de e-books o guías (entrega al instante):** al subir el comprobante, el sistema lo controla y, si pasa, el pedido queda **Entregado** y los e-books listos para descargar en ese momento. Los controles son:
-   - que sea una imagen o un PDF real (no un archivo vacío o diminuto);
+   - que sea una imagen (JPG, PNG, WEBP) o un PDF real, no un archivo vacío o diminuto;
    - que ese mismo archivo no se haya usado en otro pedido;
    - que la persona no tenga un pago rechazado antes;
    - que no tenga más de 2 entregas sin verificar.
+
+   Además, la función `verify-receipt` **lee el comprobante con IA** (Claude) y exige cinco cosas:
+   - destinatario = titular, alias o CBU de la cuenta de Valeria;
+   - **monto exacto** del pedido;
+   - fecha entre el día anterior al pedido y hoy;
+   - ninguna señal de edición;
+   - un **número de operación** nunca usado en otro pedido.
+
+   Lo leído queda visible en el panel. Sin la clave `ANTHROPIC_API_KEY` solo se aplican los controles del archivo.
 
    Si algo no pasa, queda en "Revisando pago" como siempre. Valeria después controla su banco en **Panel → Pedidos → Verificar transferencia**: "Me llegó la transferencia" lo da por bueno, y "No llegó: quitar acceso" le saca los e-books y cancela el pedido.
 7. **Resto de los pedidos:** Valeria revisa el comprobante en el panel y aprueba el pago. En ese momento:
@@ -155,7 +164,7 @@ Tipos de entrega (`delivery`):
 
 ### 2.6 Panel de administración (`/admin`)
 
-Solo entran las cuentas **ayuda.armadodecv@gmail.com** y **valeeria.gil@gmail.com**: se marcan como admin automáticamente al registrarse.
+Solo entran las cuentas **ayuda.armadodecv@gmail.com** y **valeeria.gil@gmail.com**. Se marcan como admin automáticamente **solo si ingresan con Google**, porque el registro con email y contraseña no confirma que el email sea de quien lo usa. La cuenta actual de valeeria.gil ya es admin.
 
 | Pestaña | Para qué sirve |
 |---|---|
@@ -293,7 +302,8 @@ El historial completo está en `supabase/migrations/`. Se aplica en orden por fe
 | Función | Quién | Qué hace |
 |---|---|---|
 | `create_order(items, accept_terms, name, phone, note)` | Cliente | Valida productos, e-book elegido y extras; calcula el total en el servidor; exige aceptar términos; guarda nombre y teléfono en el perfil. |
-| `submit_receipt(order, path)` | Cliente | Asocia el comprobante (en su propia carpeta) y pasa el pedido a "Revisando pago". Si el pedido es solo digital y pasa los controles (tipo y tamaño de archivo, huella del archivo no repetida, sin pagos rechazados, máximo 2 sin verificar), habilita todo y lo marca Entregado con `payment_check = 'pending'`. Devuelve el estado final. |
+| `submit_receipt(order, path)` | Cliente | Asocia el comprobante (en su propia carpeta), guarda la huella del archivo y pasa el pedido a "Revisando pago". |
+| `instant_eligible(order)` / `finish_receipt_check(...)` | Solo `verify-receipt` | Reglas de entrega inmediata (solo digital, archivo válido y no repetido, sin rechazos, máx. 2 sin verificar) y registro de la lectura. Si se aprueba y el número de operación no se repite, habilita todo y marca Entregado con `payment_check = 'pending'`. |
 | `admin_review_instant_payment(order, received, note)` | Admin | Transferencia verificada (`ok`) o no llegó (`rejected`): quita los accesos que dio ese pedido y lo cancela. |
 | `grant_order_access(order)` | Interna | Otorga e-books y cursos y crea sesiones; la usan las dos funciones anteriores. No se puede llamar desde la web. |
 | `admin_set_order_status(order, status, note)` | Admin | Cambia el estado. La primera vez que se aprueba el pago otorga e-books y cursos, crea las sesiones y marca como entregados los pedidos solo digitales. |
@@ -325,6 +335,7 @@ Código en `supabase/functions/`. Se despliegan en Supabase.
 | Función | Autenticación | Qué hace |
 |---|---|---|
 | `ebook-download` | Sesión del cliente (JWT) | Verifica que el usuario tenga acceso al e-book y descarga el PDF del bucket privado. Agrega en cada página, arriba del pie, la línea *"E-book adquirido por {email} - Pedido #N"* y guarda email y pedido en los metadatos del PDF. |
+| `verify-receipt` | Sesión del cliente (JWT) | Para pedidos solo digitales: lee el comprobante con Claude (`ANTHROPIC_API_KEY`) y valida destinatario, monto, fecha, señales de edición y número de operación. Llama a `finish_receipt_check`, que habilita todo si pasa. |
 | `admin-upload` | Token de `admin_upload_tokens` (encabezado `x-upload-token`) | `?ebook=<id>&name=` sube el PDF de un e-book y lo vincula (borra el anterior). `?social=<ruta>` sube PNG, JPG, PDF o MP4 al bucket público `social` y devuelve la URL. |
 
 Buena práctica: **borrar el token** de `admin_upload_tokens` apenas se termina de usar.
@@ -459,3 +470,4 @@ Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebook
 | #10 | Foto a la cintura e Instagram en testimonios |
 | #11 | Recuperar contraseña, mostrar/ocultar contraseña, cambiar contraseña desde Mi cuenta; base de datos y funciones versionadas en el repositorio; esta documentación |
 | #12 | E-books y guías al instante al subir el comprobante (con verificación posterior en el panel) y contador de visitas de Vercel |
+| #13 | Lectura del comprobante con IA, consentimiento informado dentro de los términos, encabezados de seguridad y corrección del alta automática de administradores (solo con Google) |
