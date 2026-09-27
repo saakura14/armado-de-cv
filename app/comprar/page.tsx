@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { AuthPanel } from '@/components/auth-panel'
 import { clearPending, loadPending, type PendingOrder } from '@/lib/cart'
-import { formatARS } from '@/lib/catalog'
+import { formatARS, whatsappUrl } from '@/lib/catalog'
+import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 import { track } from '@/lib/pixel'
@@ -90,7 +91,14 @@ export default function CheckoutPage() {
         </div>
 
         {!user ? (
-          <AuthPanel title="Casi listo" text="Creá tu cuenta o ingresá para confirmar el pedido. Ahí vas a ver el estado de tu compra y descargar tus e-books." />
+          <div>
+            <AuthPanel title="Casi listo" initialMode="signup" text="Creá tu cuenta (te lleva un minuto) o ingresá si ya tenés una. Ahí vas a ver el estado de tu compra y descargar tus e-books." />
+            {pending.delivery === 'service' && (
+              <a href={whatsappUrl(`¡Hola! Quiero contratar ${pending.productName} (${formatARS(pending.total)}).`)} target="_blank" rel="noopener noreferrer" className="mx-auto mt-4 flex max-w-md items-center justify-center gap-2 text-sm font-semibold text-[#128c4a]">
+                <WhatsAppIcon className="h-4 w-4" />¿Preferís no crear cuenta? Pedilo por WhatsApp
+              </a>
+            )}
+          </div>
         ) : (
           <form onSubmit={confirm} className="rounded-[28px] bg-white p-6 shadow-[0_22px_44px_-30px_rgba(67,32,44,0.55)] sm:p-8">
             <p className="font-script text-4xl leading-none text-rosa">Tus datos</p>

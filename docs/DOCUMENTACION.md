@@ -462,3 +462,4 @@ Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebook
 | #12 | E-books y guías al instante al subir el comprobante (con verificación posterior en el panel) y contador de visitas de Vercel |
 | #13 | Lectura del comprobante con IA, consentimiento informado dentro de los términos, encabezados de seguridad y corrección del alta automática de administradores (solo con Google) |
 | #14 | Aprobación manual de todos los pagos (entrega al instante apagada), única admin, contraseñas de 8 caracteres, email del perfil protegido y límite anti-spam de pedidos sin pagar |
+| #15 | Compra desde Instagram: sin botón de Google dentro del navegador de Instagram/Facebook/TikTok (Google lo bloquea) y con aviso para usar el email, la compra arranca en "Crear cuenta", opción de pedir el pack por WhatsApp sin cuenta, /admin sin mostrar emails, y controles de seguridad en `docs/SEGURIDAD.md` |

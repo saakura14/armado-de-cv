@@ -51,7 +51,7 @@ export default function AdminPage() {
   }
 
   if (!ready) return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-rosa" /></div>
-  if (!user) return <section className="bg-arena/40 px-4 py-16"><AuthPanel title="Administración" text="Ingresá con ayuda.armadodecv@gmail.com o valeeria.gil@gmail.com." /></section>
+  if (!user) return <section className="bg-arena/40 px-4 py-16"><AuthPanel title="Administración" text="Área privada." /></section>
   if (!isAdmin) return <section className="mx-auto max-w-md px-4 py-20 text-center"><p className="font-script text-5xl text-rosa">Sin acceso</p><p className="mt-3 text-piedra">Esta sección es solo para administración.</p><Link href="/cuenta" className="mt-6 inline-block font-semibold text-rosa-deep underline">Ir a Mi cuenta</Link></section>
 
   const badge = (id: TabId) => (id === 'pedidos' ? counts.review : id === 'sesiones' ? counts.sessions : 0)
