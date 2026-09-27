@@ -28,17 +28,27 @@ function useGoogleEnabled() {
   return enabled
 }
 
+/** Instagram, Facebook and TikTok open links in their own browser, where Google blocks its sign-in page. */
+function useInAppBrowser() {
+  const [inApp, setInApp] = useState(false)
+  useEffect(() => {
+    setInApp(/Instagram|FBAN|FBAV|FB_IAB|musical_ly|TikTok|BytedanceWebview/i.test(navigator.userAgent))
+  }, [])
+  return inApp
+}
+
 /** Sign in with Google or email + password, or ask for a password-reset email.
  *  Pages using useSession() re-render once the session exists. */
-export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?: string; text?: string }) {
-  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login')
+export function AuthPanel({ title = 'Ingresá para continuar', text, initialMode = 'login' }: { title?: string; text?: string; initialMode?: 'login' | 'signup' }) {
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>(initialMode)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
-  const googleEnabled = useGoogleEnabled()
+  const inApp = useInAppBrowser()
+  const googleEnabled = useGoogleEnabled() && !inApp
 
   function switchMode(next: typeof mode) {
     setMode(next); setError(''); setInfo('')
@@ -91,6 +101,11 @@ export function AuthPanel({ title = 'Ingresá para continuar', text }: { title?:
         </>
       )}
       {(!googleEnabled || mode === 'forgot') && <div className="mt-6" />}
+      {inApp && mode !== 'forgot' && (
+        <p className="mb-4 rounded-xl bg-arena px-3 py-2 text-sm leading-relaxed text-ink">
+          Estás navegando desde la app de Instagram: creá tu cuenta con tu email acá abajo. Si preferís entrar con Google, tocá <b>⋯</b> arriba a la derecha y elegí <b>Abrir en el navegador</b>.
+        </p>
+      )}
       {mode === 'forgot' ? (
         <div>
           <p className="font-display text-base font-bold text-ciruela">Recuperá tu contraseña</p>
