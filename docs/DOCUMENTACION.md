@@ -464,3 +464,4 @@ Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebook
 | #15 | Compra desde Instagram: sin botón de Google dentro del navegador de Instagram/Facebook/TikTok (Google lo bloquea) y con aviso para usar el email, la compra arranca en "Crear cuenta", opción de pedir el pack por WhatsApp sin cuenta, /admin sin mostrar emails, y controles de seguridad en `docs/SEGURIDAD.md` |
 | #16 | Píxel de Meta activado (con evento de registro) y política de privacidad actualizada para informarlo |
 | #17 | E-book nuevo "Cuánto pedir de sueldo" ($16.000, sección Guías). Todos los e-books y guías de regalo pasan al diseño 2026 (crema, Poppins, flores y "El consejo de Vale"); el diseño anterior queda en `assets/ebook-v1.css` de la carpeta de e-books |
+| #18 | Página /gratis con el checklist "Revisá tu CV en 10 minutos" (descarga sin registro, evento Lead del píxel) para la palabra clave CHECKLIST de Instagram |
