@@ -1,6 +1,6 @@
 // Meta Pixel. Paste the pixel ID from Events Manager here (it's public, not a secret).
 // With an empty ID nothing is loaded or tracked.
-export const META_PIXEL_ID = ''
+export const META_PIXEL_ID = '1983692595634961'
 
 type Fbq = (command: 'track' | 'init', event: string, params?: Record<string, unknown>) => void
 
