@@ -31,7 +31,7 @@ export default function PrivacyPage() {
       </Clause>
 
       <Clause title="4. Dónde se guardan">
-        <p>El sitio usa proveedores tecnológicos para funcionar: Vercel (alojamiento de la web), Supabase (base de datos, archivos y cuentas de usuario) y Google (si elegís ingresar con Google, y para las videollamadas por Meet). Estos servicios pueden almacenar la información en servidores fuera de la Argentina, con medidas de seguridad adecuadas.</p>
+        <p>El sitio usa proveedores tecnológicos para funcionar: Vercel (alojamiento de la web y estadísticas de visitas), Supabase (base de datos, archivos y cuentas de usuario), Google (si elegís ingresar con Google, y para las videollamadas por Meet) y Meta (medición de los anuncios, ver punto 6). Estos servicios pueden almacenar la información en servidores fuera de la Argentina, con medidas de seguridad adecuadas.</p>
         <p>Los comprobantes, e-books y materiales se guardan en espacios privados: solo vos y la administración pueden ver tus archivos, y las descargas usan links temporales que vencen en minutos.</p>
       </Clause>
 
@@ -40,7 +40,8 @@ export default function PrivacyPage() {
       </Clause>
 
       <Clause title="6. Cookies y almacenamiento local">
-        <p>Uso solo el almacenamiento necesario para mantener tu sesión iniciada, recordar el pedido que estás armando y el avance de tus cursos. No uso cookies publicitarias ni de seguimiento.</p>
+        <p>Uso el almacenamiento necesario para mantener tu sesión iniciada, recordar el pedido que estás armando y el avance de tus cursos.</p>
+        <p>También uso el <b>píxel de Meta</b> (Facebook e Instagram), que guarda cookies para medir qué pasos del sitio se usan (ver un producto, iniciar una compra, confirmar un pedido) y mostrar los anuncios a personas con intereses parecidos. Solo registra esas acciones y el monto del pedido: no envía tu nombre, tu email, tu CV ni tus archivos. Y las estadísticas de visitas de Vercel no usan cookies. Podés bloquear las cookies de terceros desde tu navegador o gestionar tus preferencias de anuncios en tu cuenta de Meta.</p>
       </Clause>
 
       <Clause title="7. Tus derechos">

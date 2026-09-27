@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { PasswordInput } from '@/components/password-input'
 import { SUPABASE_KEY, SUPABASE_URL, errorMessage, supabase } from '@/lib/supabase'
+import { track } from '@/lib/pixel'
 
 function GoogleIcon() {
   return (
@@ -78,6 +79,7 @@ export function AuthPanel({ title = 'Ingresá para continuar', text, initialMode
           options: { data: { full_name: name.trim() }, emailRedirectTo: window.location.href },
         })
         if (authError) throw authError
+        track('CompleteRegistration')
         if (!data.session) setInfo('Te mandamos un email para confirmar tu cuenta. Abrilo y volvé a esta página.')
       }
     } catch (caught) {

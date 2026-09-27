@@ -246,7 +246,7 @@ lib/
   orders.ts               Tipos y estados de pedidos
   use-session.ts          Sesión, perfil y si es admin
   faq.ts                  Búsqueda de respuestas de Sakura y reemplazo de precios
-  pixel.ts                Píxel de Meta (ID vacío = desactivado)
+  pixel.ts                Píxel de Meta (ID del conjunto de datos; vacío = desactivado)
   video.ts                Links de YouTube/Vimeo a formato embebido
 public/                   Marca (SVG), imágenes, íconos de la app, Sakura
 brand-src/                Fuentes del logo y manual de marca
@@ -368,8 +368,8 @@ Buena práctica: **borrar el token** de `admin_upload_tokens` apenas se termina 
 
 ### 3.9 Medición (píxel de Meta)
 
-- El código ya está integrado (`components/meta-pixel.tsx`, `lib/pixel.ts`) y registra PageView, ViewContent (al abrir un producto), InitiateCheckout, Lead (al crear el pedido) y Purchase (al subir el comprobante).
-- Está **apagado** mientras `META_PIXEL_ID` esté vacío en `lib/pixel.ts`.
+- El código está integrado (`components/meta-pixel.tsx`, `lib/pixel.ts`) y registra PageView, ViewContent (al abrir un producto), InitiateCheckout, CompleteRegistration (al crear la cuenta), Lead (al crear el pedido) y Purchase (al subir el comprobante).
+- **Activo desde el 27/09/2026** con el conjunto de datos "Armado de CV - Web" (ID 1983692595634961) del portfolio "Armado de Cv". No envía datos personales, solo la acción, el producto y el monto.
 - Para activarlo hace falta crear el píxel en el portfolio comercial "Armado de Cv" (Meta Business) y pegar el ID.
 
 ---
@@ -436,7 +436,6 @@ Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebook
 - **Emails de recuperación de contraseña:**
   - El servicio de email que Supabase trae por defecto tiene un límite muy bajo y puede no entregar mails a clientes. Para producción conviene configurar un **SMTP propio** (Supabase → Authentication → Emails → SMTP), por ejemplo con Resend o con una cuenta de Gmail con contraseña de aplicación.
   - Conviene traducir al español la plantilla "Reset password".
-- **Píxel de Meta:** crear el píxel en el portfolio "Armado de Cv" (requiere verificar con código) y cargar el ID.
 - **Cursos:** la estructura está lista; falta cargar el primero.
 - **Agente de Instagram** para respuestas y ventas: se deja para cuando haya volumen de ventas.
 - **Formulario de clientes:** vincular la planilla de respuestas y compartirla con valeeria.gil@gmail.com.
@@ -463,3 +462,4 @@ Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebook
 | #13 | Lectura del comprobante con IA, consentimiento informado dentro de los términos, encabezados de seguridad y corrección del alta automática de administradores (solo con Google) |
 | #14 | Aprobación manual de todos los pagos (entrega al instante apagada), única admin, contraseñas de 8 caracteres, email del perfil protegido y límite anti-spam de pedidos sin pagar |
 | #15 | Compra desde Instagram: sin botón de Google dentro del navegador de Instagram/Facebook/TikTok (Google lo bloquea) y con aviso para usar el email, la compra arranca en "Crear cuenta", opción de pedir el pack por WhatsApp sin cuenta, /admin sin mostrar emails, y controles de seguridad en `docs/SEGURIDAD.md` |
+| #16 | Píxel de Meta activado (con evento de registro) y política de privacidad actualizada para informarlo |
