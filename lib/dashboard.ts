@@ -18,6 +18,22 @@ export type Sale = {
 export const SALE_SELECT = 'id, number, status, total, paid_at, payment_method, customer_name, order_items(product_id, product_name, line_total)'
 
 export type VisitRow = { day: string; path: string; visits: number; views: number }
+export type EventRow = { day: string; event: 'lo_quiero' | 'checkout'; count: number }
+
+export type FunnelStep = { label: string; hint: string; value: number }
+
+/** Where people drop between arriving and paying, for one month. Web steps count browser sessions. */
+export function funnel(key: string, visits: VisitRow[], events: EventRow[], created: string[], sales: Sale[]): FunnelStep[] {
+  const sum = (rows: { count: number }[]) => rows.reduce((total, row) => total + row.count, 0)
+  const inMonth = events.filter((row) => row.day.startsWith(key))
+  return [
+    { label: 'Entraron a la web', hint: 'visitas', value: visits.filter((row) => row.day.startsWith(key)).reduce((total, row) => total + row.visits, 0) },
+    { label: 'Tocaron "Lo quiero"', hint: 'miraron un producto', value: sum(inMonth.filter((row) => row.event === 'lo_quiero')) },
+    { label: 'Llegaron a comprar', hint: 'cuenta y datos', value: sum(inMonth.filter((row) => row.event === 'checkout')) },
+    { label: 'Confirmaron el pedido', hint: 'pedidos creados', value: created.filter((date) => monthKey(date) === key).length },
+    { label: 'Pagaron', hint: 'ventas', value: sales.filter((sale) => monthKey(sale.paid_at) === key).length },
+  ]
+}
 
 // ---- Dates in Argentina (UTC-3 all year, no daylight saving) ----
 

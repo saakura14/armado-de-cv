@@ -85,7 +85,7 @@ export default async function Home() {
         <div className="mx-auto max-w-6xl">
           <SectionTitle id="cv-title" script="Catálogo" title="Packs de CV y LinkedIn" text="Cada pack incluye dos CV: uno con diseño moderno y otro optimizado para los filtros ATS que usan las empresas." />
           <ProductGrid products={cvProducts} tone="cv" />
-          <div className="mt-12 grid gap-4 md:grid-cols-2">
+          <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div className="rounded-3xl bg-petalo-wash px-6 py-5">
               <h3 className="font-bold text-ciruela">Idiomas y plataformas</h3>
               <p className="mt-1 text-sm leading-relaxed text-ink">Sumá a cualquier pack versiones en inglés, italiano, portugués, francés, alemán u otro idioma, y la carga de tu perfil en Zonajobs, Bumeran, Computrabajo, HiringRoom, Indeed u otras. <b>{formatARS(price.language)} cada uno.</b></p>
@@ -93,6 +93,10 @@ export default async function Home() {
             <div className="rounded-3xl bg-petalo-wash px-6 py-5">
               <h3 className="font-bold text-ciruela">Plazos de entrega</h3>
               <p className="mt-1 text-sm leading-relaxed text-ink">{DELIVERY_NOTE}</p>
+            </div>
+            <div className="rounded-3xl bg-petalo-wash px-6 py-5 md:col-span-2 lg:col-span-1">
+              <h3 className="font-bold text-ciruela">Ajustes incluidos</h3>
+              <p className="mt-1 text-sm leading-relaxed text-ink">Antes de entregarte el CV te paso un boceto y lo ajustamos juntos. Ya entregado, tenés 24 hs para pedir cambios sin costo.</p>
             </div>
           </div>
         </div>

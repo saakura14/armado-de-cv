@@ -11,6 +11,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 import { track } from '@/lib/pixel'
+import { countStep } from '@/components/visit-tracker'
 
 // E-books and courses need nothing else from the buyer, so they skip the note.
 const NOTE_FIELD: Partial<Record<Delivery, { label: string; placeholder: string }>> = {
@@ -47,7 +48,10 @@ export default function CheckoutPage() {
   useEffect(() => {
     const order = loadPending()
     setPending(order)
-    if (order) track('InitiateCheckout', { value: order.total, currency: 'ARS', content_ids: [order.item.product_id] })
+    if (order) {
+      track('InitiateCheckout', { value: order.total, currency: 'ARS', content_ids: [order.item.product_id] })
+      countStep('checkout')
+    }
   }, [])
   useEffect(() => {
     if (!profile) return

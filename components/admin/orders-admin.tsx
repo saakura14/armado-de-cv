@@ -5,6 +5,8 @@ import { FileText, RefreshCw } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, type Order, type OrderStatus } from '@/lib/orders'
+import { deliveryDeadline, formatDue } from '@/lib/dashboard'
+import { DeadlineChip } from './dashboard-admin'
 
 // The admin also sees every Ualá checkout opened for the order (buyers can't read that table).
 type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[] }
@@ -94,7 +96,20 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
   const status = STATUS[order.status]
   const name = order.customer_name || buyer?.full_name || buyer?.email || 'Cliente'
   const phone = order.customer_phone || buyer?.phone || null
-  const whatsapp = waLink(phone, `¡Hola ${name.split(' ')[0]}! Te escribo por tu pedido #${order.number} de Armado de CV.`)
+  const firstName = name.split(' ')[0]
+  const products = order.order_items.map((item) => item.product_name).join(' + ')
+  const whatsapp = waLink(phone, `¡Hola ${firstName}! Te escribo por tu pedido #${order.number} de Armado de CV.`)
+  const service = order.order_items.some((item) => item.products?.delivery === 'service')
+  const deadline = service && (order.status === 'paid' || order.status === 'in_progress') ? deliveryDeadline(order) : null
+  // Ready-made message for the next step of this order.
+  const template = order.status === 'pending_payment'
+    ? { label: 'Recordar el pago', text: `¡Hola ${firstName}! Vi tu pedido #${order.number} (${products}) por ${formatARS(order.total)}. ¿Pudiste hacer la transferencia? Si tenés alguna duda, te ayudo.` }
+    : service && (order.status === 'paid' || order.status === 'in_progress')
+      ? { label: 'Pedir los datos', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, pasame tu CV actual (si tenés) y contame a qué puesto o rubro apuntás.` }
+      : order.status === 'delivered'
+        ? { label: 'Pedir un testimonio', text: `¡Hola ${firstName}! ¿Cómo te fue con tu ${products}? Si te gustó, me ayudaría muchísimo que me cuentes tu experiencia en un mensajito 💕 Si me das permiso, lo comparto en Instagram solo con tu nombre.` }
+        : null
+  const templateLink = template ? waLink(phone, template.text) : null
 
   return (
     <li className={cardClass}>
@@ -109,6 +124,7 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
           <p className="mt-2 font-display text-xl font-extrabold text-ciruela">{formatARS(order.total)}</p>
         </div>
       </div>
+      {deadline && <p className="mt-3 flex flex-wrap items-center gap-2"><DeadlineChip deadline={deadline} /><span className="text-xs text-piedra">Entregar el {formatDue(deadline.due)}{deadline.express ? ' · Express' : ''}</span></p>}
 
       {order.payment_check === 'pending' && (
         <div className="mt-4 rounded-2xl border border-rosa/40 bg-petalo-wash p-4 text-sm">
@@ -152,6 +168,7 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
       <div className="mt-4 flex flex-wrap gap-2">
         {order.receipt_path ? <Button variant="secondary" onClick={openReceipt}><FileText className="h-4 w-4" />Ver comprobante</Button> : <span className="self-center text-sm text-piedra">Sin comprobante todavía</span>}
         {whatsapp && <a href={whatsapp} onClick={(event) => openBusinessWhatsapp(event, whatsapp)} target="_blank" rel="noreferrer" title="Se abre en WhatsApp Business (11 5106-0953)" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-whatsapp/40 px-4 py-2 font-display text-sm font-bold text-whatsapp"><WhatsAppIcon className="h-4 w-4" />WhatsApp Business</a>}
+        {template && templateLink && <a href={templateLink} onClick={(event) => openBusinessWhatsapp(event, templateLink)} target="_blank" rel="noreferrer" title={template.text} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-whatsapp px-4 py-2 font-display text-sm font-bold text-white"><WhatsAppIcon className="h-4 w-4" />{template.label}</a>}
       </div>
 
       <label className="mt-4 block text-xs font-semibold uppercase tracking-wider text-piedra">Mensaje para el cliente (lo ve en su pedido)
