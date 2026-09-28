@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Check, Plus, Sparkles, Video, X, Zap } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowRight, Check, Download, FileText, Plus, ShieldCheck, Sparkles, Video, X, Zap } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS, whatsappUrl, type ExtraGroup, type Product } from '@/lib/catalog'
 import { savePending } from '@/lib/cart'
@@ -30,6 +31,62 @@ function useAnimatedNumber(value: number) {
     return () => { cancelAnimationFrame(frame); from.current = value }
   }, [value])
   return shown
+}
+
+/** Guides and kits: what's inside and how it arrives, so the buyer knows what they're paying for. */
+function DigitalSummary({ product }: { product: Product }) {
+  const books = product.ebooks
+  const kit = books.length > 1
+  const pages = books.reduce((sum, book) => sum + (book.pages ?? 0), 0)
+  const format = `PDF${pages ? ` · ${pages} páginas${kit ? ' en total' : ''}` : ''}`
+  return (
+    <div className="space-y-5">
+      {kit ? (
+        <div>
+          <p className="font-display text-sm font-bold text-ciruela">Incluye {books.length} guías</p>
+          <ul className="mt-3 space-y-3">
+            {books.map((book) => (
+              <li key={book.id} className="flex items-start gap-3">
+                {book.coverUrl && <Image src={book.coverUrl} alt="" width={48} height={68} className="shrink-0 rounded-md shadow-md ring-1 ring-line" />}
+                <div className="text-sm">
+                  <p className="font-semibold text-ink">{book.title}</p>
+                  {book.description && <p className="mt-0.5 text-xs leading-snug text-piedra">{book.description}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : books[0] && (
+        <div className="flex items-start gap-4">
+          {books[0].coverUrl && <Image src={books[0].coverUrl} alt={`Tapa de ${books[0].title}`} width={104} height={147} className="shrink-0 -rotate-2 rounded-lg shadow-lg ring-1 ring-line" />}
+          <div>
+            <p className="font-display text-sm font-bold text-ciruela">De qué se trata</p>
+            {books[0].description && <p className="mt-1 text-sm leading-relaxed text-ink">{books[0].description}</p>}
+          </div>
+        </div>
+      )}
+
+      {!kit && product.features.length > 0 && (
+        <div>
+          <p className="font-display text-sm font-bold text-ciruela">Adentro vas a encontrar</p>
+          <ul className="mt-2 space-y-1.5 text-sm">{product.features.map((feature) => <li key={feature} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-rosa" />{feature}</li>)}</ul>
+        </div>
+      )}
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        {[
+          { icon: <FileText className="h-4 w-4" />, title: format, text: 'Para leer en el celu o imprimir' },
+          { icon: <Download className="h-4 w-4" />, title: 'Desde "Mi cuenta"', text: 'Apenas se confirma tu pago' },
+          { icon: <ShieldCheck className="h-4 w-4" />, title: 'Es tuyo', text: 'Lleva tu email en cada página' },
+        ].map((item) => (
+          <div key={item.title} className="flex items-center gap-3 rounded-2xl bg-papel px-3 py-2.5 sm:flex-col sm:items-start sm:gap-1.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-rosa">{item.icon}</span>
+            <span className="text-xs leading-snug"><b className="block text-ciruela">{item.title}</b><span className="text-piedra">{item.text}</span></span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function groupIcon(group: ExtraGroup) {
@@ -69,6 +126,7 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
   const missingOther = selected.some(({ option, detail }) => option.isOther && !detail)
   const choiceLabel = product.choice?.options.find((option) => option.id === choice)?.label
   const unavailable = Boolean(product.choice && !choiceLabel)
+  const digital = product.delivery === 'digital' && product.ebooks.length > 0
 
   function toggle(groupId: string, optionId: string) {
     setPicked((current) => {
@@ -102,18 +160,21 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
           <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/30 sm:hidden" aria-hidden="true" />
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="flex items-center gap-1.5 font-display text-[11px] font-semibold uppercase tracking-[0.2em] text-petalo"><Sparkles className="h-3.5 w-3.5" />Armá tu pedido</p>
+              <p className="flex items-center gap-1.5 font-display text-[11px] font-semibold uppercase tracking-[0.2em] text-petalo"><Sparkles className="h-3.5 w-3.5" />{digital ? (product.ebooks.length > 1 ? 'Tu kit' : 'Tu guía') : 'Armá tu pedido'}</p>
               <h2 id="order-title" className="mt-1 font-script text-[40px] font-normal leading-none text-white">{product.name}</h2>
               {product.subtitle && <p className="mt-1 text-sm text-white/75">{product.subtitle}</p>}
             </div>
             <button ref={closeButton} type="button" onClick={onClose} className="rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20" aria-label="Cerrar"><X className="h-5 w-5" /></button>
           </div>
-          <ul className="mt-4 flex flex-wrap gap-1.5 text-xs">
-            {product.features.slice(0, 3).map((feature) => <li key={feature} className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-white/90"><Check className="h-3 w-3 text-petalo" />{feature}</li>)}
-          </ul>
+          {!digital && (
+            <ul className="mt-4 flex flex-wrap gap-1.5 text-xs">
+              {product.features.slice(0, 3).map((feature) => <li key={feature} className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-white/90"><Check className="h-3 w-3 text-petalo" />{feature}</li>)}
+            </ul>
+          )}
         </div>
 
         <div className="flex-1 space-y-6 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7">
+          {digital && <DigitalSummary product={product} />}
           {product.choice && (
             <fieldset>
               <legend className="font-display text-sm font-bold text-ciruela">{product.choice.label}</legend>
