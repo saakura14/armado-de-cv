@@ -24,7 +24,7 @@ async function functionError(error: unknown, fallback: string) {
 
 export default function OrderPage() {
   const { id } = useParams<{ id: string }>()
-  const { user, ready } = useSession()
+  const { user, ready, isAdmin } = useSession()
   const [order, setOrder] = useState<Order | null | undefined>(undefined)
   const [payment, setPayment] = useState<Payment | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -173,9 +173,9 @@ export default function OrderPage() {
           </div>
         )}
 
-        {awaitingPayment && payment?.card_enabled && !order.receipt_path && (
+        {awaitingPayment && (payment?.card_enabled || isAdmin) && payment && !order.receipt_path && (
           <div className="rounded-[28px] bg-white p-6 sm:p-8">
-            <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-piedra">Otra opción</p>
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-piedra">Otra opción{!payment.card_enabled && " · solo la ves vos (admin) para probar"}</p>
             <p className="mt-1 flex items-center gap-2 font-bold text-ciruela"><CreditCard className="h-5 w-5 text-rosa" />Tarjeta de débito o crédito</p>
             <p className="mt-2 text-sm leading-relaxed text-piedra">
               Pagás con Ualá. Se suma el costo del procesador de pago ({(Number(payment.card_fee) * 100).toLocaleString('es-AR', { maximumFractionDigits: 1 })}%), así que el total queda en <b className="text-ink">{formatARS(cardTotal(order.total, Number(payment.card_fee)))}</b>.{digitalOnly ? ' Tus e-books se habilitan apenas se aprueba el pago.' : ''}
