@@ -57,14 +57,20 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
   const [note, setNote] = useState(order.admin_note ?? '')
   const flash = useFlash()
 
-  async function setStatus(status: OrderStatus) {
+  async function setStatus(status: OrderStatus, fallbackNote?: string) {
     if (status === 'cancelled' && !window.confirm(`¿Cancelar el pedido #${order.number}?`)) return
     setBusy(status)
-    const { data, error } = await supabase.rpc('admin_set_order_status', { p_order: order.id, p_status: status, p_note: note.trim() || null })
+    const { data, error } = await supabase.rpc('admin_set_order_status', { p_order: order.id, p_status: status, p_note: note.trim() || fallbackNote || null })
     setBusy('')
     if (error) { flash.show('error', errorMessage(error)); return }
     flash.show('ok', data === 'delivered' && status === 'paid' ? 'Pago aprobado: los e-books ya están disponibles para el cliente.' : 'Pedido actualizado.')
     onChanged()
+  }
+
+  // The customer paid but sent the receipt by WhatsApp instead of uploading it: approve after checking the bank.
+  function approveOutsideWeb() {
+    if (!window.confirm(`¿Ya viste los ${formatARS(order.total)} del pedido #${order.number} en tu cuenta del banco? Se aprueba aunque no tenga comprobante en la web.`)) return
+    setStatus('paid', '¡Gracias! Recibí tu pago por WhatsApp.')
   }
 
   // E-books unlocked on upload: confirm the transfer arrived, or take the access back.
@@ -153,7 +159,9 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
       </label>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {(order.status === 'pending_payment' || order.status === 'payment_review') && <Button variant="success" busy={busy === 'paid'} onClick={() => setStatus('paid')}>Aprobar pago</Button>}
+        {(order.status === 'pending_payment' || order.status === 'payment_review') && (order.receipt_path
+          ? <Button variant="success" busy={busy === 'paid'} onClick={() => setStatus('paid')}>Aprobar pago</Button>
+          : <Button variant="success" busy={busy === 'paid'} onClick={approveOutsideWeb}>Me llegó el pago (comprobante por WhatsApp)</Button>)}
         {(order.status === 'paid') && <Button busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Marcar en proceso</Button>}
         {(order.status === 'paid' || order.status === 'in_progress') && <Button busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>Marcar entregado</Button>}
         {order.status !== 'cancelled' && order.status !== 'delivered' && <Button variant="danger" busy={busy === 'cancelled'} onClick={() => setStatus('cancelled')}>Cancelar</Button>}

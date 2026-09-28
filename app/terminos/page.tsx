@@ -2,8 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Clause, LegalPage } from '@/components/legal'
 import { CONTACT } from '@/lib/catalog'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = { title: 'Términos y condiciones', description: 'Condiciones de contratación de los packs de CV, e-books, cursos, sesiones y test vocacional de Armado de CV.' }
+export const metadata: Metadata = pageMetadata({ path: '/terminos', title: 'Términos y condiciones', description: 'Condiciones de contratación de los packs de CV, e-books, cursos, sesiones y test vocacional de Armado de CV.' })
 
 export default function TermsPage() {
   return (

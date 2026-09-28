@@ -1,12 +1,16 @@
+import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, Camera, Clock, Megaphone } from 'lucide-react'
+import { ArrowRight, Camera, ClipboardCheck, Clock, Megaphone } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { ProductGrid } from '@/components/product-grid'
 import { Faq, HowToBuy, SectionTitle } from '@/components/sections'
 import { CONTACT, formatARS, getProducts, whatsappUrl } from '@/lib/catalog'
 import { getFaqs } from '@/lib/faq'
 import { Testimonials } from '@/components/testimonials'
+import { pageMetadata } from '@/lib/seo'
+
+export const metadata: Metadata = pageMetadata({ path: '/', description: 'Armado de CV profesional: CV moderno y optimizado para filtros ATS, perfil de LinkedIn, cartas de presentación y carga en plataformas de empleo. Guías para tu búsqueda laboral.' })
 
 // Prices are edited from /admin; the page refreshes them every minute.
 export const revalidate = 60
@@ -22,16 +26,16 @@ const promises = [
 ]
 
 const steps = [
-  { title: 'Elegí tu pack', text: 'Tocá "Lo quiero", sumá idiomas, plataformas o entrega express y mirá el total.' },
+  { title: 'Elegí', text: 'Un pack o una guía. Tocá "Lo quiero"; en los packs sumás idiomas, plataformas o entrega express y ves el total.' },
   { title: 'Confirmá el pedido', text: 'Creá tu cuenta o ingresá y aceptá las condiciones.' },
   { title: 'Transferí', text: 'Te muestro los datos para transferir y subís el comprobante ahí mismo.' },
-  { title: 'Coordinamos', text: 'Me escribís por WhatsApp con tu número de pedido y arranco con tu CV.' },
+  { title: 'Recibí', text: 'Pack de CV: me escribís por WhatsApp con tu número de pedido y arranco. Guía: la descargás desde "Mi cuenta" apenas confirmo tu pago, sin escribirme.' },
 ]
 
 export default async function Home() {
   const [cvProducts, guides, faqs] = await Promise.all([getProducts(['cv']), getProducts(['guias']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
   const extraPrice = (id: string) => cvProducts.flatMap((product) => product.extras).find((group) => group.id === id)?.unitPrice ?? 15000
-  const price = { language: extraPrice('idiomas') }
+  const price = { language: extraPrice('idiomas'), from: cvProducts.length > 0 ? Math.min(...cvProducts.map((product) => product.price)) : null }
   return (
     <>
       {/* Hero */}
@@ -44,12 +48,23 @@ export default async function Home() {
             <h1 className="mt-3 text-[34px] font-extrabold leading-[1.1] text-ciruela sm:text-5xl">Tu CV listo para pasar los filtros y llegar a la entrevista</h1>
             <p className="mt-5 text-lg leading-relaxed text-piedra">CV modernos y optimizados para ATS, perfil de LinkedIn, cartas de presentación y carga en plataformas de empleo. Armado para vos, no con plantillas.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a href="#precios" className="inline-flex min-h-12 items-center justify-center rounded-full bg-rosa px-7 py-3.5 font-display font-bold text-white shadow-lg shadow-rosa/25 transition-colors hover:bg-rosa-deep">Ver packs y precios</a>
+              <a href="#precios" className="inline-flex min-h-12 items-center justify-center rounded-full bg-rosa px-7 py-3.5 font-display font-bold text-white shadow-lg shadow-rosa/25 transition-colors hover:bg-rosa-deep">{price.from ? `Ver packs · desde ${formatARS(price.from)}` : 'Ver packs y precios'}</a>
               <a href={whatsappUrl('¡Hola! Quiero consultar por el armado de mi CV.')} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-ciruela/15 px-6 py-3 font-display font-bold text-ciruela hover:border-whatsapp hover:text-whatsapp"><WhatsAppIcon className="h-5 w-5" />Consultar</a>
             </div>
             <p className="mt-6 flex items-center gap-2 text-sm text-piedra"><Clock className="h-4 w-4 text-rosa" />3 a 4 días hábiles · Express en 24 hs hábiles</p>
           </div>
           <Image src="/img/hero-banner.jpg" alt="Valeria mostrando un CV y un perfil de LinkedIn en el celular" width={1472} height={704} priority className="h-64 w-full object-cover object-[78%_center] sm:h-80 lg:hidden" />
+        </div>
+      </section>
+
+      {/* Who does the work, right under the hero: people buy from people */}
+      <section aria-label="Quién arma tu CV" className="px-4 py-8 sm:px-6">
+        <div className="mx-auto flex max-w-3xl items-center gap-5 rounded-[28px] bg-papel p-5 sm:p-6">
+          <Image src="/img/valeria-retrato.jpg" alt="Valeria, de Armado de CV" width={768} height={1060} className="h-20 w-20 shrink-0 rounded-full object-cover object-top sm:h-24 sm:w-24" />
+          <div>
+            <p className="leading-relaxed text-ink">Soy <b className="text-ciruela">Vale</b>, <b className="text-ciruela">Técnica en Programación de la UTN</b>, con formación en <b className="text-ciruela">RR.HH. IT y sistemas ATS</b>. Cada CV lo armo yo, sobre tu experiencia real.</p>
+            <a href="#sobre-mi" className="mt-2 inline-flex items-center gap-1 font-display text-sm font-bold text-rosa-deep hover:underline">Conocé más sobre mí<ArrowRight className="h-4 w-4" /></a>
+          </div>
         </div>
       </section>
 
@@ -83,12 +98,25 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Free checklist: a first step for people who are not ready to buy yet */}
+      <section className="px-4 pb-16 sm:px-6 lg:pb-20">
+        <Link href="/gratis" className="group mx-auto flex max-w-5xl flex-col items-center gap-6 rounded-[32px] border-2 border-dashed border-rosa/40 bg-white p-6 sm:flex-row sm:p-8">
+          <Image src="/img/checklist-gratis.jpg" alt="" width={1200} height={848} className="h-auto w-full max-w-[260px] shrink-0 rounded-2xl shadow-[0_18px_40px_-28px_rgba(67,32,44,0.6)]" />
+          <div className="flex-1 text-center sm:text-left">
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-rosa-deep">Gratis · sin registrarte</p>
+            <p className="mt-2 font-display text-2xl font-extrabold leading-tight text-ciruela">¿No sabés si tu CV está bien?</p>
+            <p className="mt-2 text-piedra">Revisalo en 10 minutos con los 24 puntos que miro en cada CV antes de que llegue a un reclutador.</p>
+          </div>
+          <span className="inline-flex min-h-12 items-center gap-2 rounded-full bg-rosa px-6 py-3 font-display text-sm font-bold text-white transition-transform group-hover:translate-x-1"><ClipboardCheck className="h-4 w-4" />Descargar el checklist</span>
+        </Link>
+      </section>
+
       {/* Self-service guides (only shown once at least one is published) */}
       {guides.length > 0 && (
         <section id="guias" className="scroll-mt-28 bg-arena/40 px-4 py-16 sm:px-6 lg:py-20" aria-labelledby="guias-title">
           <div className="mx-auto max-w-6xl">
             <SectionTitle id="guias-title" script="Guías" title="Para tu búsqueda laboral" text="E-books prácticos para aprovechar LinkedIn, los portales de empleo y los filtros ATS. Los descargás apenas confirmo tu pago." />
-            <ProductGrid products={guides} tone="asesorias" />
+            <ProductGrid products={guides} tone="asesorias" scroll />
           </div>
         </section>
       )}

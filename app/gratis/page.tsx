@@ -5,11 +5,9 @@ import { Check } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { whatsappUrl } from '@/lib/catalog'
 import { DownloadButton } from './download-button'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Checklist gratis: revisá tu CV en 10 minutos',
-  description: 'Los 24 puntos que reviso en cada CV antes de que llegue a un reclutador. Descargalo gratis.',
-}
+export const metadata: Metadata = pageMetadata({ path: '/gratis', image: '/img/checklist-gratis.jpg', title: 'Checklist gratis: revisá tu CV en 10 minutos', description: 'Los 24 puntos que reviso en cada CV antes de que llegue a un reclutador. Descargalo gratis.' })
 
 const POINTS = [
   'Que los filtros ATS puedan leerlo',

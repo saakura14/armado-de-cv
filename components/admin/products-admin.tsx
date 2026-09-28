@@ -62,7 +62,7 @@ function ProductEditor({ product, groups, onChanged }: { product: ProductRow; gr
       <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center justify-between gap-3 text-left" aria-expanded={open}>
         <span className="min-w-0">
           <span className="block truncate font-bold text-ink">{product.name}{product.subtitle ? <span className="font-normal text-piedra"> · {product.subtitle}</span> : null}</span>
-          <span className="text-sm text-piedra">{CATEGORY_LABEL[product.category]} · {product.active ? 'Visible' : 'Oculto'}{product.popular ? ' · Más elegido' : ''}</span>
+          <span className="text-sm text-piedra">{CATEGORY_LABEL[product.category]} · {product.active ? 'Visible' : 'Oculto'}{product.popular ? ' · Destacado' : ''}</span>
         </span>
         <span className="flex shrink-0 items-center gap-2"><span className="font-display text-lg font-extrabold text-ciruela">{formatARS(product.price)}</span><ChevronDown className={`h-5 w-5 text-piedra transition-transform ${open ? 'rotate-180' : ''}`} /></span>
       </button>
@@ -94,7 +94,7 @@ function ProductEditor({ product, groups, onChanged }: { product: ProductRow; gr
             </fieldset>
           )}
           <div className="flex flex-wrap gap-4 text-sm">
-            <label className="flex items-center gap-2"><input type="checkbox" checked={form.popular} onChange={(event) => setForm((c) => ({ ...c, popular: event.target.checked }))} className="accent-rosa" />Marcar como &quot;Más elegido&quot;</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={form.popular} onChange={(event) => setForm((c) => ({ ...c, popular: event.target.checked }))} className="accent-rosa" />Destacar (se muestra &quot;Recomendado&quot;, o &quot;Mejor precio&quot; en los kits de guías)</label>
             <label className="flex items-center gap-2"><input type="checkbox" checked={form.active} onChange={(event) => setForm((c) => ({ ...c, active: event.target.checked }))} className="accent-rosa" />{form.active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}Visible en la web</label>
           </div>
           <Button busy={busy}>Guardar cambios</Button>

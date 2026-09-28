@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 import { Clause, LegalPage } from '@/components/legal'
 import { CONTACT } from '@/lib/catalog'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = { title: 'Política de privacidad', description: 'Cómo Armado de CV protege y usa tus datos personales, los de tu CV, e-books, cursos y test vocacional.' }
+export const metadata: Metadata = pageMetadata({ path: '/privacidad', title: 'Política de privacidad', description: 'Cómo Armado de CV protege y usa tus datos personales, los de tu CV, e-books, cursos y test vocacional.' })
 
 export default function PrivacyPage() {
   return (
