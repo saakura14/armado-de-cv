@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 import { Clause, LegalPage } from '@/components/legal'
 import { WithdrawalForm } from './withdrawal-form'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = { title: 'Botón de arrepentimiento', description: 'Revocá tu compra dentro de los 10 días corridos.' }
+export const metadata: Metadata = pageMetadata({ path: '/arrepentimiento', title: 'Botón de arrepentimiento', description: 'Revocá tu compra dentro de los 10 días corridos.' })
 
 export default function WithdrawalPage() {
   return (

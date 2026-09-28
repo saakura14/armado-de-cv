@@ -5,11 +5,9 @@ import { SectionTitle } from '@/components/sections'
 import { CONTACT, getProducts } from '@/lib/catalog'
 import { supabase } from '@/lib/supabase'
 import { embedUrl } from '@/lib/video'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Cursos pre-grabados',
-  description: 'Cursos para armar tu CV, tu perfil de LinkedIn y preparar entrevistas a tu ritmo.',
-}
+export const metadata: Metadata = pageMetadata({ path: '/cursos', title: 'Cursos pre-grabados', description: 'Cursos para armar tu CV, tu perfil de LinkedIn y preparar entrevistas a tu ritmo.' })
 
 export const revalidate = 60
 

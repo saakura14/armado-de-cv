@@ -19,13 +19,8 @@ export const metadata: Metadata = {
   applicationName: 'Armado de CV',
   icons: { icon: [{ url: '/brand/isotipo.svg', type: 'image/svg+xml' }, { url: '/icons/icon-192.png', sizes: '192x192' }], apple: '/icons/apple-icon.png' },
   appleWebApp: { capable: true, title: 'Armado de CV', statusBarStyle: 'default' },
-  openGraph: {
-    title: 'Armado de CV',
-    description: 'Tu CV listo para pasar los filtros y llegar a la entrevista.',
-    images: ['/img/hero-banner.jpg'],
-    locale: 'es_AR',
-    type: 'website',
-  },
+  // Public pages set their own share preview and canonical address with pageMetadata (lib/seo.ts).
+  openGraph: { siteName: 'Armado de CV', images: ['/img/hero-banner.jpg'], locale: 'es_AR', type: 'website' },
 }
 
 export const viewport: Viewport = {

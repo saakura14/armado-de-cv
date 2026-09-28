@@ -6,11 +6,9 @@ import { ProductGrid } from '@/components/product-grid'
 import { Faq, HowToBuy, SectionTitle } from '@/components/sections'
 import { getProducts, whatsappUrl } from '@/lib/catalog'
 import { getFaqs } from '@/lib/faq'
+import { pageMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Asesorías: entrevistas, psicotécnicos y test vocacional',
-  description: 'E-books para preparar entrevistas laborales y psicotécnicos, sesiones 1 a 1 por Google Meet y test de orientación vocacional.',
-}
+export const metadata: Metadata = pageMetadata({ path: '/asesorias', title: 'Asesorías: entrevistas, psicotécnicos y test vocacional', description: 'E-books para preparar entrevistas laborales y psicotécnicos, sesiones 1 a 1 por Google Meet y test de orientación vocacional.' })
 
 // Prices are edited from /admin; the page refreshes them every minute.
 export const revalidate = 60
