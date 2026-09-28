@@ -152,11 +152,14 @@ Tipos de entrega (`delivery`):
 
 **La única administradora es valeeria.gil@gmail.com.** Toda cuenta nueva es cliente, sin excepciones. Sumar otra administradora es un cambio manual y deliberado en la base (`update profiles set role = 'admin' ...`).
 
+Al ingresar, la administradora va directo al panel (Mi cuenta la redirige a `/admin`; con `/cuenta?cliente` se ve como cliente, y el panel tiene el link "Ver mi cuenta como cliente").
+
 | Pestaña | Para qué sirve |
 |---|---|
+| **Inicio** | Saludo aleatorio; **Para gestionar**: pagos a revisar, sesiones a agendar y packs a entregar con el plazo restante (4 días hábiles desde el pago, Express 1; después de las 17 hs o en fin de semana arranca el siguiente día hábil; no descuenta feriados). **Cómo viene el mes**: ventas, facturado, ticket promedio, visitas y conversión con la variación contra el mes anterior, facturación de los últimos 6 meses, lo más vendido y por qué página entraron. **Reporte en Excel** del año con logo y colores de la marca (resumen mensual, más vendidos, detalle de ventas y visitas por día). Las ventas son pedidos con pago confirmado, sin cancelados ni pedidos de prueba (#90000 en adelante). |
 | **Pedidos** | Ver todos los pedidos, abrir el comprobante, cambiar el estado (aprobar el pago libera todo automáticamente) y dejar notas. |
 | **Sesiones** | Agendar las sesiones 1 a 1: fecha, link de Meet y estado (a agendar, agendada, hecha, cancelada). Si la persona falta sin avisar con 24 hs, la sesión cuenta como hecha. |
-| **Packs y precios** | Crear y editar productos: nombre, precio, características, notas, destacado "más elegido", activo/inactivo, extras, e-books incluidos o a elección. |
+| **Packs y precios** | Crear y editar productos: nombre, precio, características, notas, destacado ("Recomendado", o "Mejor precio" en los kits), activo/inactivo, extras, e-books incluidos o a elección. |
 | **E-books** | Alta de e-books y subida del archivo (PDF). |
 | **Cursos** | Crear cursos y lecciones: video de YouTube o Vimeo no listado, archivo adjunto, vista previa gratuita y publicado/borrador. |
 | **Sakura (preguntas)** | Preguntas frecuentes que responde Sakura y que se muestran en la web. Admiten `{{precio:id}}` y `{{extra:id}}` para que el precio se actualice solo. |
@@ -282,6 +285,7 @@ El historial completo está en `supabase/migrations/`. Se aplica en orden por fe
 | `card_payments` | Cada link de pago de Ualá creado para un pedido, con monto y estado. Solo lo escribe la función `uala`; el admin lo puede leer. |
 | `faqs` | Preguntas de Sakura y de la web. |
 | `testimonials` | Testimonios con @ de Instagram. |
+| `site_visits` | Visitas anónimas por día y página (`visits` = llegadas a la web, `views` = páginas vistas). Sin datos personales; solo la lee el admin. Cuenta desde el 28/09/2026. |
 | `admin_upload_tokens` | Tokens de un solo uso (2 hs) para subir archivos desde herramientas de administración. |
 
 **Funciones (RPC)**, todas `SECURITY DEFINER`:
@@ -296,6 +300,7 @@ El historial completo está en `supabase/migrations/`. Se aplica en orden por fe
 | `admin_set_order_status(order, status, note)` | Admin | Cambia el estado. La primera vez que se aprueba el pago otorga e-books y cursos, crea las sesiones y marca como entregados los pedidos solo digitales. |
 | `admin_update_session(...)` | Admin | Fecha, link de Meet, estado y nota de una sesión. |
 | `mark_card_payment(uala_order, status)` | Solo la función `uala` | Guarda el estado que la función leyó de Ualá. Si es `APPROVED` o `PROCESSED` y el pedido no estaba pago, lo aprueba como una transferencia (`payment_method = 'card'`, guarda `card_total`). Nadie más la puede llamar. |
+| `track_visit(path, new_visit)` | Todos | Suma una visita anónima del día. Ignora al admin y las páginas privadas; las rutas desconocidas se agrupan en `/otras`. |
 | `is_admin()` | Todos | Usada por las políticas de seguridad. |
 
 **Triggers:**
@@ -472,3 +477,4 @@ Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebook
 | 28/09 | Resumen de la guía al tocar "Lo quiero" (tapa, contenido, páginas y forma de entrega); botón de WhatsApp del panel que abre WhatsApp Business; numeración de pedidos: los reales van #1, #2, #3… y los de prueba (hechos desde la cuenta admin) desde #90100; los pedidos de prueba anteriores quedaron cancelados como #90005, #90011 y #90013 |
 | 28/09 | Mejoras de confianza en la home: presentación corta de Vale con foto debajo del inicio, botón "Ver packs · desde $X" (toma el pack más barato), banner al checklist gratis (/gratis), guías en carrusel deslizable en el celular, el cartel "Más elegido" pasa a "Recomendado" (o "Mejor precio" en los kits de guías) y "Cómo comprar" aclara cómo se recibe una guía. SEO: `robots.txt`, `sitemap.xml` y título, dirección canónica y vista previa para compartir propios en cada página pública (`lib/seo.ts`). Panel: si el pedido no tiene comprobante en la web (lo mandó por WhatsApp), el botón dice "Me llegó el pago (comprobante por WhatsApp)", pide confirmar que la plata está en el banco y deja al cliente el mensaje "¡Gracias! Recibí tu pago por WhatsApp." si no escribiste otro |
 | 28/09 | El Kit Búsqueda Laboral pasa a ser la primera tarjeta de Guías (orden 29); en tablet y compu las guías se acomodan con la última fila centrada; /gratis presenta primero el Kit |
+| 28/09 | Panel con pestaña **Inicio** (saludo, pedidos a gestionar con plazo restante, métricas del mes, más vendidos, visitas y reporte Excel anual con la marca); la admin entra directo al panel; contador de visitas anónimo propio (`site_visits`) y política de privacidad actualizada |

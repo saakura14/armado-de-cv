@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { BookOpen, CreditCard, Loader2, HelpCircle, PlayCircle, ShoppingBag, Star, Tag, Video } from 'lucide-react'
+import { BookOpen, CreditCard, Home, Loader2, HelpCircle, PlayCircle, ShoppingBag, Star, Tag, UserRound, Video } from 'lucide-react'
 import { AuthPanel } from '@/components/auth-panel'
 import { CoursesAdmin } from '@/components/admin/courses-admin'
+import { DashboardAdmin } from '@/components/admin/dashboard-admin'
 import { EbooksAdmin } from '@/components/admin/ebooks-admin'
 import { FaqsAdmin } from '@/components/admin/faqs-admin'
 import { OrdersAdmin } from '@/components/admin/orders-admin'
@@ -16,6 +17,7 @@ import { supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 
 const TABS = [
+  { id: 'inicio', label: 'Inicio', icon: Home },
   { id: 'pedidos', label: 'Pedidos', icon: ShoppingBag },
   { id: 'sesiones', label: 'Sesiones', icon: Video },
   { id: 'productos', label: 'Packs y precios', icon: Tag },
@@ -28,8 +30,8 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id']
 
 export default function AdminPage() {
-  const { user, ready, isAdmin } = useSession()
-  const [tab, setTab] = useState<TabId>('pedidos')
+  const { user, profile, ready, isAdmin } = useSession()
+  const [tab, setTab] = useState<TabId>('inicio')
   const [counts, setCounts] = useState<{ review: number; sessions: number }>({ review: 0, sessions: 0 })
 
   useEffect(() => {
@@ -59,8 +61,13 @@ export default function AdminPage() {
   return (
     <section className="min-h-[70vh] bg-arena/40 px-4 py-8 sm:px-6 lg:py-10">
       <div className="mx-auto max-w-6xl">
-        <p className="font-script text-5xl leading-none text-rosa">Panel</p>
-        <h1 className="mt-1 text-xs font-semibold uppercase tracking-[0.35em] text-ciruela">Administración</h1>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="font-script text-5xl leading-none text-rosa">Panel</p>
+            <h1 className="mt-1 text-xs font-semibold uppercase tracking-[0.35em] text-ciruela">Administración</h1>
+          </div>
+          <Link href="/cuenta?cliente" className="inline-flex items-center gap-1.5 text-sm font-semibold text-piedra hover:text-ciruela"><UserRound className="h-4 w-4" />Ver mi cuenta como cliente</Link>
+        </div>
 
         <nav aria-label="Secciones del panel" className="-mx-4 mt-6 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <ul className="flex min-w-max gap-1 border-b border-line">
@@ -76,6 +83,7 @@ export default function AdminPage() {
         </nav>
 
         <div className="mt-6">
+          {tab === 'inicio' && <DashboardAdmin firstName={profile?.full_name?.trim().split(/\s+/)[0] || 'Vale'} onOpen={select} />}
           {tab === 'pedidos' && <OrdersAdmin />}
           {tab === 'sesiones' && <SessionsAdmin />}
           {tab === 'productos' && <ProductsAdmin />}
