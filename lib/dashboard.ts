@@ -138,19 +138,28 @@ export function change(current: number, previous: number) {
 
 // ---- Welcome message ----
 
+// Personal encouragement for Vale, not about the business.
 const GREETINGS = [
-  'Cada CV que armás es una puerta que se abre para alguien.',
-  'Hoy alguien va a llegar a su entrevista gracias a tu trabajo.',
-  'Tu experiencia vale, y la de tus clientes también: que se note.',
-  'Un pedido a la vez, con la misma dedicación de siempre.',
-  'Lo que hacés cambia búsquedas laborales. Eso no es poco.',
-  'Organizada, clara y a tiempo: así se ve un gran día de trabajo.',
-  'Detrás de cada pedido hay alguien que confió en vos.',
-  'Hoy es un buen día para que un CV pase todos los filtros.',
-  'Tu marca crece con cada cliente que queda contento.',
-  'Respirá, mirá tu lista y arrancá por lo más urgente.',
-  'Lo estás haciendo muy bien. Seguí así.',
-  'Cada entrega a tiempo es una recomendación en camino.',
+  'Confiá en tu proceso: lo que hoy parece lento mañana va a ser tu base.',
+  'No tenés que poder con todo hoy. Solo con el próximo paso.',
+  'Sos más capaz de lo que te decís en tus días difíciles.',
+  'La constancia le gana al talento que no se presenta.',
+  'Lo que estás construyendo ya existe gracias a que te animaste.',
+  'Descansar también es avanzar. Tratate con la misma paciencia que le tenés a los demás.',
+  'Hace un tiempo soñabas con estar donde estás hoy.',
+  'Paso a paso también se llega lejos.',
+  'Tu valor no depende de un día productivo.',
+  'Hacelo con miedo, pero hacelo.',
+  'Cada pequeño logro cuenta. Celebralos.',
+  'Hoy elegí ser tu mejor compañía.',
+  'Lo difícil no es señal de que vas mal: es señal de que estás creciendo.',
+  'Creé en vos como creés en las personas que querés.',
+  'No compares tu capítulo 1 con el capítulo 20 de otra persona.',
+  'La disciplina es acordarte de lo que querés.',
+  'Estás haciendo algo valiente: apostar por vos.',
+  'Respirá hondo. Ya superaste días más difíciles que este.',
+  'Que tus ganas sean más grandes que tus dudas.',
+  'Sos la persona que va a hacer que esto funcione, y lo sabés.',
 ]
 
 export function welcome(firstName: string, now = new Date()) {
