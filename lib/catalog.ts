@@ -36,6 +36,8 @@ export type Product = {
   /** Options the customer picks exactly one of (which e-book). */
   choice: { label: string; options: { id: string; label: string }[] } | null
   extras: ExtraGroup[]
+  /** E-books the product delivers (guides and kits), for the purchase summary. */
+  ebooks: { id: string; title: string; description: string | null; coverUrl: string | null; pages: number | null }[]
 }
 
 export const CATEGORY_LABEL: Record<Category, string> = { cv: 'Armado de CV', asesorias: 'Asesorías', vocacional: 'Test vocacional', curso: 'Curso', sesion: 'Sesión 1 a 1', guias: 'Guías de búsqueda' }
@@ -45,9 +47,10 @@ type Row = {
   features: string[] | null; highlight: string | null; notes: string[] | null; popular: boolean; choice_label: string | null; sort: number
   product_extra_groups: { sort: number; extra_groups: { id: string; label: string; unit_price: number; hint: string | null; extra_options: { id: string; label: string; is_other: boolean; sort: number }[] } | null }[]
   product_ebook_choices: { sort: number; ebooks: { id: string; title: string; active: boolean } | null }[]
+  product_ebooks?: { ebooks: { id: string; title: string; description: string | null; cover_url: string | null; pages: number | null; active: boolean } | null }[]
 }
 
-export const PRODUCT_SELECT = '*, product_extra_groups(sort, extra_groups(id, label, unit_price, hint, extra_options(id, label, is_other, sort))), product_ebook_choices(sort, ebooks(id, title, active))'
+export const PRODUCT_SELECT = '*, product_extra_groups(sort, extra_groups(id, label, unit_price, hint, extra_options(id, label, is_other, sort))), product_ebook_choices(sort, ebooks(id, title, active)), product_ebooks(ebooks(id, title, description, cover_url, pages, active))'
 
 export function toProduct(row: Row): Product {
   const bySort = <T extends { sort: number }>(a: T, b: T) => a.sort - b.sort
@@ -65,6 +68,7 @@ export function toProduct(row: Row): Product {
     notes: row.notes ?? [],
     popular: row.popular,
     choice: row.choice_label ? { label: row.choice_label, options: choices } : null,
+    ebooks: (row.product_ebooks ?? []).flatMap(({ ebooks: e }) => (e && e.active ? [{ id: e.id, title: e.title, description: e.description, coverUrl: e.cover_url, pages: e.pages }] : [])),
     extras: [...row.product_extra_groups].sort(bySort).flatMap(({ extra_groups: g }) => (g ? [{
       id: g.id,
       label: g.label,
