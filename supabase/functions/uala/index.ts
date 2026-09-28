@@ -4,7 +4,7 @@
 //   POST ?webhook=1 { uuid, ... }        Ualá's notification. It is not signed, so it is only a hint:
 //                                        the status is always read back from Ualá with our own token.
 // Secrets: UALA_USERNAME, UALA_CLIENT_ID, UALA_CLIENT_SECRET and UALA_ENV ('stage' or 'production', stage by default).
-// The option only shows up once payment_settings.card_enabled is on.
+// Customers see the option once payment_settings.card_enabled is on and UALA_ENV is 'production'; the admin always can, to test.
 import { createClient } from 'npm:@supabase/supabase-js@2.57.4'
 
 const cors = {
@@ -16,7 +16,7 @@ const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
 
 const SITE_URL = 'https://www.armadodecv.com'
-const production = Deno.env.get('UALA_ENV') === 'production'
+const production = (Deno.env.get('UALA_ENV') ?? '').trim().toLowerCase() === 'production'
 const AUTH_API = production ? 'https://auth.developers.ar.ua.la/v2/api' : 'https://auth.stage.developers.ar.ua.la/v2/api'
 const CHECKOUT_API = production ? 'https://checkout.developers.ar.ua.la/v2/api' : 'https://checkout.stage.developers.ar.ua.la/v2/api'
 const REUSE_LINK_MINUTES = 30
@@ -30,14 +30,18 @@ const cardTotal = (total: number, fee: number) => Math.ceil(total / (1 - fee) / 
 let token: { value: string; expires: number } | null = null
 async function ualaToken() {
   if (token && Date.now() < token.expires) return token.value
-  const username = Deno.env.get('UALA_USERNAME'), clientId = Deno.env.get('UALA_CLIENT_ID'), secret = Deno.env.get('UALA_CLIENT_SECRET')
+  // Trimmed: a pasted secret often carries a trailing space or line break.
+  const username = Deno.env.get('UALA_USERNAME')?.trim(), clientId = Deno.env.get('UALA_CLIENT_ID')?.trim(), secret = Deno.env.get('UALA_CLIENT_SECRET')?.trim()
   if (!username || !clientId || !secret) throw new Error('Faltan las credenciales de Ualá')
   const response = await fetch(`${AUTH_API}/auth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, client_id: clientId, client_secret_id: secret, grant_type: 'client_credentials' }),
   })
-  if (!response.ok) throw new Error(`Ualá rechazó las credenciales (${response.status})`)
+  if (!response.ok) {
+    const detail = await response.json().then((error) => error?.message ?? error?.Message ?? '').catch(() => '')
+    throw new Error(`Ualá rechazó las credenciales (${response.status}${detail ? `: ${detail}` : ''})`)
+  }
   const body = await response.json()
   token = { value: body.access_token, expires: Date.now() + (Number(body.expires_in) || 3600) * 1000 - 60_000 }
   return token.value
@@ -90,6 +94,26 @@ Deno.serve(async (req) => {
   const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
     global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
   })
+
+  // Connection test for the admin panel (or with a short-lived admin_upload_tokens token): only asks Ualá for a token.
+  if (body.action === 'check') {
+    const uploadToken = req.headers.get('x-upload-token') ?? ''
+    const { data: validToken } = uploadToken
+      ? await admin.from('admin_upload_tokens').select('token').eq('token', uploadToken).gt('expires_at', new Date().toISOString()).maybeSingle()
+      : { data: null }
+    const { data: isAdmin } = validToken ? { data: true } : await userClient.rpc('is_admin')
+    if (!isAdmin) return json(403, { error: 'Solo administración' })
+    try {
+      token = null
+      await ualaToken()
+      return json(200, { ok: true, env: production ? 'production' : 'stage' })
+    } catch (error) {
+      // Says which secrets exist (never their values) to tell a missing one from a wrong one.
+      const loaded = Object.fromEntries(['UALA_USERNAME', 'UALA_CLIENT_ID', 'UALA_CLIENT_SECRET', 'UALA_ENV'].map((name) => [name, !!Deno.env.get(name)?.trim()]))
+      return json(200, { ok: false, env: production ? 'production' : 'stage', loaded, error: (error as Error).message })
+    }
+  }
+
   const { data: { user } } = await userClient.auth.getUser()
   if (!user) return json(401, { error: 'Iniciá sesión' })
 
@@ -108,10 +132,13 @@ Deno.serve(async (req) => {
 
     if (body.action !== 'create') return json(400, { error: 'Acción inválida' })
     const { data: settings } = await admin.from('payment_settings').select('card_enabled, card_fee').maybeSingle()
-    if (!settings?.card_enabled) return json(400, { error: 'El pago con tarjeta todavía no está disponible. Podés pagar por transferencia.' })
+    // Customers only get real (production) checkouts: in stage anyone could "pay" with Ualá's public test card.
+    // The admin can always open one to test.
+    const { data: isAdmin } = await userClient.rpc('is_admin')
+    if (!isAdmin && (!settings?.card_enabled || !production)) return json(400, { error: 'El pago con tarjeta todavía no está disponible. Podés pagar por transferencia.' })
     if (order.paid_at || !['pending_payment', 'payment_review'].includes(order.status)) return json(400, { error: 'Este pedido ya no espera un pago.' })
 
-    const amount = cardTotal(order.total, Number(settings.card_fee))
+    const amount = cardTotal(order.total, Number(settings?.card_fee ?? 0.05929))
     // Tapping the button twice reuses the same link instead of opening a second Ualá order.
     const since = new Date(Date.now() - REUSE_LINK_MINUTES * 60_000).toISOString()
     const { data: recent } = await admin.from('card_payments').select('checkout_url').eq('order_id', order.id)
