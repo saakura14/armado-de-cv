@@ -16,7 +16,9 @@ const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
 
 const SITE_URL = 'https://www.armadodecv.com'
-const production = (Deno.env.get('UALA_ENV') ?? '').trim().toLowerCase() === 'production'
+// 'production', 'prod', 'producción'... all mean production; anything else is stage.
+const ualaEnv = (Deno.env.get('UALA_ENV') ?? '').trim().toLowerCase()
+const production = ualaEnv.startsWith('prod')
 const AUTH_API = production ? 'https://auth.developers.ar.ua.la/v2/api' : 'https://auth.stage.developers.ar.ua.la/v2/api'
 const CHECKOUT_API = production ? 'https://checkout.developers.ar.ua.la/v2/api' : 'https://checkout.stage.developers.ar.ua.la/v2/api'
 const REUSE_LINK_MINUTES = 30
@@ -110,7 +112,7 @@ Deno.serve(async (req) => {
     } catch (error) {
       // Says which secrets exist (never their values) to tell a missing one from a wrong one.
       const loaded = Object.fromEntries(['UALA_USERNAME', 'UALA_CLIENT_ID', 'UALA_CLIENT_SECRET', 'UALA_ENV'].map((name) => [name, !!Deno.env.get(name)?.trim()]))
-      return json(200, { ok: false, env: production ? 'production' : 'stage', loaded, error: (error as Error).message })
+      return json(200, { ok: false, env: production ? 'production' : 'stage', uala_env: /^[a-záéíóú]{1,15}$/.test(ualaEnv) ? ualaEnv : '(otro valor)', loaded, error: (error as Error).message })
     }
   }
 
