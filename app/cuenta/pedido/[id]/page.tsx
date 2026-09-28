@@ -3,17 +3,24 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, CheckCircle2, Loader2, Upload } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, CreditCard, Loader2, Upload } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { AuthPanel } from '@/components/auth-panel'
 import { CopyField } from '@/components/copy-field'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
-import { ORDER_SELECT, STATUS, formatDate, isDigitalOnly, needsCoordination, type Order } from '@/lib/orders'
+import { ORDER_SELECT, STATUS, cardTotal, formatDate, isDigitalOnly, needsCoordination, type Order } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 import { track } from '@/lib/pixel'
 
-type Payment = { alias: string; cbu: string; holder: string; bank: string | null }
+type Payment = { alias: string; cbu: string; holder: string; bank: string | null; card_enabled: boolean; card_fee: number }
+type CardNotice = 'checking' | 'paid' | 'pending' | 'failed' | null
+
+async function functionError(error: unknown, fallback: string) {
+  const context = (error as { context?: Response } | null)?.context
+  const detail = context ? await context.json().then((body: { error?: string }) => body.error).catch(() => null) : null
+  return detail ?? errorMessage(error ?? fallback)
+}
 
 export default function OrderPage() {
   const { id } = useParams<{ id: string }>()
@@ -22,18 +29,51 @@ export default function OrderPage() {
   const [payment, setPayment] = useState<Payment | null>(null)
   const [uploading, setUploading] = useState(false)
   const [verifying, setVerifying] = useState(false)
+  const [cardBusy, setCardBusy] = useState(false)
+  const [cardNotice, setCardNotice] = useState<CardNotice>(null)
+  const [cardError, setCardError] = useState('')
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     const [{ data }, { data: pay }] = await Promise.all([
       supabase.from('orders').select(ORDER_SELECT).eq('id', id).maybeSingle(),
-      supabase.from('payment_settings').select('alias, cbu, holder, bank').maybeSingle(),
+      supabase.from('payment_settings').select('alias, cbu, holder, bank, card_enabled, card_fee').maybeSingle(),
     ])
     setOrder((data as Order | null) ?? null)
     setPayment((pay as Payment | null) ?? null)
+    return (data as Order | null) ?? null
   }, [id])
 
   useEffect(() => { if (user) load() }, [user, load])
+
+  // Back from Ualá's checkout (?pago=ok or ?pago=error): confirm the payment with Ualá right away
+  // instead of waiting for the webhook.
+  useEffect(() => {
+    if (!user) return
+    const result = new URLSearchParams(window.location.search).get('pago')
+    if (!result) return
+    window.history.replaceState(null, '', window.location.pathname)
+    if (result !== 'ok') { setCardNotice('failed'); return }
+    setCardNotice('checking')
+    supabase.functions.invoke('uala', { body: { action: 'sync', order_id: id } }).then(async () => {
+      const fresh = await load()
+      const paid = !!fresh?.paid_at && fresh.payment_method === 'card'
+      if (paid) track('Purchase', { value: fresh.card_total ?? fresh.total, currency: 'ARS', content_ids: fresh.order_items.map((item) => item.product_id) })
+      setCardNotice(paid ? 'paid' : 'pending')
+    })
+  }, [user, id, load])
+
+  async function payWithCard() {
+    if (!order) return
+    setCardBusy(true); setCardError('')
+    const { data, error: invokeError } = await supabase.functions.invoke('uala', { body: { action: 'create', order_id: order.id } })
+    if (invokeError || !data?.url) {
+      setCardError(await functionError(invokeError, 'No se pudo abrir el pago con tarjeta.'))
+      setCardBusy(false)
+      return
+    }
+    window.location.href = data.url
+  }
 
   async function uploadReceipt(file: File) {
     if (!user || !order) return
@@ -63,7 +103,7 @@ export default function OrderPage() {
   const awaitingPayment = order.status === 'pending_payment' || order.status === 'payment_review'
   const coordination = needsCoordination(order)
   const digitalOnly = isDigitalOnly(order)
-  const whatsappMessage = `¡Hola! Soy ${order.customer_name ?? ''}. Te escribo por mi pedido #${order.number} (${order.order_items.map((item) => item.product_name).join(', ')}). Ya hice la transferencia de ${formatARS(order.total)}.`
+  const whatsappMessage = `¡Hola! Soy ${order.customer_name ?? ''}. Te escribo por mi pedido #${order.number} (${order.order_items.map((item) => item.product_name).join(', ')}). ${order.payment_method === 'card' ? 'Ya lo pagué con tarjeta.' : `Ya hice la transferencia de ${formatARS(order.total)}.`}`
 
   return (
     <section className="bg-arena/40 px-4 py-10 sm:px-6 lg:py-16">
@@ -86,14 +126,29 @@ export default function OrderPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-4 flex items-baseline justify-between border-t border-line pt-3 font-display font-extrabold text-ciruela"><span className="text-sm">Total a transferir</span><span className="text-2xl">{formatARS(order.total)}</span></p>
+          <p className="mt-4 flex items-baseline justify-between border-t border-line pt-3 font-display font-extrabold text-ciruela"><span className="text-sm">{awaitingPayment ? 'Total a transferir' : 'Total'}</span><span className="text-2xl">{formatARS(order.total)}</span></p>
+          {order.payment_method === 'card' && order.card_total && <p className="mt-1 text-right text-xs text-piedra">Pagado con tarjeta: {formatARS(order.card_total)} (incluye el costo de Ualá)</p>}
           <p className="mt-4 text-sm text-piedra">{status.text}</p>
           {order.admin_note && <p className="mt-2 rounded-xl bg-papel px-3 py-2 text-sm text-ink">{order.admin_note}</p>}
         </div>
 
+        {cardNotice && (
+          <p role="status" className={`flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold ${cardNotice === 'paid' ? 'bg-whatsapp/15 text-whatsapp' : cardNotice === 'failed' ? 'bg-petalo-wash text-rosa-deep' : 'bg-white text-ink'}`}>
+            {cardNotice === 'checking' && <><Loader2 className="h-4 w-4 animate-spin text-rosa" />Confirmando tu pago con Ualá…</>}
+            {cardNotice === 'paid' && <><CheckCircle2 className="h-5 w-5" />¡Listo! Tu pago con tarjeta está confirmado.</>}
+            {cardNotice === 'pending' && 'Ualá todavía está procesando tu pago. Apenas se acredite, tu pedido se actualiza solo (podés recargar esta página en unos minutos).'}
+            {cardNotice === 'failed' && 'El pago con tarjeta no se completó. Podés intentarlo de nuevo o pagar por transferencia.'}
+          </p>
+        )}
+
         {awaitingPayment && payment && (
-          <div className="rounded-[28px] bg-papel p-6 sm:p-8">
-            <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-rosa-deep">Paso 1</p>
+          <div className="rounded-[28px] border-2 border-rosa/30 bg-papel p-6 sm:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-script text-4xl leading-none text-rosa">Transferencia</p>
+              <span className="rounded-full bg-whatsapp/15 px-3 py-1 font-display text-xs font-bold text-whatsapp">Recomendado · Sin recargo</span>
+            </div>
+            <p className="mt-2 text-sm text-piedra">Desde cualquier banco o billetera virtual. Es la forma más simple y pagás el precio justo.</p>
+            <p className="mt-5 font-display text-xs font-semibold uppercase tracking-[0.2em] text-rosa-deep">Paso 1</p>
             <p className="mt-1 font-bold text-ciruela">Transferí {formatARS(order.total)}</p>
             <div className="mt-3 space-y-2">
               <CopyField label="Alias" value={payment.alias} />
@@ -118,7 +173,21 @@ export default function OrderPage() {
           </div>
         )}
 
-        {coordination && order.status !== 'cancelled' && order.receipt_path && (
+        {awaitingPayment && payment?.card_enabled && !order.receipt_path && (
+          <div className="rounded-[28px] bg-white p-6 sm:p-8">
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-piedra">Otra opción</p>
+            <p className="mt-1 flex items-center gap-2 font-bold text-ciruela"><CreditCard className="h-5 w-5 text-rosa" />Tarjeta de débito o crédito</p>
+            <p className="mt-2 text-sm leading-relaxed text-piedra">
+              Pagás con Ualá. Se suma el costo del procesador de pago ({(Number(payment.card_fee) * 100).toLocaleString('es-AR', { maximumFractionDigits: 1 })}%), así que el total queda en <b className="text-ink">{formatARS(cardTotal(order.total, Number(payment.card_fee)))}</b>.{digitalOnly ? ' Tus e-books se habilitan apenas se aprueba el pago.' : ''}
+            </p>
+            <button type="button" onClick={payWithCard} disabled={cardBusy} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-ciruela px-5 py-3 font-display text-sm font-bold text-ciruela transition-colors hover:bg-petalo-wash disabled:opacity-50">
+              {cardBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}Pagar {formatARS(cardTotal(order.total, Number(payment.card_fee)))} con tarjeta
+            </button>
+            {cardError && <p role="alert" className="mt-3 rounded-xl bg-petalo-wash px-3 py-2 text-sm font-semibold text-rosa-deep">{cardError}</p>}
+          </div>
+        )}
+
+        {coordination && order.status !== 'cancelled' && (order.receipt_path || order.payment_method === 'card') && (
           <div className="rounded-[28px] bg-ciruela p-6 text-white sm:p-8">
             <p className="font-script text-4xl leading-none text-petalo">Coordinemos</p>
             <p className="mt-2 text-sm leading-relaxed text-white/85">Escribime por WhatsApp para arrancar: te pido la información que necesito{order.order_items.some((item) => item.products?.delivery === 'session') ? ' y coordinamos día y horario para la videollamada' : ''}.</p>

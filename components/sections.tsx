@@ -26,7 +26,7 @@ export function HowToBuy({ steps, note }: { steps: { title: string; text: string
             </li>
           ))}
         </ol>
-        <p className="mx-auto mt-10 flex max-w-2xl items-center justify-center gap-2 rounded-3xl bg-white/10 px-6 py-4 text-center text-sm"><Lock className="h-4 w-4 shrink-0 text-petalo" />Pagás por transferencia bancaria. Los datos para transferir te aparecen al confirmar tu pedido.</p>
+        <p className="mx-auto mt-10 flex max-w-2xl items-center justify-center gap-2 rounded-3xl bg-white/10 px-6 py-4 text-center text-sm"><Lock className="h-4 w-4 shrink-0 text-petalo" />Pagás por transferencia bancaria, sin recargo. Los datos para transferir te aparecen al confirmar tu pedido.</p>
         {note && <p className="mx-auto mt-4 flex max-w-2xl items-start justify-center gap-2 text-center text-xs text-white/70"><ShieldCheck className="h-4 w-4 shrink-0" />{note}</p>}
       </div>
     </section>
