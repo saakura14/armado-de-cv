@@ -119,7 +119,7 @@ Tipos de entrega (`delivery`):
 2. Pasa a `/comprar`: completa nombre y WhatsApp, puede dejar una nota y **acepta los términos** (obligatorio).
 3. Si no tiene cuenta, la crea ahí mismo con Google o con email y contraseña.
 4. Al confirmar, el servidor **recalcula todos los precios** (el navegador no decide el total) y crea el pedido.
-5. Ve los datos de transferencia (alias `armado.cv`, CBU y titular) con botones de copiar, transfiere y **sube el comprobante** (imagen o PDF).
+5. Ve primero la **transferencia**, destacada como "Recomendado · Sin recargo": alias `armado.cv`, CBU y titular con botones de copiar. Transfiere y **sube el comprobante** (imagen o PDF). Si el pago con tarjeta está activado y todavía no subió comprobante, debajo aparece "Otra opción: tarjeta de débito o crédito" con el total más el costo de Ualá; al pagar vuelve a su pedido y se confirma solo.
 6. Valeria revisa el comprobante en el panel, controla su banco y **aprueba el pago** (todos los pedidos, incluidos los de e-books). En ese momento:
    - se habilitan los **e-books** en Mi cuenta,
    - se habilitan los **cursos** (por 12 meses),
@@ -161,7 +161,7 @@ Tipos de entrega (`delivery`):
 | **Cursos** | Crear cursos y lecciones: video de YouTube o Vimeo no listado, archivo adjunto, vista previa gratuita y publicado/borrador. |
 | **Sakura (preguntas)** | Preguntas frecuentes que responde Sakura y que se muestran en la web. Admiten `{{precio:id}}` y `{{extra:id}}` para que el precio se actualice solo. |
 | **Testimonios** | Testimonios de clientes con su @ de Instagram (se muestra con link). |
-| **Datos de pago** | Alias, CBU, titular y banco de la transferencia. |
+| **Datos de pago** | Alias, CBU, titular y banco de la transferencia, y la casilla para ofrecer el pago con tarjeta (Ualá). |
 
 ### 2.7 Sakura (asistente de preguntas frecuentes)
 
@@ -278,7 +278,8 @@ El historial completo está en `supabase/migrations/`. Se aplica en orden por fe
 | `orders` / `order_items` | Pedidos y renglones, con los precios **congelados** al momento de la compra y aceptación de términos. |
 | `ebook_access` / `course_access` | Qué e-books y cursos tiene cada usuario (cursos con vencimiento a 12 meses). |
 | `sessions` | Sesiones 1 a 1 por Meet a agendar. |
-| `payment_settings` | Datos de transferencia (una sola fila). |
+| `payment_settings` | Datos de transferencia (una sola fila), `card_enabled` (muestra el pago con tarjeta) y `card_fee` (recargo de Ualá). |
+| `card_payments` | Cada link de pago de Ualá creado para un pedido, con monto y estado. Solo lo escribe la función `uala`; el admin lo puede leer. |
 | `faqs` | Preguntas de Sakura y de la web. |
 | `testimonials` | Testimonios con @ de Instagram. |
 | `admin_upload_tokens` | Tokens de un solo uso (2 hs) para subir archivos desde herramientas de administración. |
@@ -294,6 +295,7 @@ El historial completo está en `supabase/migrations/`. Se aplica en orden por fe
 | `grant_order_access(order)` | Interna | Otorga e-books y cursos y crea sesiones; la usan las dos funciones anteriores. No se puede llamar desde la web. |
 | `admin_set_order_status(order, status, note)` | Admin | Cambia el estado. La primera vez que se aprueba el pago otorga e-books y cursos, crea las sesiones y marca como entregados los pedidos solo digitales. |
 | `admin_update_session(...)` | Admin | Fecha, link de Meet, estado y nota de una sesión. |
+| `mark_card_payment(uala_order, status)` | Solo la función `uala` | Guarda el estado que la función leyó de Ualá. Si es `APPROVED` o `PROCESSED` y el pedido no estaba pago, lo aprueba como una transferencia (`payment_method = 'card'`, guarda `card_total`). Nadie más la puede llamar. |
 | `is_admin()` | Todos | Usada por las políticas de seguridad. |
 
 **Triggers:**
@@ -328,6 +330,7 @@ Código en `supabase/functions/`. Se despliegan en Supabase.
 | `ebook-download` | Sesión del cliente (JWT) | Verifica que el usuario tenga acceso al e-book y descarga el PDF del bucket privado. Agrega en cada página, arriba del pie, la línea *"E-book adquirido por {email} - Pedido #N"* y guarda email y pedido en los metadatos del PDF. |
 | `verify-receipt` | Sesión del cliente (JWT) | Para pedidos solo digitales: lee el comprobante con Claude (`ANTHROPIC_API_KEY`) y valida destinatario, monto, fecha, señales de edición y número de operación. Llama a `finish_receipt_check`, que habilita todo si pasa. |
 | `admin-upload` | Token de `admin_upload_tokens` (encabezado `x-upload-token`) | `?ebook=<id>&name=` sube el PDF de un e-book y lo vincula (borra el anterior). `?social=<ruta>` sube PNG, JPG, PDF o MP4 al bucket público `social` y devuelve la URL. |
+| `uala` | Sesión del cliente (se valida adentro) o `?webhook=1` sin sesión | Pago con tarjeta por Ualá Bis (API v2). `create` arma el link de pago con el total más el costo de Ualá (`card_fee`, 4,9% + IVA = 5,929%, redondeado hacia arriba a $10) y lo reutiliza 30 minutos. `sync` (al volver del pago) y el webhook **vuelven a consultar la orden en Ualá con nuestro token** antes de llamar a `mark_card_payment`: el aviso de Ualá no está firmado, así que nunca se le cree directamente. Si el monto o la referencia no coinciden, queda como `REVISAR_…` para el admin. Secretos: `UALA_USERNAME`, `UALA_CLIENT_ID`, `UALA_CLIENT_SECRET`, `UALA_ENV` (`stage` o `production`; sin valor usa stage). |
 
 Buena práctica: **borrar el token** de `admin_upload_tokens` apenas se termina de usar.
 
@@ -465,3 +468,4 @@ Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebook
 | #16 | Píxel de Meta activado (con evento de registro) y política de privacidad actualizada para informarlo |
 | #17 | E-book nuevo "Cuánto pedir de sueldo" ($16.000, sección Guías). Todos los e-books y guías de regalo pasan al diseño 2026 (crema, Poppins, flores y "El consejo de Vale"); el diseño anterior queda en `assets/ebook-v1.css` de la carpeta de e-books |
 | #18 | Página /gratis con el checklist "Revisá tu CV en 10 minutos" (descarga sin registro, evento Lead del píxel) para la palabra clave CHECKLIST de Instagram |
+| #19 | Precios escalonados de las guías (Portales y Búsqueda $12.000; ATS y LinkedIn $16.000; Sueldo y Trabajo remoto $19.000; Kit $45.000), e-book nuevo "Trabajo remoto desde Latinoamérica", pago con tarjeta por Ualá Bis como segunda opción con el costo a cargo del cliente (apagado hasta cargar las credenciales), y la transferencia destacada como opción recomendada y sin recargo en toda la web |

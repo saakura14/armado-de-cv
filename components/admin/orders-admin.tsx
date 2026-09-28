@@ -5,6 +5,10 @@ import { FileText, RefreshCw } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, type Order, type OrderStatus } from '@/lib/orders'
+
+// The admin also sees every Ualá checkout opened for the order (buyers can't read that table).
+type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[] }
+const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount)`
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass, inputClass, useFlash } from './ui'
 
@@ -30,7 +34,7 @@ function waLink(phone: string | null, text: string) {
   return `https://wa.me/${full}?text=${encodeURIComponent(text)}`
 }
 
-function OrderCard({ order, buyer, onChanged }: { order: Order; buyer?: Buyer; onChanged: () => void }) {
+function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buyer; onChanged: () => void }) {
   const [busy, setBusy] = useState('')
   const [note, setNote] = useState(order.admin_note ?? '')
   const flash = useFlash()
@@ -103,7 +107,12 @@ function OrderCard({ order, buyer, onChanged }: { order: Order; buyer?: Buyer; o
           )}
         </div>
       )}
-      {order.payment_check === 'ok' && <p className="mt-3 text-xs font-semibold text-whatsapp">✓ Transferencia verificada</p>}
+      {order.payment_method === 'card'
+        ? <p className="mt-3 text-xs font-semibold text-whatsapp">✓ Pagado con tarjeta (Ualá): {formatARS(order.card_total ?? order.total)}, a vos te queda {formatARS(order.total)}</p>
+        : order.payment_check === 'ok' && <p className="mt-3 text-xs font-semibold text-whatsapp">✓ Transferencia verificada</p>}
+      {order.card_payments?.filter((card) => card.status.startsWith('REVISAR')).map((card) => (
+        <p key={card.uala_order_id} className="mt-3 rounded-2xl bg-arena p-3 text-xs text-ink"><b>Pago con tarjeta para revisar:</b> Ualá informó un pago ({card.status.replace('REVISAR_', '')}) que no coincide con el pedido. Buscá la orden {card.uala_order_id} en tu panel de Ualá antes de aprobar.</p>
+      ))}
       {order.payment_check === 'rejected' && <p className="mt-3 text-xs font-semibold text-rosa-deep">✗ Transferencia no acreditada: se quitó el acceso</p>}
 
       <ul className="mt-4 space-y-2 rounded-2xl bg-papel p-4 text-sm">
@@ -139,20 +148,20 @@ function OrderCard({ order, buyer, onChanged }: { order: Order; buyer?: Buyer; o
 
 export function OrdersAdmin() {
   const [filter, setFilter] = useState<Filter>('activos')
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orders, setOrders] = useState<AdminOrder[]>([])
   const [buyers, setBuyers] = useState<Record<string, Buyer>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
-    let query = supabase.from('orders').select(ORDER_SELECT).order('created_at', { ascending: false }).limit(100)
+    let query = supabase.from('orders').select(ADMIN_ORDER_SELECT).order('created_at', { ascending: false }).limit(100)
     if (filter === 'activos') query = query.or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending')
     else if (filter === 'verificar') query = query.eq('payment_check', 'pending')
     else if (filter !== 'todos') query = query.eq('status', filter)
     const { data, error: loadError } = await query
     if (loadError) setError(errorMessage(loadError))
-    const list = (data as Order[] | null) ?? []
+    const list = (data as AdminOrder[] | null) ?? []
     setOrders(list)
     const ids = [...new Set(list.map((order) => order.user_id))]
     if (ids.length) {

@@ -12,3 +12,9 @@ verify_jwt = false
 [functions.verify-receipt]
 # Requires the buyer's session token. Uses the ANTHROPIC_API_KEY secret to read receipts.
 verify_jwt = true
+
+[functions.uala]
+# Buyer actions check the session inside the function; Ualá's webhook arrives without one and is
+# only used as a hint (the status is always read back from Ualá). Secrets: UALA_USERNAME,
+# UALA_CLIENT_ID, UALA_CLIENT_SECRET, UALA_ENV.
+verify_jwt = false

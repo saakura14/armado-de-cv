@@ -38,11 +38,19 @@ export type Order = {
   payment_check: 'pending' | 'ok' | 'rejected' | null
   /** What the automatic receipt reading saw (verify-receipt), for the admin. */
   receipt_ai: ReceiptReading | null
+  /** 'card' when paid through Ualá; card_total is what the buyer paid, fee included. */
+  payment_method: 'transfer' | 'card' | null
+  card_total: number | null
   created_at: string
   order_items: OrderItem[]
 }
 
 export const ORDER_SELECT = '*, order_items(*, products(delivery, category), ebooks(title))'
+
+/** Card price: Ualá's fee (4.9% + IVA) goes on top so the store receives the full price. Rounded up to $10, like the uala edge function. */
+export function cardTotal(total: number, fee: number) {
+  return Math.ceil(total / (1 - fee) / 10) * 10
+}
 
 export const STATUS: Record<OrderStatus, { label: string; tone: string; text: string }> = {
   pending_payment: { label: 'Esperando pago', tone: 'bg-arena text-ciruela', text: 'Transferí el total y subí el comprobante.' },

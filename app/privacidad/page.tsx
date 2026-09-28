@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       <Clause title="2. Qué datos uso">
         <ul>
           <li><b>Cuenta:</b> nombre, email y, si ingresás con Google, tu foto de perfil. La contraseña la gestiona el proveedor de autenticación y nunca la veo.</li>
-          <li><b>Pedidos:</b> lo que compraste, tu WhatsApp, las notas que me dejás y el comprobante de transferencia que subís.</li>
+          <li><b>Pedidos:</b> lo que compraste, tu WhatsApp, las notas que me dejás y el comprobante de transferencia que subís. Si pagás con tarjeta, los datos de la tarjeta los carga y procesa Ualá en su propia página: yo solo recibo si el pago se aprobó.</li>
           <li><b>Para armar tu CV:</b> experiencia laboral, formación, habilidades, datos de contacto y la foto que elijas incluir.</li>
           <li><b>Test vocacional y sesiones:</b> tus respuestas y lo que compartas en la sesión. Los trato con estricta confidencialidad.</li>
           <li><b>Cursos:</b> a qué cursos tenés acceso. El avance de las clases vistas queda guardado solo en tu navegador.</li>

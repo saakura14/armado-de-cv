@@ -16,7 +16,7 @@ export default function TermsPage() {
       <Clause title="2. Precios y forma de pago">
         <ul>
           <li>Los precios están expresados en pesos argentinos y son los publicados en el sitio al momento de confirmar el pedido. El total se calcula automáticamente con los extras elegidos.</li>
-          <li>El pago se realiza por transferencia bancaria. Los datos para transferir se muestran una vez confirmado el pedido.</li>
+          <li>El pago se realiza por transferencia bancaria, sin recargo. Los datos para transferir se muestran una vez confirmado el pedido. Cuando está disponible, también se puede pagar con tarjeta de débito o crédito a través de Ualá: en ese caso se suma al precio el costo del procesador de pago (4,9% + IVA), que se informa antes de pagar.</li>
           <li>Después de transferir, subís el comprobante desde tu pedido. Los trabajos se comienzan <b>una vez abonado el monto total</b> y verificado el pago.</li>
           <li><b>Una vez realizado el pedido, no se puede cancelar.</b></li>
         </ul>
@@ -39,7 +39,7 @@ export default function TermsPage() {
 
       <Clause title="4. E-books">
         <ul>
-          <li>Los e-books y guías se entregan en formato digital y se habilitan para descargar en <Link href="/cuenta" className="font-semibold text-rosa-deep underline">Mi cuenta</Link> cuando confirmo que la transferencia se acreditó. Cada descarga lleva el email de quien compró.</li>
+          <li>Los e-books y guías se entregan en formato digital y se habilitan para descargar en <Link href="/cuenta" className="font-semibold text-rosa-deep underline">Mi cuenta</Link> cuando se confirma el pago (la transferencia acreditada o el pago con tarjeta aprobado). Cada descarga lleva el email de quien compró.</li>
           <li>
             <b>Consentimiento informado (Asesorías).</b> Al aceptar estos términos para comprar e-books, packs o sesiones de Asesorías, prestás tu consentimiento informado: entendés que el material y las sesiones son de preparación y orientación, que no garantizan un resultado en entrevistas ni en tests, que no constituyen diagnóstico ni reemplazan una evaluación o tratamiento psicológico o profesional, y que tu participación es voluntaria. Nada de lo que trabajamos busca falsear respuestas.
           </li>

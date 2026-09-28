@@ -11,7 +11,8 @@
 | Funciones de admin | `admin_set_order_status`, `admin_review_instant_payment` y `admin_update_session` rechazan a quien no es admin. | ✅ |
 | Archivos | Comprobantes, e-books y cursos en buckets privados. Los e-books se descargan solo con la función que les pone el email del comprador. | ✅ |
 | Subidas de admin | Con un token temporal que se borra después de usarlo. | ✅ |
-| Pagos | Todos se aprueban a mano. Nada se habilita sin tu confirmación. | ✅ |
+| Pagos por transferencia | Todos se aprueban a mano. Nada se habilita sin tu confirmación. | ✅ |
+| Pagos con tarjeta (Ualá) | Los datos de la tarjeta los carga el cliente en la página de Ualá; la web nunca los ve. El aviso de Ualá no está firmado, así que la función `uala` vuelve a consultar cada orden en Ualá con nuestras credenciales y controla monto y pedido antes de aprobar. Solo esa función puede marcar un pago con tarjeta. Las credenciales viven en los secretos de Supabase, nunca en el repositorio. | ✅ (28/09) |
 | Anti-spam | Máximo 5 pedidos sin pagar por persona cada 24 h. | ✅ |
 | Contraseñas | Mínimo 8 caracteres. Se pueden recuperar y cambiar. | ✅ |
 | Sitio | HTTPS obligatorio (HSTS), no se puede incrustar en otras páginas, y lleva los encabezados nosniff, Referrer-Policy y Permissions-Policy. | ✅ |
@@ -37,6 +38,7 @@ La tarea corre cuando la app de Claude está abierta. Si estaba cerrada, corre a
 - [ ] Instagram → *Apps y sitios web*: dejar solo las que usás (Metricool, Canva).
 - [ ] Business Suite → *Configuración* → *Personas*: que la única administradora seas vos.
 - [ ] Cuenta publicitaria: revisar los métodos de pago y los cargos.
+- [ ] Ualá Bis: que las ventas con tarjeta del panel de Ualá coincidan con los pedidos "Pagado con tarjeta" de la web. Si alguna vez compartiste las credenciales de Ualá por chat o mail, regeneralas en Ualá y actualizalas en Supabase → Edge Functions → Secrets.
 - [ ] GitHub → *Settings* → *Applications*: quitar la integración de Netlify, que ya no se usa.
 - [ ] Destacada "Medios de pago": que no muestre datos bancarios viejos.
 - [ ] Desconfiar de los mensajes de "Meta Support", de supuestos reclamos de copyright o de "verificación de cuenta". Meta no escribe por DM.

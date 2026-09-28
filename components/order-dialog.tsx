@@ -218,7 +218,7 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
               Continuar compra<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </button>
           </div>
-          <p className="mt-2 text-center text-[11px] text-piedra">Pagás por transferencia. Te muestro los datos en el siguiente paso.</p>
+          <p className="mt-2 text-center text-[11px] text-piedra">Pagás por transferencia, sin recargo. Te muestro los datos en el siguiente paso.</p>
         </div>
       </div>
     </div>
