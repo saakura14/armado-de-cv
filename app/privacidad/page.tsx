@@ -42,7 +42,7 @@ export default function PrivacyPage() {
 
       <Clause title="6. Cookies y almacenamiento local">
         <p>Uso el almacenamiento necesario para mantener tu sesión iniciada, recordar el pedido que estás armando y el avance de tus cursos.</p>
-        <p>También uso el <b>píxel de Meta</b> (Facebook e Instagram), que guarda cookies para medir qué pasos del sitio se usan (ver un producto, iniciar una compra, confirmar un pedido) y mostrar los anuncios a personas con intereses parecidos. Solo registra esas acciones y el monto del pedido: no envía tu nombre, tu email, tu CV ni tus archivos. Y las estadísticas de visitas de Vercel no usan cookies. Podés bloquear las cookies de terceros desde tu navegador o gestionar tus preferencias de anuncios en tu cuenta de Meta.</p>
+        <p>También uso el <b>píxel de Meta</b> (Facebook e Instagram), que guarda cookies para medir qué pasos del sitio se usan (ver un producto, iniciar una compra, confirmar un pedido) y mostrar los anuncios a personas con intereses parecidos. Solo registra esas acciones y el monto del pedido: no envía tu nombre, tu email, tu CV ni tus archivos. Las estadísticas de visitas de Vercel no usan cookies, y además la web cuenta cuántas visitas recibe cada página por día, sin cookies y sin guardar ningún dato que te identifique. Podés bloquear las cookies de terceros desde tu navegador o gestionar tus preferencias de anuncios en tu cuenta de Meta.</p>
       </Clause>
 
       <Clause title="7. Tus derechos">

@@ -49,7 +49,7 @@ function SectionTabs({ variant }: { variant: 'desktop' | 'mobile' }) {
 export function SiteHeader() {
   const pathname = usePathname()
   const asesorias = isAsesorias(pathname)
-  const { user } = useSession()
+  const { user, isAdmin } = useSession()
   return (
     <header className="sticky top-0 z-40 border-b border-line/70 bg-blanco/90 pt-[env(safe-area-inset-top)] backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 md:h-[72px]">
@@ -59,8 +59,8 @@ export function SiteHeader() {
         </Link>
         <div className="hidden h-full md:block"><SectionTabs variant="desktop" /></div>
         <div className="flex items-center gap-2">
-          <Link href="/cuenta" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-3 py-2 font-display text-sm font-semibold text-ciruela transition-colors hover:border-ciruela sm:px-4" aria-label={user ? 'Mi cuenta' : 'Ingresar'}>
-            <UserRound className="h-4 w-4" /><span className="hidden sm:inline">{user ? 'Mi cuenta' : 'Ingresar'}</span>
+          <Link href={isAdmin ? '/admin' : '/cuenta'} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-3 py-2 font-display text-sm font-semibold text-ciruela transition-colors hover:border-ciruela sm:px-4" aria-label={isAdmin ? 'Panel' : user ? 'Mi cuenta' : 'Ingresar'}>
+            <UserRound className="h-4 w-4" /><span className="hidden sm:inline">{isAdmin ? 'Panel' : user ? 'Mi cuenta' : 'Ingresar'}</span>
           </Link>
           <a href={whatsappUrl('¡Hola! Quiero hacer una consulta.')} target="_blank" rel="noreferrer" className="hidden min-h-10 items-center gap-2 rounded-full bg-whatsapp px-4 py-2 font-display text-sm font-bold text-white lg:inline-flex">
             <WhatsAppIcon className="h-4 w-4" />Escribime

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { BookOpen, CalendarClock, ChevronRight, Download, Loader2, LogOut, PlayCircle, Settings, Video } from 'lucide-react'
 import { AuthPanel } from '@/components/auth-panel'
 import { formatARS } from '@/lib/catalog'
@@ -17,6 +18,7 @@ const card = 'rounded-[28px] bg-white p-6 shadow-[0_22px_44px_-30px_rgba(67,32,4
 
 export default function AccountPage() {
   const { user, profile, setProfile, ready, isAdmin } = useSession()
+  const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [ebooks, setEbooks] = useState<EbookAccess[]>([])
   const [courses, setCourses] = useState<CourseAccess[]>([])
@@ -42,6 +44,8 @@ export default function AccountPage() {
     setLoading(false)
   }, [])
 
+  // The admin lands on her panel; "?cliente" keeps this page to see it as a customer.
+  useEffect(() => { if (isAdmin && !window.location.search.includes('cliente')) router.replace('/admin') }, [isAdmin, router])
   useEffect(() => { if (user) load() }, [user, load])
   useEffect(() => { if (profile) { setName(profile.full_name ?? ''); setPhone(profile.phone ?? '') } }, [profile])
 
