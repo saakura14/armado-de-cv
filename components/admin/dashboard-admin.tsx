@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, Clock, Download, FileCheck2, RefreshCw, Sparkles, Zap } from 'lucide-react'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, needsCoordination, type Order } from '@/lib/orders'
-import { SALE_SELECT, bestSellers, change, deliveryDeadline, formatDue, isTestOrder, monthKey, monthLabel, monthStats, salesInMonth, shiftMonth, shortMonthLabel, welcome, type Deadline, type Sale, type VisitRow } from '@/lib/dashboard'
+import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, isTestOrder, monthKey, monthLabel, monthStats, salesInMonth, shiftMonth, shortMonthLabel, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass } from './ui'
 
@@ -27,7 +27,7 @@ function toTasks(orders: Order[]): Task[] {
   return tasks.sort((a, b) => rank(a) - rank(b))
 }
 
-function DeadlineChip({ deadline }: { deadline: Deadline }) {
+export function DeadlineChip({ deadline }: { deadline: Deadline }) {
   const { remaining } = deadline
   const late = remaining < 0
   const text = late ? `Atrasado ${-remaining} ${remaining === -1 ? 'día hábil' : 'días hábiles'}` : remaining === 0 ? 'Vence hoy' : remaining === 1 ? 'Vence mañana' : `Quedan ${remaining} días hábiles`
@@ -106,21 +106,23 @@ function RevenueBars({ months, selected }: { months: { key: string; revenue: num
   )
 }
 
-type Data = { orders: Order[]; sales: Sale[]; visits: VisitRow[]; sessionsToSchedule: number }
+type Data = { orders: Order[]; sales: Sale[]; visits: VisitRow[]; events: EventRow[]; created: string[]; sessionsToSchedule: number }
 
 /** Loads everything the home needs; the view below only draws it. */
 export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpen: (tab: 'pedidos' | 'sesiones') => void }) {
-  const [data, setData] = useState<Data>({ orders: [], sales: [], visits: [], sessionsToSchedule: 0 })
+  const [data, setData] = useState<Data>({ orders: [], sales: [], visits: [], events: [], created: [], sessionsToSchedule: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [open, paid, traffic, sessions] = await Promise.all([
+    const [open, paid, traffic, sessions, steps, created] = await Promise.all([
       supabase.from('orders').select(ORDER_SELECT).or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending').order('created_at'),
       supabase.from('orders').select(SALE_SELECT).not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000),
       supabase.from('site_visits').select('day, path, visits, views').order('day'),
       supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('status', 'to_schedule'),
+      supabase.from('site_events').select('day, event, count'),
+      supabase.from('orders').select('created_at').lt('number', 90000),
     ])
     const failed = open.error ?? paid.error ?? traffic.error
     setError(failed ? errorMessage(failed) : '')
@@ -128,6 +130,8 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
       orders: (open.data as Order[] | null) ?? [],
       sales: (paid.data as unknown as Sale[] | null) ?? [],
       visits: (traffic.data as VisitRow[] | null) ?? [],
+      events: (steps.data as EventRow[] | null) ?? [],
+      created: ((created.data as { created_at: string }[] | null) ?? []).map((row) => row.created_at),
       sessionsToSchedule: sessions.count ?? 0,
     })
     setLoading(false)
@@ -169,6 +173,9 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
   const top = bestSellers(salesInMonth(month, sales)).slice(0, 5)
   const topMax = Math.max(...top.map((item) => item.units), 1)
   const landings = Object.entries(visits.filter((row) => row.day.startsWith(month)).reduce<Record<string, number>>((acc, row) => ({ ...acc, [row.path]: (acc[row.path] ?? 0) + row.visits }), {})).sort((a, b) => b[1] - a[1]).slice(0, 4)
+
+  const steps = funnel(month, visits, data.events, data.created, sales)
+  const stepMax = Math.max(...steps.map((step) => step.value), 1)
 
   const deliveries = tasks.filter((task) => task.kind === 'entrega')
   const urgent = deliveries.filter((task) => task.deadline && task.deadline.remaining <= 1).length
@@ -231,6 +238,24 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
           <Tile label="Conversión" value={stats.conversion === null ? '—' : percent.format(stats.conversion)} delta={stats.conversion !== null && previous.conversion ? change(stats.conversion, previous.conversion) : null} previous={previousName} />
         </div>
         <p className="mt-2 text-xs text-piedra">Ventas: pedidos con pago confirmado, sin cancelados ni pruebas. Visitas: personas que entraron a la web (se cuentan desde el 28/09/2026, sin tus propias visitas). Conversión: ventas sobre visitas.</p>
+      </section>
+
+      <section className={cardClass} aria-labelledby="funnel-title">
+        <h2 id="funnel-title" className="font-display text-lg font-bold text-ciruela">Del clic a la venta</h2>
+        <p className="text-sm text-piedra">{monthLabel(month)} · cuántas personas llegan a cada paso (se cuenta desde el 28/09/2026)</p>
+        <ol className="mt-4 space-y-3">
+          {steps.map((step, index) => {
+            const before = index > 0 ? steps[index - 1].value : 0
+            return (
+              <li key={step.label} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 sm:grid-cols-[250px_1fr_110px]">
+                <span className="col-start-1 row-start-1 text-sm font-semibold text-ink">{step.label} <span className="font-normal text-piedra">· {step.hint}</span></span>
+                <span className="col-span-2 row-start-2 h-2.5 rounded-full bg-papel sm:col-span-1 sm:col-start-2 sm:row-start-1"><span className="block h-2.5 rounded-full bg-rosa" style={{ width: `${(step.value / stepMax) * 100}%` }} /></span>
+                <span className="col-start-2 row-start-1 text-right font-display text-sm font-bold text-ciruela sm:col-start-3">{number.format(step.value)}{index > 0 && before > 0 && <span className="ml-1.5 font-sans text-xs font-normal text-piedra">({percent.format(step.value / before)})</span>}</span>
+              </li>
+            )
+          })}
+        </ol>
+        <p className="mt-3 text-xs text-piedra">El porcentaje es sobre el paso anterior. Si mucha gente llega a comprar pero no confirma, el freno está en crear la cuenta o en los datos.</p>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">

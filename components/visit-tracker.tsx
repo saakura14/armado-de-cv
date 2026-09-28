@@ -21,3 +21,12 @@ export function VisitTracker() {
   }, [pathname])
   return null
 }
+
+/** Funnel step for the admin dashboard, counted once per browser session. */
+export function countStep(event: 'lo_quiero' | 'checkout') {
+  try {
+    if (sessionStorage.getItem(`acv-step-${event}`)) return
+    sessionStorage.setItem(`acv-step-${event}`, '1')
+  } catch { /* private mode: count it anyway */ }
+  supabase.rpc('track_event', { p_event: event }).then(() => undefined, () => undefined)
+}
