@@ -59,16 +59,15 @@ async function ualaFetch(path: string, init: RequestInit = {}) {
   return body
 }
 
-/** Reads a payment back from Ualá and applies it. Amounts travel in cents. */
+/** Reads a payment back from Ualá and applies it. Amounts travel in pesos (the docs say cents, but checkout showed 100x). */
 async function syncPayment(ualaOrderId: string) {
   const { data: payment } = await admin.from('card_payments').select('order_id, amount').eq('uala_order_id', ualaOrderId).maybeSingle()
   if (!payment) return null
   const remote = await ualaFetch(`/orders/${encodeURIComponent(ualaOrderId)}`)
   let status = String(remote?.status ?? 'PENDING')
   // Anything that does not match what we asked for is left for the admin, never approved.
-  // (The docs show the amount in cents on create; the read may come back in cents or pesos.)
   const remoteAmount = Math.round(Number(remote?.amount))
-  if (remote?.external_reference !== payment.order_id || ![payment.amount * 100, payment.amount].includes(remoteAmount)) status = `REVISAR_${status}`
+  if (remote?.external_reference !== payment.order_id || remoteAmount !== payment.amount) status = `REVISAR_${status}`
   const { data, error } = await admin.rpc('mark_card_payment', { p_uala_order: ualaOrderId, p_status: status })
   if (error) throw new Error(error.message)
   return data as string
@@ -126,7 +125,7 @@ Deno.serve(async (req) => {
   try {
     if (body.action === 'sync') {
       const { data: payments } = await admin.from('card_payments').select('uala_order_id').eq('order_id', order.id)
-        .not('status', 'in', '(APPROVED,PROCESSED,REJECTED,REFUNDED)').order('created_at', { ascending: false }).limit(3)
+        .not('status', 'in', '(APPROVED,PROCESSED,REJECTED,REFUNDED,ANULADA)').order('created_at', { ascending: false }).limit(3)
       let status = order.status as string
       for (const payment of payments ?? []) status = (await syncPayment(payment.uala_order_id)) ?? status
       return json(200, { status })
@@ -151,7 +150,7 @@ Deno.serve(async (req) => {
     const created = await ualaFetch('/checkout', {
       method: 'POST',
       body: JSON.stringify({
-        amount: String(amount * 100),
+        amount: String(amount),
         description: `Armado de CV · Pedido #${order.number}`,
         callback_success: `${back}?pago=ok`,
         callback_fail: `${back}?pago=error`,
