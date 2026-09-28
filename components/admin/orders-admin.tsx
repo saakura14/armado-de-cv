@@ -34,6 +34,24 @@ function waLink(phone: string | null, text: string) {
   return `https://wa.me/${full}?text=${encodeURIComponent(text)}`
 }
 
+/**
+ * The customer is written from the business WhatsApp (11 5106-0953), not the personal one:
+ * on Android the link forces the WhatsApp Business app; on a computer it opens WhatsApp Web
+ * (keep it signed in with the business number). iPhone can't choose the app, so it uses wa.me.
+ */
+function openBusinessWhatsapp(event: React.MouseEvent<HTMLAnchorElement>, link: string) {
+  const url = new URL(link)
+  const phone = url.pathname.slice(1), text = url.searchParams.get('text') ?? ''
+  const agent = navigator.userAgent
+  if (/iPhone|iPad|iPod/i.test(agent)) return
+  event.preventDefault()
+  if (/Android/i.test(agent)) {
+    window.location.href = `intent://send/?phone=${phone}&text=${encodeURIComponent(text)}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;S.browser_fallback_url=${encodeURIComponent(link)};end`
+  } else {
+    window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`, '_blank', 'noopener')
+  }
+}
+
 function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buyer; onChanged: () => void }) {
   const [busy, setBusy] = useState('')
   const [note, setNote] = useState(order.admin_note ?? '')
@@ -127,7 +145,7 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
 
       <div className="mt-4 flex flex-wrap gap-2">
         {order.receipt_path ? <Button variant="secondary" onClick={openReceipt}><FileText className="h-4 w-4" />Ver comprobante</Button> : <span className="self-center text-sm text-piedra">Sin comprobante todavía</span>}
-        {whatsapp && <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-whatsapp/40 px-4 py-2 font-display text-sm font-bold text-whatsapp"><WhatsAppIcon className="h-4 w-4" />WhatsApp</a>}
+        {whatsapp && <a href={whatsapp} onClick={(event) => openBusinessWhatsapp(event, whatsapp)} target="_blank" rel="noreferrer" title="Se abre en WhatsApp Business (11 5106-0953)" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-whatsapp/40 px-4 py-2 font-display text-sm font-bold text-whatsapp"><WhatsAppIcon className="h-4 w-4" />WhatsApp Business</a>}
       </div>
 
       <label className="mt-4 block text-xs font-semibold uppercase tracking-wider text-piedra">Mensaje para el cliente (lo ve en su pedido)
