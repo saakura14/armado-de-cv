@@ -6,11 +6,17 @@ import { useRouter } from 'next/navigation'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { AuthPanel } from '@/components/auth-panel'
 import { clearPending, loadPending, type PendingOrder } from '@/lib/cart'
-import { formatARS, whatsappUrl } from '@/lib/catalog'
+import { formatARS, whatsappUrl, type Delivery } from '@/lib/catalog'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 import { track } from '@/lib/pixel'
+
+// E-books and courses need nothing else from the buyer, so they skip the note.
+const NOTE_FIELD: Partial<Record<Delivery, { label: string; placeholder: string }>> = {
+  service: { label: 'Algo que quieras contarme (opcional)', placeholder: 'Rubro, puesto al que apuntás, colores que te gustan para el CV...' },
+  session: { label: '¿Qué te gustaría trabajar en la sesión? (opcional)', placeholder: 'Por ejemplo: prepararme para una entrevista, ordenar mi búsqueda, definir hacia dónde ir...' },
+}
 
 function Summary({ order }: { order: PendingOrder }) {
   return (
@@ -110,9 +116,11 @@ export default function CheckoutPage() {
               <label className="block text-sm font-semibold text-ciruela">WhatsApp
                 <input required value={phone} onChange={(event) => setPhone(event.target.value)} type="tel" inputMode="tel" autoComplete="tel" placeholder="11 2345-6789" className={input} />
               </label>
-              <label className="block text-sm font-semibold text-ciruela">Algo que quieras contarme (opcional)
-                <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={3} placeholder="Rubro, puesto al que apuntás, colores que te gustan para el CV..." className={input} />
-              </label>
+              {NOTE_FIELD[pending.delivery] && (
+                <label className="block text-sm font-semibold text-ciruela">{NOTE_FIELD[pending.delivery]!.label}
+                  <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={3} placeholder={NOTE_FIELD[pending.delivery]!.placeholder} className={input} />
+                </label>
+              )}
               <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-line bg-blanco p-4 text-sm leading-relaxed">
                 <input type="checkbox" required checked={accepted} onChange={(event) => setAccepted(event.target.checked)} className="mt-1 accent-rosa" />
                 <span>Leí y acepto los <Link href="/terminos" target="_blank" className="font-semibold text-rosa-deep underline">términos y condiciones</Link> (incluida la política de cambios y devoluciones y, en Asesorías, el consentimiento informado) y la <Link href="/privacidad" target="_blank" className="font-semibold text-rosa-deep underline">política de privacidad</Link>.</span>
