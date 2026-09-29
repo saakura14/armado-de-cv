@@ -27,8 +27,15 @@ function Summary({ order }: { order: PendingOrder }) {
       <p className="mt-1 font-script text-4xl leading-none text-rosa">{order.productName}</p>
       {order.subtitle && <p className="text-sm text-piedra">{order.subtitle}</p>}
       <ul className="mt-4 space-y-1.5 text-sm">
-        <li className="flex justify-between gap-4"><span>{order.productName}</span><span className="font-semibold">{formatARS(order.total - order.lines.reduce((sum, line) => sum + line.price, 0))}</span></li>
-        {order.lines.map((line) => <li key={line.text} className="flex justify-between gap-4 text-piedra"><span>+ {line.text}</span><span>{formatARS(line.price)}</span></li>)}
+        {order.items ? (
+          // Order link: every product and add-on is its own line.
+          order.lines.map((line, index) => <li key={index} className={`flex justify-between gap-4 ${line.text.startsWith('+') ? 'pl-3 text-piedra' : ''}`}><span>{line.text}</span><span className={line.text.startsWith('+') ? '' : 'font-semibold'}>{formatARS(line.price)}</span></li>)
+        ) : (
+          <>
+            <li className="flex justify-between gap-4"><span>{order.productName}</span><span className="font-semibold">{formatARS(order.total - order.lines.reduce((sum, line) => sum + line.price, 0))}</span></li>
+            {order.lines.map((line) => <li key={line.text} className="flex justify-between gap-4 text-piedra"><span>+ {line.text}</span><span>{formatARS(line.price)}</span></li>)}
+          </>
+        )}
       </ul>
       <p className="mt-4 flex items-baseline justify-between border-t border-line pt-3 font-display font-extrabold text-ciruela"><span className="text-sm">Total</span><span className="text-2xl">{formatARS(order.total)}</span></p>
     </div>
@@ -56,19 +63,20 @@ export default function CheckoutPage() {
   }, [])
   useEffect(() => {
     if (!profile) return
-    setName((current) => current || profile.full_name || '')
+    setName((current) => current || profile.full_name || pending?.customerName || '')
     setPhone((current) => current || profile.phone || '')
-  }, [profile])
+  }, [profile, pending])
 
   async function confirm(event: React.FormEvent) {
     event.preventDefault()
     if (!pending) return
     setBusy(true); setError('')
     const { data, error: rpcError } = await supabase.rpc('create_order', {
-      p_items: [pending.item], p_accept_terms: accepted, p_name: name, p_phone: phone, p_note: note,
+      p_items: pending.items ?? [pending.item], p_accept_terms: accepted, p_name: name, p_phone: phone, p_note: note,
     })
     if (rpcError) { setError(errorMessage(rpcError)); setBusy(false); return }
     track('Lead', { value: pending.total, currency: 'ARS', content_ids: [pending.item.product_id] })
+    if (pending.linkToken) await supabase.rpc('claim_order_link', { p_token: pending.linkToken, p_order: data as string })
     notifyAdmin(data as string, 'new_order')
     clearPending()
     router.replace(`/cuenta/pedido/${data as string}`)

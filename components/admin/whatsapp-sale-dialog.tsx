@@ -1,16 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Plus, Trash2, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CheckCircle2, Trash2, X } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { errorMessage, supabase } from '@/lib/supabase'
-import { parseSales, type ParsedSale, type SaleExtra, type SaleItem, type SaleProduct } from '@/lib/whatsapp-sale'
+import { parseSales, type ParsedSale } from '@/lib/whatsapp-sale'
+import { SaleItemsEditor, useSaleCatalog } from './sale-items'
 import { Button, inputClass } from './ui'
 
 type Row = ParsedSale & { key: number; total: string; totalEdited: boolean; phone: string; delivered: boolean }
-type ProductRow = { id: string; name: string; category: string; price: number; product_extra_groups: { group_id: string }[] }
-type GroupRow = { id: string; label: string; unit_price: number; extra_options: { id: string; label: string; is_other: boolean; sort: number }[] }
 
 const EXAMPLE = 'Cecilia Sanchez / Pack premium + pack medium + servicio de linkedin 29/09\nJuan Pérez / Pack Medium + express 27/09'
 const daysAgo = (date: string) => (Date.now() - new Date(`${date}T12:00:00-03:00`).getTime()) / 86400000
@@ -18,8 +17,7 @@ const label = 'text-xs font-semibold uppercase tracking-wider text-piedra'
 
 /** Paste one or many WhatsApp notes ("Nombre / Pack + adicionales + fecha"), check what was understood and save them as paid sales. */
 export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { initialText?: string; onClose: () => void; onSaved: () => void }) {
-  const [products, setProducts] = useState<SaleProduct[]>([])
-  const [extras, setExtras] = useState<SaleExtra[]>([])
+  const { products, extras, totalOf: catalogTotal } = useSaleCatalog()
   const [text, setText] = useState(initialText)
   const [rows, setRows] = useState<Row[]>([])
   const [busy, setBusy] = useState(false)
@@ -27,31 +25,11 @@ export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { ini
   const [saved, setSaved] = useState<number[]>([])
 
   useEffect(() => {
-    Promise.all([
-      supabase.from('products').select('id, name, category, price, product_extra_groups(group_id)').eq('active', true).order('sort'),
-      supabase.from('extra_groups').select('id, label, unit_price, extra_options(id, label, is_other, sort)').order('id'),
-    ]).then(([productRows, groupRows]) => {
-      setProducts(((productRows.data as ProductRow[] | null) ?? []).map((row) => ({ id: row.id, name: row.name, category: row.category, price: row.price, groups: row.product_extra_groups.map((link) => link.group_id) })))
-      setExtras(((groupRows.data as GroupRow[] | null) ?? []).flatMap((group) => [...group.extra_options].sort((a, b) => a.sort - b.sort).map((option) => ({
-        groupId: group.id, optionId: option.id, groupLabel: group.label,
-        // Single-option groups (Express, LinkedIn services) read better by the group name.
-        label: group.extra_options.length === 1 ? group.label : option.label,
-        price: group.unit_price, isOther: option.is_other,
-      }))))
-    })
-  }, [])
-
-  useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
   }, [onClose])
-
-  const priceOf = useMemo(() => Object.fromEntries(products.map((product) => [product.id, product.price])), [products])
-  const extraOf = (groupId: string, optionId: string) => extras.find((extra) => extra.groupId === groupId && extra.optionId === optionId)
-  const catalogTotal = (items: SaleItem[]) => items.reduce((sum, item) => sum + (item.productId ? priceOf[item.productId] ?? 0 : 0)
-    + item.extras.reduce((acc, extra) => acc + (extraOf(extra.groupId, extra.optionId)?.price ?? 0), 0), 0)
 
   // Re-read the notes whenever the text (or the catalog) changes.
   useEffect(() => {
@@ -69,9 +47,6 @@ export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { ini
 
   function update(key: number, patch: Partial<Row>) {
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)))
-  }
-  function updateItems(row: Row, change: (items: SaleItem[]) => SaleItem[]) {
-    update(row.key, { items: change(row.items.map((item) => ({ ...item, extras: [...item.extras] }))) })
   }
 
   const totalOf = (row: Row) => (row.totalEdited ? Number(row.total) || 0 : catalogTotal(row.items))
@@ -142,35 +117,7 @@ export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { ini
                     </label>
 
                     <p className={`mt-3 ${label}`}>Qué compró</p>
-                    <ul className="mt-1 space-y-2">
-                      {row.items.map((item, index) => (
-                        <li key={index} className="rounded-xl bg-papel p-3">
-                          <div className="flex items-center gap-2">
-                            <select value={item.productId ?? ''} onChange={(event) => updateItems(row, (items) => { items[index].productId = event.target.value || null; return items })} aria-label="Producto" className={`${inputClass} mt-0`}>
-                              <option value="">Elegí…</option>
-                              {products.map((product) => <option key={product.id} value={product.id}>{product.name} · {formatARS(product.price)}</option>)}
-                            </select>
-                            {row.items.length > 1 && <button type="button" onClick={() => updateItems(row, (items) => items.filter((_, position) => position !== index))} className="shrink-0 rounded-full p-1.5 text-piedra hover:bg-white hover:text-rosa-deep" aria-label="Quitar producto"><X className="h-4 w-4" /></button>}
-                          </div>
-                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                            {item.extras.map((extra, extraIndex) => {
-                              const info = extraOf(extra.groupId, extra.optionId)
-                              return (
-                                <span key={`${extra.groupId}-${extra.optionId}`} className="inline-flex items-center gap-1 rounded-full bg-rosa px-2.5 py-1 text-xs font-semibold text-white">
-                                  + {info?.label ?? extra.groupId}{info ? ` · ${formatARS(info.price)}` : ''}
-                                  <button type="button" onClick={() => updateItems(row, (items) => { items[index].extras.splice(extraIndex, 1); return items })} aria-label="Quitar adicional"><X className="h-3 w-3" /></button>
-                                </span>
-                              )
-                            })}
-                            <select value="" onChange={(event) => { const [groupId, optionId] = event.target.value.split('|'); if (groupId) updateItems(row, (items) => { items[index].extras.push({ groupId, optionId }); return items }) }} aria-label="Agregar adicional" className="rounded-full border border-dashed border-rosa/50 bg-white px-2.5 py-1 text-xs font-semibold text-rosa-deep">
-                              <option value="">+ Adicional</option>
-                              {extras.filter((extra) => !extra.isOther).map((extra) => <option key={`${extra.groupId}|${extra.optionId}`} value={`${extra.groupId}|${extra.optionId}`}>{extra.label === extra.groupLabel ? extra.label : `${extra.groupLabel}: ${extra.label}`} · {formatARS(extra.price)}</option>)}
-                            </select>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                    <button type="button" onClick={() => updateItems(row, (items) => [...items, { productId: null, extras: [] }])} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline"><Plus className="h-4 w-4" />Agregar otro producto</button>
+                    <SaleItemsEditor items={row.items} onChange={(items) => update(row.key, { items })} products={products} extras={extras} />
 
                     <div className="mt-3 grid grid-cols-2 gap-3">
                       <label className={label}>Fecha de pago
