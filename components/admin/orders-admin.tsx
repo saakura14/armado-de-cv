@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { FileText, RefreshCw } from 'lucide-react'
+import { FileText, Pencil, RefreshCw } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, type Order, type OrderStatus } from '@/lib/orders'
@@ -53,6 +53,52 @@ function openBusinessWhatsapp(event: React.MouseEvent<HTMLAnchorElement>, link: 
   } else {
     window.open(`https://web.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`, '_blank', 'noopener')
   }
+}
+
+/** Fix a WhatsApp sale loaded with a mistake: amount charged, name, phone and payment date. */
+function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }) {
+  const toDay = (value: string | null) => (value ? new Date(new Date(value).getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10) : '')
+  const [open, setOpen] = useState(false)
+  const [total, setTotal] = useState(String(order.total))
+  const [name, setName] = useState(order.customer_name ?? '')
+  const [phone, setPhone] = useState(order.customer_phone ?? '')
+  const [date, setDate] = useState(toDay(order.paid_at))
+  const [busy, setBusy] = useState(false)
+  const flash = useFlash()
+
+  async function save() {
+    setBusy(true)
+    const { error } = await supabase.rpc('admin_update_whatsapp_sale', {
+      p_order: order.id, p_total: Number(total), p_name: name, p_phone: phone,
+      p_paid_on: date && date !== toDay(order.paid_at) ? date : null,
+    })
+    setBusy(false)
+    if (error) { flash.show('error', errorMessage(error)); return }
+    setOpen(false)
+    onSaved()
+  }
+
+  if (!open) {
+    return <button type="button" onClick={() => setOpen(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-rosa-deep hover:underline"><Pencil className="h-3.5 w-3.5" />Editar venta</button>
+  }
+  const lines = order.order_items.reduce((sum, item) => sum + item.line_total, 0)
+  return (
+    <div className="mt-3 rounded-2xl border border-rosa/40 bg-petalo-wash/60 p-4">
+      <p className="font-display text-sm font-bold text-ciruela">Editar venta por WhatsApp</p>
+      <div className="mt-2 grid grid-cols-2 gap-3">
+        <label className="col-span-2 text-xs font-semibold uppercase tracking-wider text-piedra sm:col-span-1">Cliente<input value={name} onChange={(event) => setName(event.target.value)} className={inputClass} /></label>
+        <label className="col-span-2 text-xs font-semibold uppercase tracking-wider text-piedra sm:col-span-1">WhatsApp<input type="tel" inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className={inputClass} /></label>
+        <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Fecha de pago<input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={inputClass} /></label>
+        <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Cobraste<input inputMode="numeric" value={total} onChange={(event) => setTotal(event.target.value.replace(/\D/g, ''))} className={inputClass} /></label>
+      </div>
+      {lines !== Number(total) && <p className="mt-2 text-xs text-piedra">Según los precios de lo que compró: {formatARS(lines)}.</p>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button busy={busy} disabled={!name.trim() || !(Number(total) > 0)} onClick={save}>Guardar cambios</Button>
+        <Button variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
+      </div>
+      {flash.node && <div className="mt-3">{flash.node}</div>}
+    </div>
+  )
 }
 
 function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buyer; onChanged: () => void }) {
@@ -126,6 +172,7 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
         </div>
       </div>
       {deadline && <p className="mt-3 flex flex-wrap items-center gap-2"><DeadlineChip deadline={deadline} /><span className="text-xs text-piedra">Entregar el {formatDue(deadline.due)}{deadline.express ? ' · Express' : ''}</span></p>}
+      {order.source === 'whatsapp' && <EditSale order={order} onSaved={onChanged} />}
 
       {order.payment_check === 'pending' && (
         <div className="mt-4 rounded-2xl border border-rosa/40 bg-petalo-wash p-4 text-sm">
