@@ -1,5 +1,6 @@
 'use client'
 
+import { countSessionsToSchedule } from '@/lib/sessions'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, Clock, Download, FileCheck2, RefreshCw, ShoppingBag, Sparkles, Zap } from 'lucide-react'
 import { useHideMoney } from '@/lib/hide-money'
@@ -147,7 +148,7 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
       supabase.from('orders').select(ORDER_SELECT).or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending').order('created_at'),
       supabase.from('orders').select(SALE_SELECT).not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000),
       supabase.from('site_visits').select('day, path, visits, views').order('day'),
-      supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('status', 'to_schedule'),
+      countSessionsToSchedule(),
       supabase.from('site_events').select('day, event, count'),
       supabase.from('orders').select('created_at').lt('number', 90000).eq('source', 'web'),
       supabase.from('orders').select('delivered_at, paid_at').eq('status', 'delivered').lt('number', 90000),
@@ -167,7 +168,7 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
       delivered: ((delivered.data as { delivered_at: string | null; paid_at: string | null }[] | null) ?? []).flatMap((row) => { const at = row.delivered_at ?? row.paid_at; return at ? [at] : [] }),
       unpaid: unpaid.count ?? 0,
       fresh: fresh.count ?? 0,
-      sessionsToSchedule: sessions.count ?? 0,
+      sessionsToSchedule: sessions,
     })
     setLoading(false)
   }, [])

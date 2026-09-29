@@ -29,6 +29,7 @@ export default function TermsPage() {
           <li>La demora es de <b>3 a 4 días hábiles</b>, contados desde que cuento con toda la información requerida. No trabajo fines de semana. Puedo adelantar trabajo, pero si te escribo un fin de semana y te molesta, avisame y lo tengo en cuenta.</li>
           <li>Si el pack se contrata <b>después de las 17 hs</b>, se comienza el día hábil siguiente por la tarde.</li>
           <li><b>Versión Express:</b> para recibir el pack dentro de las 24 hs hábiles se abona un extra al pack contratado. Tenés que avisarlo <b>antes de comenzar</b>.</li>
+          <li><b>Horario puntual:</b> si necesitás el trabajo para un horario determinado, se cotiza por WhatsApp según disponibilidad antes de contratarlo.</li>
           <li>Si durante el armado necesitás el CV de forma urgente, antes de la fecha de entrega normal, se abona un recargo.</li>
           <li>Armo un boceto del texto y te lo paso para que, si hay que hacer modificaciones, lo amoldemos juntos.</li>
           <li>Te entrego un link para verificar el boceto del CV y hacer todas las modificaciones que necesites. <b>Una vez entregado y pasadas las 24 hs, cualquier cambio tiene un costo de $5.000, sin excepción.</b></li>

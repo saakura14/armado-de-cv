@@ -1,5 +1,6 @@
 'use client'
 
+import { waitsForCv, type SessionOrder } from '@/lib/sessions'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -12,7 +13,7 @@ import { useSession } from '@/lib/use-session'
 
 type EbookAccess = { ebook_id: string; ebooks: { title: string; description: string | null; file_path: string | null } | null }
 type CourseAccess = { course_id: string; expires_at: string; courses: { id: string; title: string; description: string | null; cover_url: string | null } | null }
-type Session = { id: string; title: string; duration_minutes: number; status: 'to_schedule' | 'scheduled' | 'done' | 'cancelled'; scheduled_at: string | null; meet_url: string | null }
+type Session = { id: string; title: string; duration_minutes: number; status: 'to_schedule' | 'scheduled' | 'done' | 'cancelled'; scheduled_at: string | null; meet_url: string | null; orders: SessionOrder }
 
 const card = 'rounded-[28px] bg-white p-6 shadow-[0_22px_44px_-30px_rgba(67,32,44,0.55)]'
 
@@ -36,7 +37,7 @@ export default function AccountPage() {
       supabase.from('orders').select(ORDER_SELECT).order('created_at', { ascending: false }),
       supabase.from('ebook_access').select('ebook_id, ebooks(title, description, file_path)').order('granted_at', { ascending: false }),
       supabase.from('course_access').select('course_id, expires_at, courses(id, title, description, cover_url)').order('granted_at', { ascending: false }),
-      supabase.from('sessions').select('*').order('created_at', { ascending: false }),
+      supabase.from('sessions').select('*, orders(status, order_items(products(delivery)))').order('created_at', { ascending: false }),
     ])
     setOrders((o.data as Order[] | null) ?? [])
     setEbooks((e.data as unknown as EbookAccess[] | null) ?? [])
@@ -111,7 +112,7 @@ export default function AccountPage() {
                     {upcoming.map((session) => (
                       <li key={session.id} className="rounded-2xl bg-papel p-4">
                         <p className="font-semibold text-ink">{session.title}</p>
-                        <p className="mt-1 flex items-center gap-1.5 text-sm text-piedra"><CalendarClock className="h-4 w-4" />{session.scheduled_at ? formatDate(session.scheduled_at, true) : 'Coordinamos día y horario por WhatsApp'} · {session.duration_minutes} min</p>
+                        <p className="mt-1 flex items-center gap-1.5 text-sm text-piedra"><CalendarClock className="h-4 w-4" />{session.scheduled_at ? formatDate(session.scheduled_at, true) : waitsForCv(session) ? 'La coordinamos cuando te entregue tu CV' : 'Coordinamos día y horario por WhatsApp'} · {session.duration_minutes} min</p>
                         {session.meet_url && <a href={session.meet_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full bg-ciruela px-4 py-2 font-display text-sm font-bold text-white"><Video className="h-4 w-4" />Entrar a la videollamada</a>}
                       </li>
                     ))}

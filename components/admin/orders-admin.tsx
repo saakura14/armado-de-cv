@@ -212,7 +212,8 @@ function OrderCard({ order, buyer, fresh, onChanged }: { order: AdminOrder; buye
   const products = order.order_items.map((item) => item.product_name).join(' + ')
   const whatsapp = waLink(phone, `¡Hola ${firstName}! Te escribo por tu pedido #${order.number} de Armado de CV.`)
   const service = order.order_items.some((item) => item.products?.delivery === 'service')
-  const session = order.order_items.some((item) => item.products?.delivery === 'session')
+  // A 1:1 session: its own product, or the Meet feedback of the vocational test.
+  const session = order.order_items.some((item) => item.products?.delivery === 'session' || item.extras.some((extra) => extra.group_id === 'devolucion'))
   const deadline = service && (order.status === 'paid' || order.status === 'in_progress') ? deliveryDeadline(order) : null
   // Ready-made message for the next step of this order.
   const template = order.status === 'pending_payment'
@@ -221,6 +222,9 @@ function OrderCard({ order, buyer, fresh, onChanged }: { order: AdminOrder; buye
       ? { label: 'Pedir los datos', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, pasame tu CV actual (si tenés) y contame a qué puesto o rubro apuntás.` }
       : session && (order.status === 'paid' || order.status === 'in_progress')
         ? { label: 'Coordinar la sesión', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 ¿Qué días y horarios te quedan cómodos para la sesión por Google Meet?` }
+      // CV + session: once the CV is delivered, the session comes next.
+      : service && session && order.status === 'delivered'
+        ? { label: 'Coordinar la sesión', text: `¡Hola ${firstName}! Ya tenés tu CV 🙌 Ahora sigue la sesión por Google Meet: ¿qué días y horarios te quedan cómodos?` }
       : order.status === 'delivered'
         ? { label: 'Pedir un testimonio', text: `¡Hola ${firstName}! ¿Cómo te fue con tu ${products}? Si te gustó, me ayudaría muchísimo que me cuentes tu experiencia en un mensajito 💕 Si me das permiso, lo comparto en Instagram solo con tu nombre.` }
         : null
