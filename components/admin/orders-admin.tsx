@@ -196,6 +196,7 @@ export function OrdersAdmin() {
   const [buyers, setBuyers] = useState<Record<string, Buyer>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -218,19 +219,30 @@ export function OrdersAdmin() {
 
   useEffect(() => { load() }, [load])
 
+  // Search by order number, customer name, email or phone within the current view.
+  const term = search.trim().toLowerCase().replace(/^#/, '')
+  const shown = term ? orders.filter((order) => {
+    const buyer = order.user_id ? buyers[order.user_id] : undefined
+    return [String(order.number), order.customer_name, order.customer_phone, buyer?.email, buyer?.full_name, buyer?.phone].some((value) => value?.toLowerCase().includes(term))
+  }) : orders
+
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2">
+        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, # o teléfono" aria-label="Buscar pedidos" className="min-w-0 flex-1 rounded-full border border-line bg-white px-4 py-2.5 text-base outline-none focus:border-rosa sm:max-w-sm sm:text-sm" />
+        <button type="button" onClick={load} className="inline-flex shrink-0 items-center gap-1.5 rounded-full p-2 text-sm font-semibold text-piedra hover:text-ciruela" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
+      </div>
+      {/* One swipeable row on the phone, wrapped on bigger screens */}
+      <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
         {FILTERS.map((item) => (
-          <button key={item.id} type="button" onClick={() => setFilter(item.id)} className={`rounded-full px-3.5 py-1.5 font-display text-xs font-bold ${filter === item.id ? 'bg-ciruela text-white' : 'bg-white text-piedra hover:text-ciruela'}`}>{item.label}</button>
+          <button key={item.id} type="button" onClick={() => setFilter(item.id)} className={`shrink-0 rounded-full px-3.5 py-2 font-display text-xs font-bold ${filter === item.id ? 'bg-ciruela text-white' : 'bg-white text-piedra hover:text-ciruela'}`}>{item.label}</button>
         ))}
-        <button type="button" onClick={load} className="ml-auto inline-flex items-center gap-1.5 text-sm font-semibold text-piedra hover:text-ciruela" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Actualizar</button>
       </div>
       {error && <p className="mt-4 text-sm text-rosa-deep">{error}</p>}
-      {!loading && orders.length === 0 ? (
-        <p className="mt-8 rounded-3xl bg-white p-8 text-center text-piedra">No hay pedidos en esta vista.</p>
+      {!loading && shown.length === 0 ? (
+        <p className="mt-8 rounded-3xl bg-white p-8 text-center text-piedra">{term ? 'No encontré pedidos con esa búsqueda en esta vista.' : 'No hay pedidos en esta vista.'}</p>
       ) : (
-        <ul className="mt-5 grid gap-4 xl:grid-cols-2">{orders.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} onChanged={load} />)}</ul>
+        <ul className="mt-4 grid gap-4 xl:grid-cols-2">{shown.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} onChanged={load} />)}</ul>
       )}
     </div>
   )

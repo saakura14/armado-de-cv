@@ -37,7 +37,7 @@ export function AppSetup({ userId }: { userId: string }) {
     const { outcome } = await savedPrompt.userChoice
     savedPrompt = null
     setCanInstall(false)
-    if (outcome === 'accepted') setMessage({ tone: 'ok', text: 'Listo: vas a encontrar "Panel ACV" entre tus apps.' })
+    if (outcome === 'accepted') setMessage({ tone: 'ok', text: 'Listo: vas a encontrar "Armado de CV - Admin" entre tus apps.' })
   }
 
   async function run(action: string, work: () => Promise<string>) {
@@ -71,11 +71,11 @@ export function AppSetup({ userId }: { userId: string }) {
             <p className="mt-1 text-sm text-ink">¡Ya la estás usando como app! ✅</p>
           ) : canInstall ? (
             <>
-              <p className="mt-1 text-sm text-ink">Queda como &quot;Panel ACV&quot; entre tus apps y abre directo acá.</p>
+              <p className="mt-1 text-sm text-ink">Queda como &quot;Armado de CV - Admin&quot; entre tus apps y abre directo acá.</p>
               <Button className="mt-3" onClick={install}>Instalar el panel</Button>
             </>
           ) : (
-            <p className="mt-1 text-sm leading-relaxed text-ink">Abrí esta página en <b>Chrome</b> desde tu celu, tocá el menú <b>⋮</b> y elegí <b>&quot;Instalar app&quot;</b> o <b>&quot;Agregar a la pantalla principal&quot;</b>. Después abrí &quot;Panel ACV&quot; desde el ícono.</p>
+            <p className="mt-1 text-sm leading-relaxed text-ink">Abrí esta página en <b>Chrome</b> desde tu celu, tocá el menú <b>⋮</b> y elegí <b>&quot;Instalar app&quot;</b> o <b>&quot;Agregar a la pantalla principal&quot;</b>. Después abrí &quot;Armado de CV - Admin&quot; desde el ícono.</p>
           )}
         </div>
         <div className="rounded-2xl bg-papel p-4">
@@ -88,7 +88,7 @@ export function AppSetup({ userId }: { userId: string }) {
                 <Button variant="secondary" busy={busy === 'off'} onClick={() => run('off', async () => { await disablePush(); return 'Avisos desactivados en este dispositivo.' })}><BellOff className="h-4 w-4" />Desactivar</Button>
               </>
             ) : push === 'denied' ? (
-              <p className="text-sm text-rosa-deep">Las notificaciones están bloqueadas. Habilitalas en Ajustes → Apps → Panel ACV (o Chrome) → Notificaciones.</p>
+              <p className="text-sm text-rosa-deep">Las notificaciones están bloqueadas. Habilitalas en Ajustes → Apps → Armado de CV - Admin (o Chrome) → Notificaciones.</p>
             ) : push === 'unsupported' ? (
               <p className="text-sm text-piedra">Este navegador no permite avisos. Instalá el panel y abrilo desde el ícono.</p>
             ) : (
