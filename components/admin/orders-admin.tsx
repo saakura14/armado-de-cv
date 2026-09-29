@@ -14,7 +14,7 @@ const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass, inputClass, useFlash } from './ui'
 
-type Filter = 'activos' | 'verificar' | OrderStatus | 'todos'
+type Filter = 'activos' | 'verificar' | 'whatsapp' | OrderStatus | 'todos'
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'activos', label: 'Para atender' },
   { id: 'verificar', label: 'Verificar transferencia' },
@@ -24,6 +24,7 @@ const FILTERS: { id: Filter; label: string }[] = [
   { id: 'in_progress', label: 'En proceso' },
   { id: 'delivered', label: 'Entregados' },
   { id: 'cancelled', label: 'Cancelados' },
+  { id: 'whatsapp', label: 'De WhatsApp' },
   { id: 'todos', label: 'Todos' },
 ]
 
@@ -115,7 +116,7 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
     <li className={cardClass}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-display text-xs font-semibold uppercase tracking-wider text-piedra">#{order.number} · {formatDate(order.created_at, true)}</p>
+          <p className="flex flex-wrap items-center gap-2 font-display text-xs font-semibold uppercase tracking-wider text-piedra">#{order.number} · {formatDate(order.created_at, true)}{order.source === 'whatsapp' && <span className="inline-flex items-center gap-1 rounded-full bg-whatsapp/15 px-2 py-0.5 normal-case tracking-normal text-whatsapp"><WhatsAppIcon className="h-3 w-3" />Venta por WhatsApp</span>}</p>
           <p className="mt-1 font-bold text-ink">{name}</p>
           <p className="text-sm text-piedra">{buyer?.email}{phone ? ` · ${phone}` : ''}</p>
         </div>
@@ -201,12 +202,13 @@ export function OrdersAdmin() {
     let query = supabase.from('orders').select(ADMIN_ORDER_SELECT).order('created_at', { ascending: false }).limit(100)
     if (filter === 'activos') query = query.or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending')
     else if (filter === 'verificar') query = query.eq('payment_check', 'pending')
+    else if (filter === 'whatsapp') query = query.eq('source', 'whatsapp')
     else if (filter !== 'todos') query = query.eq('status', filter)
     const { data, error: loadError } = await query
     if (loadError) setError(errorMessage(loadError))
     const list = (data as AdminOrder[] | null) ?? []
     setOrders(list)
-    const ids = [...new Set(list.map((order) => order.user_id))]
+    const ids = [...new Set(list.flatMap((order) => (order.user_id ? [order.user_id] : [])))]
     if (ids.length) {
       const { data: profiles } = await supabase.from('profiles').select('id, email, full_name, phone').in('id', ids)
       setBuyers(Object.fromEntries(((profiles as Buyer[] | null) ?? []).map((profile) => [profile.id, profile])))
@@ -228,7 +230,7 @@ export function OrdersAdmin() {
       {!loading && orders.length === 0 ? (
         <p className="mt-8 rounded-3xl bg-white p-8 text-center text-piedra">No hay pedidos en esta vista.</p>
       ) : (
-        <ul className="mt-5 grid gap-4 xl:grid-cols-2">{orders.map((order) => <OrderCard key={order.id} order={order} buyer={buyers[order.user_id]} onChanged={load} />)}</ul>
+        <ul className="mt-5 grid gap-4 xl:grid-cols-2">{orders.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} onChanged={load} />)}</ul>
       )}
     </div>
   )

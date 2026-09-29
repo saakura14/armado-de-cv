@@ -104,13 +104,14 @@ export async function downloadYearReport(year: string, sales: Sale[], visits: Vi
   ], bestSellers(yearSales).map((product) => [product.name, product.units, product.revenue, totalRevenue ? product.revenue / totalRevenue : 0]))
 
   const orders = book.addWorksheet('Ventas', { properties: { tabColor: { argb: BRAND.rosa } } })
-  header(orders, logo, `Detalle de ventas ${year}`, generated, 7)
+  header(orders, logo, `Detalle de ventas ${year}`, generated, 8)
   table(orders, [
     { title: 'Pedido', width: 9 },
     { title: 'Fecha de pago', width: 14 },
     { title: 'Mes', width: 16 },
     { title: 'Cliente', width: 26 },
     { title: 'Productos', width: 40 },
+    { title: 'Origen', width: 12 },
     { title: 'Pago', width: 13 },
     { title: 'Total', width: 13, format: MONEY },
   ], [...yearSales].sort((a, b) => a.paid_at.localeCompare(b.paid_at)).map((sale) => [
@@ -119,9 +120,10 @@ export async function downloadYearReport(year: string, sales: Sale[], visits: Vi
     monthLabel(monthKey(sale.paid_at)),
     sale.customer_name ?? '—',
     sale.order_items.map((item) => item.product_name).join(' + '),
+    sale.source === 'whatsapp' ? 'WhatsApp' : 'Web',
     sale.payment_method === 'card' ? 'Tarjeta' : 'Transferencia',
     sale.total,
-  ]), ['Total', null, null, null, `${yearSales.length} ventas · ${yearSales.filter((sale) => sale.status !== 'delivered').length} sin entregar`, null, totalRevenue])
+  ]), ['Total', null, null, null, `${yearSales.length} ventas · ${yearSales.filter((sale) => sale.status !== 'delivered').length} sin entregar`, `${yearSales.filter((sale) => sale.source === 'whatsapp').length} por WhatsApp`, null, totalRevenue])
 
   const traffic = book.addWorksheet('Visitas', { properties: { tabColor: { argb: BRAND.ciruela } } })
   header(traffic, logo, `Visitas a la web ${year}`, generated, 3)

@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { BookOpen, CreditCard, Home, Loader2, HelpCircle, PlayCircle, ShoppingBag, Star, Tag, UserRound, Video } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/whatsapp-icon'
+import { AppSetup } from '@/components/admin/app-setup'
+import { WhatsappSaleDialog } from '@/components/admin/whatsapp-sale-dialog'
 import { AuthPanel } from '@/components/auth-panel'
 import { CoursesAdmin } from '@/components/admin/courses-admin'
 import { DashboardAdmin } from '@/components/admin/dashboard-admin'
@@ -33,10 +36,19 @@ export default function AdminPage() {
   const { user, profile, ready, isAdmin } = useSession()
   const [tab, setTab] = useState<TabId>('inicio')
   const [counts, setCounts] = useState<{ review: number; sessions: number }>({ review: 0, sessions: 0 })
+  // WhatsApp sale form: opened by the button, the app shortcut (?venta=1) or by sharing a WhatsApp note to the app (?text=...).
+  const [sale, setSale] = useState<string | null>(null)
+  const [refresh, setRefresh] = useState(0)
 
   useEffect(() => {
     const fromHash = window.location.hash.slice(1) as TabId
     if (TABS.some((item) => item.id === fromHash)) setTab(fromHash)
+    const params = new URLSearchParams(window.location.search)
+    const shared = [params.get('title'), params.get('text'), params.get('url')].filter(Boolean).join('\n').trim()
+    if (shared || params.has('venta')) {
+      setSale(shared)
+      history.replaceState(null, '', `/admin${window.location.hash}`)
+    }
   }, [])
 
   useEffect(() => {
@@ -66,7 +78,10 @@ export default function AdminPage() {
             <p className="font-script text-5xl leading-none text-rosa">Panel</p>
             <h1 className="mt-1 text-xs font-semibold uppercase tracking-[0.35em] text-ciruela">Administración</h1>
           </div>
-          <Link href="/cuenta?cliente" className="inline-flex items-center gap-1.5 text-sm font-semibold text-piedra hover:text-ciruela"><UserRound className="h-4 w-4" />Ver mi cuenta como cliente</Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/cuenta?cliente" className="inline-flex items-center gap-1.5 text-sm font-semibold text-piedra hover:text-ciruela"><UserRound className="h-4 w-4" />Ver mi cuenta como cliente</Link>
+            <button type="button" onClick={() => setSale('')} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-whatsapp px-4 py-2 font-display text-sm font-bold text-white shadow-sm hover:brightness-95"><WhatsAppIcon className="h-4 w-4" />Venta por WhatsApp</button>
+          </div>
         </div>
 
         <nav aria-label="Secciones del panel" className="-mx-4 mt-6 overflow-x-auto px-4 sm:mx-0 sm:px-0">
@@ -82,8 +97,13 @@ export default function AdminPage() {
           </ul>
         </nav>
 
-        <div className="mt-6">
-          {tab === 'inicio' && <DashboardAdmin firstName={profile?.full_name?.trim().split(/\s+/)[0] || 'Vale'} onOpen={select} />}
+        <div className="mt-6" key={refresh}>
+          {tab === 'inicio' && (
+            <div className="space-y-6">
+              <AppSetup userId={user.id} />
+              <DashboardAdmin firstName={profile?.full_name?.trim().split(/\s+/)[0] || 'Vale'} onOpen={select} />
+            </div>
+          )}
           {tab === 'pedidos' && <OrdersAdmin />}
           {tab === 'sesiones' && <SessionsAdmin />}
           {tab === 'productos' && <ProductsAdmin />}
@@ -94,6 +114,7 @@ export default function AdminPage() {
           {tab === 'pago' && <PaymentAdmin />}
         </div>
       </div>
+      {sale !== null && <WhatsappSaleDialog initialText={sale} onClose={() => setSale(null)} onSaved={() => setRefresh((value) => value + 1)} />}
     </section>
   )
 }
