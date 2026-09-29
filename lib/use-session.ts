@@ -35,5 +35,9 @@ export function useSession() {
     return () => { active = false }
   }, [userId])
 
-  return { session, user: session?.user ?? null, profile, setProfile, ready, isAdmin: profile?.role === 'admin' }
+  // Accounts created by email and linked to Google later keep the photo only in the Google data.
+  const meta = session?.user.user_metadata as { avatar_url?: string; picture?: string } | undefined
+  const avatarUrl = profile?.avatar_url || meta?.avatar_url || meta?.picture || null
+
+  return { session, user: session?.user ?? null, profile, setProfile, ready, isAdmin: profile?.role === 'admin', avatarUrl }
 }

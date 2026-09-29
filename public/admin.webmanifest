@@ -1,7 +1,7 @@
 {
   "id": "/admin",
-  "name": "Armado de CV · Panel",
-  "short_name": "Panel ACV",
+  "name": "Armado de CV - Admin",
+  "short_name": "Armado de CV - Admin",
   "description": "Pedidos, pagos, ventas y métricas de Armado de CV.",
   "start_url": "/admin",
   "scope": "/",

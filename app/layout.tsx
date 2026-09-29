@@ -5,6 +5,7 @@ import { SiteHeader } from '@/components/site-header'
 import { BottomNav } from '@/components/bottom-nav'
 import { SiteFooter } from '@/components/site-footer'
 import { SakuraChat } from '@/components/sakura-chat'
+import { SiteChrome } from '@/components/site-chrome'
 import { MetaPixel } from '@/components/meta-pixel'
 import { VisitTracker } from '@/components/visit-tracker'
 import './globals.css'
@@ -33,11 +34,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="es-AR" className={`${cookie.variable} ${montserrat.variable} ${nunito.variable}`}>
       <body className="font-sans antialiased">
-        <SiteHeader />
+        <SiteChrome><SiteHeader /></SiteChrome>
         <main className="pb-24 lg:pb-0">{children}</main>
-        <SiteFooter />
+        <SiteChrome><SiteFooter /></SiteChrome>
         <BottomNav />
-        <SakuraChat />
+        <SiteChrome><SakuraChat /></SiteChrome>
         <MetaPixel />
         <VisitTracker />
         <Analytics />
