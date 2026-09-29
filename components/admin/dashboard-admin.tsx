@@ -8,6 +8,9 @@ import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, 
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass } from './ui'
 
+/** Where "Ver" and the status counters take you: a tab, optionally a filter or a single order. */
+export type OpenTarget = { tab: 'pedidos' | 'sesiones'; filter?: 'gestionar' | 'in_progress' | 'delivered' | 'activos'; order?: number }
+
 type Task = { order: Order; kind: 'pago' | 'verificar' | 'entrega' | 'sesion'; deadline: Deadline | null }
 
 const PAGES: Record<string, string> = { '/': 'Inicio (Armado de CV)', '/asesorias': 'Asesorías', '/gratis': 'Checklist gratis', '/cursos': 'Cursos', '/terminos': 'Términos', '/privacidad': 'Privacidad', '/arrepentimiento': 'Arrepentimiento', '/otras': 'Otras' }
@@ -107,23 +110,43 @@ function RevenueBars({ months, selected }: { months: { key: string; revenue: num
   )
 }
 
-type Data = { orders: Order[]; sales: Sale[]; visits: VisitRow[]; events: EventRow[]; created: string[]; sessionsToSchedule: number }
+const TILE_TONES = {
+  rosa: 'bg-rosa text-white',
+  arena: 'bg-white text-ciruela',
+  verde: 'bg-white text-ciruela',
+}
+
+/** A big status number that opens the matching orders. */
+function StatusTile({ label, value, note, tone, onClick }: { label: string; value: number; note: string; tone: keyof typeof TILE_TONES; onClick: () => void }) {
+  const strong = tone === 'rosa'
+  return (
+    <button type="button" onClick={onClick} className={`group flex flex-col items-start rounded-3xl p-4 text-left shadow-[0_18px_40px_-34px_rgba(67,32,44,0.6)] transition-transform hover:-translate-y-0.5 sm:p-5 ${TILE_TONES[tone]}`}>
+      <span className={`font-display text-[10px] font-semibold uppercase tracking-wide sm:text-xs sm:tracking-wider ${strong ? 'text-white/85' : 'text-piedra'}`}>{label}</span>
+      <span className="mt-1 font-display text-3xl font-extrabold tabular-nums sm:text-4xl">{value}</span>
+      <span className={`mt-1 text-[11px] leading-snug sm:text-xs ${strong ? 'text-white/85' : tone === 'verde' ? 'text-whatsapp' : 'text-piedra'}`}>{note}</span>
+      <span className={`mt-2 inline-flex items-center gap-1 text-xs font-bold ${strong ? 'text-white' : 'text-rosa-deep'}`}>Ver<ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
+    </button>
+  )
+}
+
+type Data = { orders: Order[]; sales: Sale[]; visits: VisitRow[]; events: EventRow[]; created: string[]; delivered: string[]; sessionsToSchedule: number }
 
 /** Loads everything the home needs; the view below only draws it. */
-export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpen: (tab: 'pedidos' | 'sesiones') => void }) {
-  const [data, setData] = useState<Data>({ orders: [], sales: [], visits: [], events: [], created: [], sessionsToSchedule: 0 })
+export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpen: (target: OpenTarget) => void }) {
+  const [data, setData] = useState<Data>({ orders: [], sales: [], visits: [], events: [], created: [], delivered: [], sessionsToSchedule: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [open, paid, traffic, sessions, steps, created] = await Promise.all([
+    const [open, paid, traffic, sessions, steps, created, delivered] = await Promise.all([
       supabase.from('orders').select(ORDER_SELECT).or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending').order('created_at'),
       supabase.from('orders').select(SALE_SELECT).not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000),
       supabase.from('site_visits').select('day, path, visits, views').order('day'),
       supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('status', 'to_schedule'),
       supabase.from('site_events').select('day, event, count'),
       supabase.from('orders').select('created_at').lt('number', 90000).eq('source', 'web'),
+      supabase.from('orders').select('delivered_at, paid_at').eq('status', 'delivered').lt('number', 90000),
     ])
     const failed = open.error ?? paid.error ?? traffic.error
     setError(failed ? errorMessage(failed) : '')
@@ -133,6 +156,7 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
       visits: (traffic.data as VisitRow[] | null) ?? [],
       events: (steps.data as EventRow[] | null) ?? [],
       created: ((created.data as { created_at: string }[] | null) ?? []).map((row) => row.created_at),
+      delivered: ((delivered.data as { delivered_at: string | null; paid_at: string | null }[] | null) ?? []).flatMap((row) => { const at = row.delivered_at ?? row.paid_at; return at ? [at] : [] }),
       sessionsToSchedule: sessions.count ?? 0,
     })
     setLoading(false)
@@ -140,10 +164,20 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
 
   useEffect(() => { load() }, [load])
 
+  // Live numbers: any order created, paid, moved or loaded from WhatsApp refreshes the home (and so does coming back to the app).
+  useEffect(() => {
+    let timer: number | undefined
+    const soon = () => { window.clearTimeout(timer); timer = window.setTimeout(load, 700) }
+    const channel = supabase.channel('admin-home').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, soon).subscribe()
+    const onVisible = () => { if (document.visibilityState === 'visible') soon() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { window.clearTimeout(timer); supabase.removeChannel(channel); document.removeEventListener('visibilitychange', onVisible) }
+  }, [load])
+
   return <DashboardView firstName={firstName} data={data} loading={loading} loadError={error} onReload={load} onOpen={onOpen} />
 }
 
-export function DashboardView({ firstName, data, loading, loadError, onReload, onOpen }: { firstName: string; data: Data; loading: boolean; loadError: string; onReload: () => void; onOpen: (tab: 'pedidos' | 'sesiones') => void }) {
+export function DashboardView({ firstName, data, loading, loadError, onReload, onOpen }: { firstName: string; data: Data; loading: boolean; loadError: string; onReload: () => void; onOpen: (target: OpenTarget) => void }) {
   const { sales, visits, sessionsToSchedule } = data
   const tasks = useMemo(() => toTasks(data.orders), [data.orders])
   const [greeting, setGreeting] = useState<{ title: string; line: string } | null>(null)
@@ -181,6 +215,12 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
 
   const deliveries = tasks.filter((task) => task.kind === 'entrega')
   const urgent = deliveries.filter((task) => task.deadline && task.deadline.remaining <= 1).length
+  // Status counters: to manage (payment to check or not started), in progress, delivered.
+  const toManage = data.orders.filter((order) => order.status === 'payment_review' || order.status === 'paid' || order.payment_check === 'pending')
+  const reviews = toManage.filter((order) => order.status === 'payment_review' || order.payment_check === 'pending').length
+  const inProgress = data.orders.filter((order) => order.status === 'in_progress').length
+  const deliveredMonth = data.delivered.filter((at) => monthKey(at) === current).length
+  const upcoming = tasks.slice(0, 3)
 
   async function exportYear() {
     setExporting(true)
@@ -210,18 +250,29 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
 
       {error && <p className="rounded-2xl bg-petalo-wash px-4 py-3 text-sm font-semibold text-rosa-deep">{error}</p>}
 
-      {/* To do */}
-      <section className={cardClass} aria-labelledby="todo-title">
+      {/* Orders at a glance */}
+      <section aria-labelledby="todo-title">
         <div className="flex items-center justify-between gap-3">
-          <h2 id="todo-title" className="font-display text-lg font-bold text-ciruela">Para gestionar</h2>
+          <h2 id="todo-title" className="font-display text-lg font-bold text-ciruela">Tus pedidos</h2>
           <button type="button" onClick={onReload} className="inline-flex items-center gap-1.5 text-sm font-semibold text-piedra hover:text-ciruela"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Actualizar</button>
         </div>
-        {!loading && tasks.length === 0 ? (
-          <p className="mt-4 rounded-2xl bg-papel px-4 py-5 text-center text-piedra">No tenés pedidos pendientes. ¡Todo al día!</p>
-        ) : (
-          <ul className="mt-2">{tasks.map((task) => <TaskRow key={task.order.id} task={task} onOpen={() => onOpen(task.kind === 'sesion' ? 'sesiones' : 'pedidos')} />)}</ul>
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          <StatusTile label="A gestionar" value={toManage.length} tone="rosa" note={reviews ? `${reviews} ${reviews === 1 ? 'pago' : 'pagos'} por revisar` : urgent ? `${urgent} ${urgent === 1 ? 'vence' : 'vencen'} pronto` : 'Pagados, sin empezar'} onClick={() => onOpen({ tab: 'pedidos', filter: 'gestionar' })} />
+          <StatusTile label="En proceso" value={inProgress} tone="arena" note="Trabajando en ellos" onClick={() => onOpen({ tab: 'pedidos', filter: 'in_progress' })} />
+          <StatusTile label="Entregados" value={deliveredMonth} tone="verde" note={`Este mes · ${data.delivered.length} en total`} onClick={() => onOpen({ tab: 'pedidos', filter: 'delivered' })} />
+        </div>
+
+        {upcoming.length > 0 && (
+          <div className={`${cardClass} mt-4`}>
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="font-display text-base font-bold text-ciruela">Lo más urgente</h3>
+              {tasks.length > upcoming.length && <button type="button" onClick={() => onOpen({ tab: 'pedidos', filter: 'activos' })} className="inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">Ver los {tasks.length}<ArrowRight className="h-4 w-4" /></button>}
+            </div>
+            <ul className="mt-1">{upcoming.map((task) => <TaskRow key={task.order.id} task={task} onOpen={() => onOpen(task.kind === 'sesion' ? { tab: 'sesiones' } : { tab: 'pedidos', order: task.order.number })} />)}</ul>
+            <p className="mt-2 text-xs text-piedra">Plazo: 4 días hábiles desde el pago (Express: 1). Después de las 17 hs o en fin de semana arranca el siguiente día hábil. No descuenta feriados.</p>
+          </div>
         )}
-        <p className="mt-3 text-xs text-piedra">El plazo se cuenta desde que se confirma el pago: 4 días hábiles (Express: 1). Si pagan después de las 17 hs o un fin de semana, arranca el siguiente día hábil. No descuenta feriados.</p>
+        {!loading && tasks.length === 0 && <p className="mt-4 rounded-2xl bg-white px-4 py-5 text-center text-piedra">No tenés pedidos pendientes. ¡Todo al día!</p>}
       </section>
 
       {/* Monthly figures */}

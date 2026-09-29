@@ -14,9 +14,10 @@ const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass, inputClass, useFlash } from './ui'
 
-type Filter = 'activos' | 'verificar' | 'whatsapp' | OrderStatus | 'todos'
+export type Filter = 'activos' | 'gestionar' | 'verificar' | 'whatsapp' | OrderStatus | 'todos'
 const FILTERS: { id: Filter; label: string }[] = [
   { id: 'activos', label: 'Para atender' },
+  { id: 'gestionar', label: 'A gestionar' },
   { id: 'verificar', label: 'Verificar transferencia' },
   { id: 'payment_review', label: 'Revisar pago' },
   { id: 'pending_payment', label: 'Sin pagar' },
@@ -237,18 +238,20 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
   )
 }
 
-export function OrdersAdmin() {
-  const [filter, setFilter] = useState<Filter>('activos')
+/** `initialFilter` / `initialSearch` come from the home (a status counter or "Ver" on one order, as "#7"). */
+export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: { initialFilter?: Filter; initialSearch?: string }) {
+  const [filter, setFilter] = useState<Filter>(initialFilter)
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [buyers, setBuyers] = useState<Record<string, Buyer>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(initialSearch)
 
   const load = useCallback(async () => {
     setLoading(true)
     let query = supabase.from('orders').select(ADMIN_ORDER_SELECT).order('created_at', { ascending: false }).limit(100)
     if (filter === 'activos') query = query.or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending')
+    else if (filter === 'gestionar') query = query.or('status.in.(payment_review,paid),payment_check.eq.pending')
     else if (filter === 'verificar') query = query.eq('payment_check', 'pending')
     else if (filter === 'whatsapp') query = query.eq('source', 'whatsapp')
     else if (filter !== 'todos') query = query.eq('status', filter)
@@ -266,9 +269,18 @@ export function OrdersAdmin() {
 
   useEffect(() => { load() }, [load])
 
+  // Keep the list live while it is open (new web orders, WhatsApp sales, status changes).
+  useEffect(() => {
+    let timer: number | undefined
+    const channel = supabase.channel('admin-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { window.clearTimeout(timer); timer = window.setTimeout(load, 700) }).subscribe()
+    return () => { window.clearTimeout(timer); supabase.removeChannel(channel) }
+  }, [load])
+
   // Search by order number, customer name, email or phone within the current view.
   const term = search.trim().toLowerCase().replace(/^#/, '')
-  const shown = term ? orders.filter((order) => {
+  // "#7" means exactly order 7 (what "Ver" on the home sends).
+  const exact = /^#\d+$/.test(search.trim())
+  const shown = exact ? orders.filter((order) => String(order.number) === term) : term ? orders.filter((order) => {
     const buyer = order.user_id ? buyers[order.user_id] : undefined
     return [String(order.number), order.customer_name, order.customer_phone, buyer?.email, buyer?.full_name, buyer?.phone].some((value) => value?.toLowerCase().includes(term))
   }) : orders
@@ -279,6 +291,7 @@ export function OrdersAdmin() {
         <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, # o teléfono" aria-label="Buscar pedidos" className="min-w-0 flex-1 rounded-full border border-line bg-white px-4 py-2.5 text-base outline-none focus:border-rosa sm:max-w-sm sm:text-sm" />
         <button type="button" onClick={load} className="inline-flex shrink-0 items-center gap-1.5 rounded-full p-2 text-sm font-semibold text-piedra hover:text-ciruela" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
       </div>
+      {search.trim() && <button type="button" onClick={() => { setSearch(''); if (exact) setFilter('activos') }} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">{exact ? `Mostrando el pedido ${search.trim()}` : 'Buscando'} · Ver todos los pedidos</button>}
       {/* One swipeable row on the phone, wrapped on bigger screens */}
       <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
         {FILTERS.map((item) => (
