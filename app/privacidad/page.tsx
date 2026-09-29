@@ -28,6 +28,7 @@ export default function PrivacyPage() {
           <li>Verificar pagos y contactarte por WhatsApp o email por tu pedido.</li>
           <li>Cumplir obligaciones legales, contables y de defensa del consumidor.</li>
         </ul>
+        <p><b>Novedades por mail:</b> solo si lo marcás al comprar o en Mi cuenta, te escribo con novedades y nuevos e-books para tu búsqueda. Es opcional y podés darte de baja cuando quieras desde Mi cuenta o respondiendo el mail.</p>
         <p><b>No vendo, no alquilo y no cedo tus datos a terceros</b> con fines comerciales. No uso tu CV ni tus respuestas para nada distinto de lo que contrataste.</p>
       </Clause>
 

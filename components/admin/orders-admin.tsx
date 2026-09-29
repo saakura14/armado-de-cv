@@ -1,7 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { FileText, Link2, Pencil, RefreshCw } from 'lucide-react'
+import { ChevronDown, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw } from 'lucide-react'
+import { useHideMoney } from '@/lib/hide-money'
+import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, type Order, type OrderStatus } from '@/lib/orders'
@@ -10,8 +12,8 @@ import { DeadlineChip } from './dashboard-admin'
 import { OrderLinkDialog } from './order-link-dialog'
 
 // The admin also sees every Ualá checkout opened for the order (buyers can't read that table).
-type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[] }
-const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at)`
+type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null }
+const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url)`
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass, inputClass, useFlash } from './ui'
 
@@ -103,9 +105,67 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
   )
 }
 
+/** The Canva design of the order, saved only for the admin (the customer never sees it). */
+/** How long an order has been waiting for the payment, to know when to send the reminder. */
+function UnpaidSince({ createdAt }: { createdAt: string }) {
+  const hours = (Date.now() - new Date(createdAt).getTime()) / 36e5
+  if (hours < 24) return null
+  const days = Math.floor(hours / 24)
+  return <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-petalo-wash px-3 py-1 font-display text-xs font-bold text-rosa-deep">Sin pagar hace {days} {days === 1 ? 'día' : 'días'} · mandale el recordatorio</p>
+}
+
+function CanvaLink({ order }: { order: AdminOrder }) {
+  const initial = (Array.isArray(order.order_private) ? order.order_private[0] : order.order_private)?.canva_url ?? ''
+  const [saved, setSaved] = useState(initial)
+  const [url, setUrl] = useState(initial)
+  const [editing, setEditing] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const flash = useFlash()
+
+  async function save() {
+    const value = url.trim()
+    if (value && !/^https?:\/\//i.test(value)) { flash.show('error', 'Pegá el link completo (empieza con https://).'); return }
+    setBusy(true)
+    const { error } = await supabase.from('order_private').upsert({ order_id: order.id, canva_url: value || null, updated_at: new Date().toISOString() })
+    setBusy(false)
+    if (error) { flash.show('error', errorMessage(error)); return }
+    setSaved(value)
+    setUrl(value)
+    setEditing(false)
+    flash.show('ok', value ? 'Link de Canva guardado.' : 'Link de Canva borrado.')
+  }
+
+  const current = saved === url ? url.trim() : saved
+  if (!editing && !current) {
+    return <button type="button" onClick={() => setEditing(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-piedra hover:text-rosa-deep"><Palette className="h-4 w-4 text-rosa" />+ Link de Canva <span className="text-xs font-normal">(solo lo ves vos)</span></button>
+  }
+  return (
+    <div className="mt-3">
+      {editing ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Palette className="h-4 w-4 shrink-0 text-rosa" />
+          <input value={url} onChange={(event) => setUrl(event.target.value)} placeholder="Pegá el link de Canva de este pedido" aria-label="Link de Canva" autoFocus className="min-w-0 flex-1 rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm outline-none focus:border-rosa" />
+          <Button variant="secondary" busy={busy} onClick={save}>Guardar</Button>
+          <button type="button" onClick={() => { setUrl(saved); setEditing(false) }} className="text-xs font-semibold text-piedra hover:text-ciruela">Cancelar</button>
+        </div>
+      ) : (
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <Palette className="h-4 w-4 shrink-0 text-rosa" />
+          <a href={current} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-rosa-deep hover:underline">Abrir diseño en Canva<ExternalLink className="h-3.5 w-3.5" /></a>
+          <button type="button" onClick={() => setEditing(true)} className="text-xs font-semibold text-piedra hover:text-ciruela">Cambiar</button>
+          <span className="text-xs text-piedra">· solo lo ves vos</span>
+        </p>
+      )}
+      {flash.node && <div className="mt-2">{flash.node}</div>}
+    </div>
+  )
+}
+
 function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buyer; onChanged: () => void }) {
   const [busy, setBusy] = useState('')
   const [note, setNote] = useState(order.admin_note ?? '')
+  const [more, setMore] = useState(false)
+  const { money } = useHideMoney()
   const flash = useFlash()
 
   async function setStatus(status: OrderStatus, fallbackNote?: string) {
@@ -114,7 +174,7 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
     const { data, error } = await supabase.rpc('admin_set_order_status', { p_order: order.id, p_status: status, p_note: note.trim() || fallbackNote || null })
     setBusy('')
     if (error) { flash.show('error', errorMessage(error)); return }
-    flash.show('ok', data === 'delivered' && status === 'paid' ? 'Pago aprobado: los e-books ya están disponibles para el cliente.' : 'Pedido actualizado.')
+    flash.show('ok', data === 'delivered' && status === 'paid' ? 'Pago aprobado: los e-books ya están disponibles para el cliente.' : status === order.status ? 'Guardado.' : 'Pedido actualizado.')
     onChanged()
   }
 
@@ -176,10 +236,10 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
           <p className="truncate font-bold text-ink">{name}</p>
           {(buyer?.email || phone) && <p className="truncate text-sm text-piedra">{buyer?.email}{buyer?.email && phone ? ' · ' : ''}{phone}</p>}
         </div>
-        <p className="shrink-0 font-display text-xl font-extrabold text-ciruela">{formatARS(order.total)}</p>
+        <p className="shrink-0 font-display text-xl font-extrabold text-ciruela">{money(order.total)}</p>
       </div>
       {deadline && <p className="mt-3 flex flex-wrap items-center gap-2"><DeadlineChip deadline={deadline} /><span className="text-xs text-piedra">Entregar el {formatDue(deadline.due)}{deadline.express ? ' · Express' : ''}</span></p>}
-      {order.source === 'whatsapp' && <EditSale order={order} onSaved={onChanged} />}
+      {order.status === 'pending_payment' && <UnpaidSince createdAt={order.created_at} />}
 
       {order.payment_check === 'pending' && (
         <div className="mt-4 rounded-2xl border border-rosa/40 bg-petalo-wash p-4 text-sm">
@@ -213,33 +273,51 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
       <ul className="mt-4 space-y-2 rounded-2xl bg-papel p-4 text-sm">
         {order.order_items.map((item) => (
           <li key={item.id}>
-            <p className="font-semibold text-ink">{item.product_name}{item.ebooks ? ` — ${item.ebooks.title}` : ''} <span className="font-normal text-piedra">({formatARS(item.unit_price)})</span></p>
-            {item.extras.map((extra) => <p key={`${extra.group_id}-${extra.option_id}`} className="text-piedra">+ {extra.label}{extra.detail ? `: ${extra.detail}` : ''} ({formatARS(extra.price)})</p>)}
+            <p className="font-semibold text-ink">{item.product_name}{item.ebooks ? ` — ${item.ebooks.title}` : ''} <span className="font-normal text-piedra">({money(item.unit_price)})</span></p>
+            {item.extras.map((extra) => <p key={`${extra.group_id}-${extra.option_id}`} className="text-piedra">+ {extra.label}{extra.detail ? `: ${extra.detail}` : ''} ({money(extra.price)})</p>)}
           </li>
         ))}
         {order.customer_note && <li className="border-t border-line pt-2 text-ink"><b>Nota del cliente:</b> {order.customer_note}</li>}
       </ul>
+      {service && order.status !== 'cancelled' && order.status !== 'pending_payment' && <CanvaLink order={order} />}
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {order.receipt_path ? <Button variant="secondary" onClick={openReceipt}><FileText className="h-4 w-4" />Ver comprobante</Button> : <span className="self-center text-sm text-piedra">Sin comprobante todavía</span>}
-        {whatsapp && <a href={whatsapp} onClick={(event) => openBusinessWhatsapp(event, whatsapp)} target="_blank" rel="noreferrer" title="Se abre en WhatsApp Business (11 5106-0953)" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-whatsapp/40 px-4 py-2 font-display text-sm font-bold text-whatsapp"><WhatsAppIcon className="h-4 w-4" />WhatsApp Business</a>}
-        {template && templateLink && <a href={templateLink} onClick={(event) => openBusinessWhatsapp(event, templateLink)} target="_blank" rel="noreferrer" title={template.text} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-whatsapp px-4 py-2 font-display text-sm font-bold text-white"><WhatsAppIcon className="h-4 w-4" />{template.label}</a>}
-      </div>
-
-      {/* WhatsApp sales have no customer account, so the note is only for Vale. */}
-      <label className="mt-4 block text-xs font-semibold uppercase tracking-wider text-piedra">{order.source === 'whatsapp' ? 'Nota interna' : 'Mensaje para el cliente (lo ve en su pedido)'}
-        <input value={note} onChange={(event) => setNote(event.target.value)} placeholder={order.source === 'whatsapp' ? 'Ej: Me pasó el CV viejo, falta la foto.' : 'Ej: ¡Gracias! Te escribo hoy por WhatsApp.'} className={inputClass} />
-      </label>
-
-      <div className="mt-4 flex flex-wrap gap-2">
+      {/* One main action (the next step), one WhatsApp button (with the message for this step) and the rest under "Más opciones". */}
+      {(order.status === 'pending_payment' || order.status === 'payment_review') && !order.receipt_path && <p className="mt-4 text-sm text-piedra">Sin comprobante todavía.</p>}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         {(order.status === 'pending_payment' || order.status === 'payment_review') && (order.receipt_path
           ? <Button variant="success" busy={busy === 'paid'} onClick={() => setStatus('paid')}>Aprobar pago</Button>
-          : <Button variant="success" busy={busy === 'paid'} onClick={approveOutsideWeb}>Me llegó el pago (comprobante por WhatsApp)</Button>)}
-        {(order.status === 'paid') && <Button busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Marcar en proceso</Button>}
-        {(order.status === 'paid' || order.status === 'in_progress') && <Button busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>Marcar entregado</Button>}
-        {order.status !== 'cancelled' && order.status !== 'delivered' && <Button variant="danger" busy={busy === 'cancelled'} onClick={() => setStatus('cancelled')}>Cancelar</Button>}
+          : <Button variant="success" busy={busy === 'paid'} onClick={approveOutsideWeb}>Me llegó el pago</Button>)}
+        {order.status === 'paid' && <Button busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Empezar</Button>}
+        {order.status === 'in_progress' && <Button busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>Marcar entregado</Button>}
         {order.status === 'cancelled' && <Button variant="secondary" busy={busy === 'pending_payment'} onClick={() => setStatus('pending_payment')}>Reabrir</Button>}
+        {(templateLink ?? whatsapp) && (
+          <a href={(templateLink ?? whatsapp)!} onClick={(event) => openBusinessWhatsapp(event, (templateLink ?? whatsapp)!)} target="_blank" rel="noreferrer" title={template?.text ?? 'Se abre en WhatsApp Business (11 5106-0953)'} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-whatsapp/40 px-4 py-2 font-display text-sm font-bold text-whatsapp hover:bg-whatsapp hover:text-white">
+            <WhatsAppIcon className="h-4 w-4" />{template?.label ?? 'WhatsApp'}
+          </a>
+        )}
+        {order.receipt_path && <Button variant="secondary" onClick={openReceipt}><FileText className="h-4 w-4" />Comprobante</Button>}
+        <button type="button" onClick={() => setMore((open) => !open)} aria-expanded={more} className="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-piedra hover:text-ciruela">
+          Más opciones<ChevronDown className={`h-4 w-4 transition-transform ${more ? 'rotate-180' : ''}`} />
+        </button>
       </div>
+
+      {more && (
+        <div className="mt-3 space-y-3 rounded-2xl bg-papel/60 p-3">
+          {/* WhatsApp sales have no customer account, so the note is only for Vale. */}
+          <label className="block text-xs font-semibold uppercase tracking-wider text-piedra">{order.source === 'whatsapp' ? 'Nota interna' : 'Mensaje para el cliente (lo ve en su pedido)'}
+            <div className="mt-1 flex gap-2">
+              <input value={note} onChange={(event) => setNote(event.target.value)} placeholder={order.source === 'whatsapp' ? 'Ej: Me pasó el CV viejo, falta la foto.' : 'Ej: ¡Gracias! Te escribo hoy por WhatsApp.'} className={`${inputClass} mt-0`} />
+              <Button variant="secondary" busy={busy === order.status} disabled={note.trim() === (order.admin_note ?? '').trim()} onClick={() => setStatus(order.status)}>Guardar</Button>
+            </div>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {order.status === 'paid' && <Button variant="secondary" busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>Marcar entregado</Button>}
+            {template && whatsapp && <a href={whatsapp} onClick={(event) => openBusinessWhatsapp(event, whatsapp)} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 py-2 font-display text-sm font-bold text-ciruela"><WhatsAppIcon className="h-4 w-4" />Escribir sin mensaje</a>}
+            {order.status !== 'cancelled' && order.status !== 'delivered' && <Button variant="danger" busy={busy === 'cancelled'} onClick={() => setStatus('cancelled')}>Cancelar pedido</Button>}
+          </div>
+          {order.source === 'whatsapp' && <EditSale order={order} onSaved={onChanged} />}
+        </div>
+      )}
       {flash.node && <div className="mt-3">{flash.node}</div>}
     </li>
   )
@@ -297,6 +375,7 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
     <div>
       <div className="flex items-center gap-2">
         <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, # o teléfono" aria-label="Buscar pedidos" className="min-w-0 flex-1 rounded-full border border-line bg-white px-4 py-2.5 text-base outline-none focus:border-rosa sm:max-w-sm sm:text-sm" />
+        <HideMoneyButton />
         <button type="button" onClick={() => setLinkOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-ciruela px-3.5 py-2.5 font-display text-xs font-bold text-white hover:bg-rosa sm:text-sm"><Link2 className="h-4 w-4" /><span className="hidden sm:inline">Link de pedido</span><span className="sm:hidden">Link</span></button>
         <button type="button" onClick={load} className="inline-flex shrink-0 items-center gap-1.5 rounded-full p-2 text-sm font-semibold text-piedra hover:text-ciruela" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
       </div>
