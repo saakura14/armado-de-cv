@@ -1,16 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { FileText, Pencil, RefreshCw } from 'lucide-react'
+import { FileText, Link2, Pencil, RefreshCw } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, type Order, type OrderStatus } from '@/lib/orders'
 import { deliveryDeadline, formatDue } from '@/lib/dashboard'
 import { DeadlineChip } from './dashboard-admin'
+import { OrderLinkDialog } from './order-link-dialog'
 
 // The admin also sees every Ualá checkout opened for the order (buyers can't read that table).
-type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[] }
-const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount)`
+type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[] }
+const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at)`
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass, inputClass, useFlash } from './ui'
 
@@ -161,16 +162,21 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
 
   return (
     <li className={cardClass}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="flex flex-wrap items-center gap-2 font-display text-xs font-semibold uppercase tracking-wider text-piedra">#{order.number} · {formatDate(order.created_at, true)}{order.source === 'whatsapp' && <span className="inline-flex items-center gap-1 rounded-full bg-whatsapp/15 px-2 py-0.5 normal-case tracking-normal text-whatsapp"><WhatsAppIcon className="h-3 w-3" />Venta por WhatsApp</span>}</p>
-          <p className="mt-1 font-bold text-ink">{name}</p>
-          <p className="text-sm text-piedra">{buyer?.email}{phone ? ` · ${phone}` : ''}</p>
+      {/* Row 1: number, date, origin and status. Row 2: customer and amount, always side by side. */}
+      <div className="flex items-start justify-between gap-3">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-display text-xs font-semibold uppercase tracking-wider text-piedra">
+          <span>#{order.number} · {formatDate(order.created_at, true)}</span>
+          {order.source === 'whatsapp' && <span className="inline-flex items-center gap-1 rounded-full bg-whatsapp/15 px-2 py-0.5 normal-case tracking-normal text-whatsapp"><WhatsAppIcon className="h-3 w-3" />WhatsApp</span>}
+          {(order.order_links?.length ?? 0) > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-petalo-wash px-2 py-0.5 normal-case tracking-normal text-rosa-deep"><Link2 className="h-3 w-3" />Por link</span>}
+        </p>
+        <span className={`shrink-0 rounded-full px-3 py-1 font-display text-xs font-bold ${status.tone}`}>{status.label}</span>
+      </div>
+      <div className="mt-2 flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-bold text-ink">{name}</p>
+          {(buyer?.email || phone) && <p className="truncate text-sm text-piedra">{buyer?.email}{buyer?.email && phone ? ' · ' : ''}{phone}</p>}
         </div>
-        <div className="text-right">
-          <span className={`rounded-full px-3 py-1 font-display text-xs font-bold ${status.tone}`}>{status.label}</span>
-          <p className="mt-2 font-display text-xl font-extrabold text-ciruela">{formatARS(order.total)}</p>
-        </div>
+        <p className="shrink-0 font-display text-xl font-extrabold text-ciruela">{formatARS(order.total)}</p>
       </div>
       {deadline && <p className="mt-3 flex flex-wrap items-center gap-2"><DeadlineChip deadline={deadline} /><span className="text-xs text-piedra">Entregar el {formatDue(deadline.due)}{deadline.express ? ' · Express' : ''}</span></p>}
       {order.source === 'whatsapp' && <EditSale order={order} onSaved={onChanged} />}
@@ -220,8 +226,9 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
         {template && templateLink && <a href={templateLink} onClick={(event) => openBusinessWhatsapp(event, templateLink)} target="_blank" rel="noreferrer" title={template.text} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-whatsapp px-4 py-2 font-display text-sm font-bold text-white"><WhatsAppIcon className="h-4 w-4" />{template.label}</a>}
       </div>
 
-      <label className="mt-4 block text-xs font-semibold uppercase tracking-wider text-piedra">Mensaje para el cliente (lo ve en su pedido)
-        <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Ej: ¡Gracias! Te escribo hoy por WhatsApp." className={inputClass} />
+      {/* WhatsApp sales have no customer account, so the note is only for Vale. */}
+      <label className="mt-4 block text-xs font-semibold uppercase tracking-wider text-piedra">{order.source === 'whatsapp' ? 'Nota interna' : 'Mensaje para el cliente (lo ve en su pedido)'}
+        <input value={note} onChange={(event) => setNote(event.target.value)} placeholder={order.source === 'whatsapp' ? 'Ej: Me pasó el CV viejo, falta la foto.' : 'Ej: ¡Gracias! Te escribo hoy por WhatsApp.'} className={inputClass} />
       </label>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -246,6 +253,7 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState(initialSearch)
+  const [linkOpen, setLinkOpen] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -289,6 +297,7 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
     <div>
       <div className="flex items-center gap-2">
         <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, # o teléfono" aria-label="Buscar pedidos" className="min-w-0 flex-1 rounded-full border border-line bg-white px-4 py-2.5 text-base outline-none focus:border-rosa sm:max-w-sm sm:text-sm" />
+        <button type="button" onClick={() => setLinkOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-ciruela px-3.5 py-2.5 font-display text-xs font-bold text-white hover:bg-rosa sm:text-sm"><Link2 className="h-4 w-4" /><span className="hidden sm:inline">Link de pedido</span><span className="sm:hidden">Link</span></button>
         <button type="button" onClick={load} className="inline-flex shrink-0 items-center gap-1.5 rounded-full p-2 text-sm font-semibold text-piedra hover:text-ciruela" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
       </div>
       {search.trim() && <button type="button" onClick={() => { setSearch(''); if (exact) setFilter('activos') }} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">{exact ? `Mostrando el pedido ${search.trim()}` : 'Buscando'} · Ver todos los pedidos</button>}
@@ -304,6 +313,7 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
       ) : (
         <ul className="mt-4 grid gap-4 xl:grid-cols-2">{shown.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} onChanged={load} />)}</ul>
       )}
+      {linkOpen && <OrderLinkDialog onClose={() => setLinkOpen(false)} />}
     </div>
   )
 }
