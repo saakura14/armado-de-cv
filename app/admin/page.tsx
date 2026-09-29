@@ -153,10 +153,10 @@ export default function AdminPage() {
         </div>
         {/* Desktop: all sections as tabs */}
         <nav aria-label="Secciones del panel" className="mx-auto hidden max-w-6xl px-6 lg:block">
-          <ul className="-mx-3 flex gap-0.5 overflow-x-auto xl:justify-between">
+          <ul className="-mx-3 flex gap-0.5 overflow-x-auto overflow-y-hidden xl:justify-between">
             {TABS.map(({ id, label, short, icon: Icon }) => (
               <li key={id}>
-                <button type="button" onClick={() => select(id)} aria-current={tab === id ? 'page' : undefined} title={label} className={`relative flex items-center gap-1.5 whitespace-nowrap px-3 pb-3 pt-1 font-display text-sm font-semibold transition-colors ${tab === id ? 'text-ciruela after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-rosa' : 'text-piedra hover:text-ciruela'}`}>
+                <button type="button" onClick={() => select(id)} aria-current={tab === id ? 'page' : undefined} title={label} className={`relative flex items-center gap-1.5 whitespace-nowrap px-3 pb-3 pt-1 font-display text-sm font-semibold transition-colors ${tab === id ? 'text-ciruela after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-rosa' : 'text-piedra hover:text-ciruela'}`}>
                   <Icon className="h-4 w-4 shrink-0" />{short}
                   {badge(id) > 0 && <span className="rounded-full bg-rosa px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">{badge(id)}</span>}
                 </button>

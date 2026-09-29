@@ -6,6 +6,7 @@ import { BottomNav } from '@/components/bottom-nav'
 import { SiteFooter } from '@/components/site-footer'
 import { SakuraChat } from '@/components/sakura-chat'
 import { SiteChrome } from '@/components/site-chrome'
+import { CookieNotice } from '@/components/cookie-notice'
 import { MetaPixel } from '@/components/meta-pixel'
 import { VisitTracker } from '@/components/visit-tracker'
 import './globals.css'
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <BottomNav />
         <SiteChrome><SakuraChat /></SiteChrome>
         <MetaPixel />
+        <CookieNotice />
         <VisitTracker />
         <Analytics />
       </body>

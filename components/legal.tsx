@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-export const LEGAL_UPDATED = '25 de septiembre de 2026'
+export const LEGAL_UPDATED = '29 de septiembre de 2026'
 
 export function LegalPage({ script, title, children }: { script: string; title: string; children: React.ReactNode }) {
   return (

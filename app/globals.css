@@ -41,6 +41,13 @@ body {
 
 /* In the base layer so utilities like font-script can override it. */
 @layer base {
+  /*
+   * Grids without explicit columns get one column that can shrink.
+   * The browser default (an "auto" column) grows to fit the longest unbreakable line (a long name, email or file name)
+   * and pushed the cards wider than the phone screen. grid-cols-* utilities still win.
+   */
+  .grid { grid-template-columns: minmax(0, 1fr); }
+
   h1, h2, h3 {
     font-family: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
     text-wrap: balance;

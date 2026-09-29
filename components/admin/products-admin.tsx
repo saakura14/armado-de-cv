@@ -61,7 +61,7 @@ function ProductEditor({ product, groups, onChanged }: { product: ProductRow; gr
     <li className={`${cardClass} ${form.active ? '' : 'opacity-70'}`}>
       <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center justify-between gap-3 text-left" aria-expanded={open}>
         <span className="min-w-0">
-          <span className="block truncate font-bold text-ink">{product.name}{product.subtitle ? <span className="font-normal text-piedra"> · {product.subtitle}</span> : null}</span>
+          <span className="block font-bold text-ink">{product.name}{product.subtitle ? <span className="font-normal text-piedra"> · {product.subtitle}</span> : null}</span>
           <span className="text-sm text-piedra">{CATEGORY_LABEL[product.category]} · {product.active ? 'Visible' : 'Oculto'}{product.popular ? ' · Destacado' : ''}</span>
         </span>
         <span className="flex shrink-0 items-center gap-2"><span className="font-display text-lg font-extrabold text-ciruela">{formatARS(product.price)}</span><ChevronDown className={`h-5 w-5 text-piedra transition-transform ${open ? 'rotate-180' : ''}`} /></span>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { CookieSettingsButton } from '@/components/cookie-notice'
 import { Clause, LegalPage } from '@/components/legal'
 import { CONTACT } from '@/lib/catalog'
 import { pageMetadata } from '@/lib/seo'
@@ -41,9 +42,10 @@ export default function PrivacyPage() {
         <p>Conservo los datos de tu cuenta mientras la tengas activa, y los de pedidos y pagos el tiempo que exigen las normas contables e impositivas. La información de tu CV y del test la puedo eliminar cuando lo pidas, una vez terminado el servicio.</p>
       </Clause>
 
-      <Clause title="6. Cookies y almacenamiento local">
-        <p>Uso el almacenamiento necesario para mantener tu sesión iniciada, recordar el pedido que estás armando y el avance de tus cursos.</p>
-        <p>También uso el <b>píxel de Meta</b> (Facebook e Instagram), que guarda cookies para medir qué pasos del sitio se usan (ver un producto, iniciar una compra, confirmar un pedido) y mostrar los anuncios a personas con intereses parecidos. Solo registra esas acciones y el monto del pedido: no envía tu nombre, tu email, tu CV ni tus archivos. Las estadísticas de visitas de Vercel no usan cookies, y además la web cuenta cuántas visitas recibe cada página por día, sin cookies y sin guardar ningún dato que te identifique. Podés bloquear las cookies de terceros desde tu navegador o gestionar tus preferencias de anuncios en tu cuenta de Meta.</p>
+      <Clause id="cookies" title="6. Cookies y almacenamiento local">
+        <p>Uso el almacenamiento necesario para mantener tu sesión iniciada, recordar el pedido que estás armando y el avance de tus cursos. Sin eso la web no funciona, por eso no se puede desactivar.</p>
+        <p>Si lo aceptás en el aviso que aparece en tu primera visita, también uso el <b>píxel de Meta</b> (Facebook e Instagram), que guarda cookies para medir qué pasos del sitio se usan (ver un producto, iniciar una compra, confirmar un pedido) y mostrar los anuncios a personas con intereses parecidos. Solo registra esas acciones y el monto del pedido: no envía tu nombre, tu email, tu CV ni tus archivos. Las estadísticas de visitas de Vercel no usan cookies, y además la web cuenta cuántas visitas recibe cada página por día, sin cookies y sin guardar ningún dato que te identifique. Si elegís &quot;Solo necesarias&quot;, el píxel no se carga. También podés bloquear las cookies de terceros desde tu navegador o gestionar tus preferencias de anuncios en tu cuenta de Meta.</p>
+        <CookieSettingsButton />
       </Clause>
 
       <Clause title="7. Tus derechos">
