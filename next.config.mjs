@@ -13,10 +13,16 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // The commit this build comes from; the admin panel compares it with /api/version to offer the new version.
+  env: { NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA || 'dev' },
   images: { unoptimized: true },
   poweredByHeader: false,
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }]
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      // The admin app's service worker and manifest must never be served stale.
+      { source: '/(sw.js|admin.webmanifest)', headers: [{ key: 'Cache-Control', value: 'no-cache' }] },
+    ]
   },
 }
 
