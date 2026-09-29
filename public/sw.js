@@ -5,6 +5,8 @@ self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim(
 self.addEventListener('push', (event) => {
   let data = { title: 'Armado de CV', body: 'Tenés una novedad en el panel.', url: '/admin' }
   try { data = { ...data, ...event.data.json() } } catch { /* plain text or empty push */ }
+  // A dot/number on the app icon until the panel is opened (where supported).
+  if (self.navigator.setAppBadge) self.navigator.setAppBadge().catch(() => {})
   event.waitUntil(self.registration.showNotification(data.title, {
     body: data.body,
     icon: '/icons/icon-192.png',
