@@ -2,7 +2,7 @@
 
 import { countSessionsToSchedule } from '@/lib/sessions'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, Clock, Download, FileCheck2, RefreshCw, ShoppingBag, Sparkles, Zap } from 'lucide-react'
+import { AlertTriangle, ArrowDownRight, Hourglass, ArrowRight, ArrowUpRight, CalendarClock, Clock, Download, FileCheck2, RefreshCw, ShoppingBag, Sparkles, Zap } from 'lucide-react'
 import { useHideMoney } from '@/lib/hide-money'
 import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
@@ -30,11 +30,12 @@ function toTasks(orders: Order[]): Task[] {
     if (service) return { order, kind: 'entrega', deadline: deliveryDeadline(order) }
     return { order, kind: 'sesion', deadline: null }
   }).filter((task) => task.kind !== 'sesion' || needsCoordination(task.order))
-  const rank = (task: Task) => (task.kind === 'pago' || task.kind === 'verificar' ? -100 : task.deadline ? task.deadline.remaining : 50)
+  const rank = (task: Task) => (task.kind === 'pago' || task.kind === 'verificar' ? -100 : task.deadline?.waiting ? 60 : task.deadline ? task.deadline.remaining : 50)
   return tasks.sort((a, b) => rank(a) - rank(b))
 }
 
 export function DeadlineChip({ deadline }: { deadline: Deadline }) {
+  if (deadline.waiting) return <span className="inline-flex items-center gap-1.5 rounded-full bg-papel px-3 py-1 font-display text-xs font-bold text-piedra"><Hourglass className="h-3.5 w-3.5" />Esperando al cliente</span>
   const { remaining } = deadline
   const late = remaining < 0
   const text = late ? `Atrasado ${-remaining} ${remaining === -1 ? 'día hábil' : 'días hábiles'}` : remaining === 0 ? 'Vence hoy' : remaining === 1 ? 'Vence mañana' : `Quedan ${remaining} días hábiles`
@@ -228,7 +229,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
   const stepMax = Math.max(...steps.map((step) => step.value), whatsappSales, 1)
 
   const deliveries = tasks.filter((task) => task.kind === 'entrega')
-  const urgent = deliveries.filter((task) => task.deadline && task.deadline.remaining <= 1).length
+  const urgent = deliveries.filter((task) => task.deadline && !task.deadline.waiting && task.deadline.remaining <= 1).length
   // Status counters: to manage (payment to check or not started), in progress, delivered.
   const toManage = data.orders.filter((order) => order.status === 'payment_review' || order.status === 'paid' || order.payment_check === 'pending')
   const reviews = toManage.filter((order) => order.status === 'payment_review' || order.payment_check === 'pending').length
