@@ -58,7 +58,7 @@ function EbookCard({ ebook, products, included, choices, onChanged }: { ebook: E
 
       <div className="mt-4 rounded-2xl bg-papel p-4">
         {ebook.file_path ? (
-          <p className="flex items-center gap-2 text-sm text-whatsapp"><CheckCircle2 className="h-4 w-4" />Archivo cargado: <span className="truncate text-ink">{ebook.file_path.split('/').pop()?.replace(/^\d+-/, '')}</span></p>
+          <p className="flex min-w-0 items-center gap-2 text-sm text-whatsapp"><CheckCircle2 className="h-4 w-4 shrink-0" /><span className="shrink-0">Archivo cargado:</span> <span className="min-w-0 truncate text-ink">{ebook.file_path.split('/').pop()?.replace(/^\d+-/, '')}</span></p>
         ) : <p className="text-sm font-semibold text-rosa-deep">Falta subir el archivo: los compradores no lo pueden descargar todavía.</p>}
         <div className="mt-3 flex flex-wrap gap-2">
           <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full bg-ciruela px-4 py-2 font-display text-sm font-bold text-white hover:bg-rosa">

@@ -403,11 +403,11 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
 
   return (
     <div ref={top} className="scroll-mt-24">
-      <div className="flex items-center gap-2">
-        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, # o teléfono" aria-label="Buscar pedidos" className="h-11 min-w-0 flex-1 rounded-full border border-line bg-white px-4 text-base outline-none focus:border-rosa sm:max-w-sm sm:text-sm" />
-        <HideMoneyButton className="h-11 px-3 text-sm sm:px-4" />
-        <button type="button" onClick={() => setLinkOpen(true)} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-ciruela px-4 font-display text-sm font-bold text-white hover:bg-rosa"><Link2 className="h-4 w-4" /><span className="hidden sm:inline">Link de pedido</span><span className="sm:hidden">Link</span></button>
-        <button type="button" onClick={load} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-line bg-white px-3 font-display text-sm font-bold text-piedra hover:text-ciruela sm:px-4" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
+      <div className="flex flex-wrap items-center gap-2">
+        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, # o teléfono" aria-label="Buscar pedidos" className="h-11 min-w-0 basis-full rounded-full border border-line bg-white px-4 text-base outline-none sm:basis-auto sm:flex-1 focus:border-rosa sm:max-w-sm sm:text-sm" />
+        <HideMoneyButton className="h-11 w-11 justify-center text-sm sm:w-auto sm:px-4" />
+        <button type="button" onClick={() => setLinkOpen(true)} className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full bg-ciruela px-4 font-display text-sm font-bold text-white hover:bg-rosa sm:flex-none"><Link2 className="h-4 w-4" />Link de pedido</button>
+        <button type="button" onClick={load} className="inline-flex h-11 w-11 shrink-0 items-center justify-center gap-1.5 rounded-full border border-line bg-white font-display text-sm font-bold text-piedra hover:text-ciruela sm:w-auto sm:px-4" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
       </div>
       {search.trim() && <button type="button" onClick={() => { setSearch(''); if (exact) setFilter('activos') }} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">{exact ? `Mostrando el pedido ${search.trim()}` : 'Buscando'} · Ver todos los pedidos</button>}
       {/* One swipeable row on the phone, wrapped on bigger screens */}
@@ -420,7 +420,7 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
       {!loading && shown.length === 0 ? (
         <p className="mt-8 rounded-3xl bg-white p-8 text-center text-piedra">{term ? 'No encontré pedidos con esa búsqueda en esta vista.' : 'No hay pedidos en esta vista.'}</p>
       ) : (
-        <ul className="mt-4 grid gap-4 xl:grid-cols-2">{pageOrders.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} onChanged={load} />)}</ul>
+        <ul className="mt-4 grid gap-4 md:grid-cols-2">{pageOrders.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} onChanged={load} />)}</ul>
       )}
       {pages > 1 && (
         <nav aria-label="Páginas de pedidos" className="mt-6 flex flex-col items-center gap-2">
