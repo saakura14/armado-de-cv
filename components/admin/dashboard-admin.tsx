@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, Clock, Download, FileCheck2, RefreshCw, Sparkles, Zap } from 'lucide-react'
+import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, Clock, Download, Eye, EyeOff, FileCheck2, RefreshCw, Sparkles, Zap } from 'lucide-react'
+import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, needsCoordination, type Order } from '@/lib/orders'
 import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, isTestOrder, monthKey, monthLabel, monthStats, salesInMonth, shiftMonth, shortMonthLabel, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
@@ -86,7 +87,7 @@ function Tile({ label, value, delta, previous, note }: { label: string; value: s
 }
 
 /** Revenue of the last 6 months: one series, the selected month labeled, the rest on hover. */
-function RevenueBars({ months, selected }: { months: { key: string; revenue: number; sales: number }[]; selected: string }) {
+function RevenueBars({ months, selected, money }: { months: { key: string; revenue: number; sales: number }[]; selected: string; money: (value: number) => string }) {
   const max = Math.max(...months.map((month) => month.revenue), 1)
   return (
     <div>
@@ -96,9 +97,9 @@ function RevenueBars({ months, selected }: { months: { key: string; revenue: num
           return (
             <div key={month.key} className="group relative flex h-full flex-1 flex-col justify-end" tabIndex={0}>
               <span className={`pointer-events-none absolute inset-x-0 whitespace-nowrap text-center font-display text-xs font-bold text-ciruela ${active ? '' : 'opacity-0 group-hover:opacity-100 group-focus:opacity-100'}`} style={{ bottom: `calc(${(month.revenue / max) * 100}% + 6px)`, top: 'auto' }}>
-                {formatARS(month.revenue)}
+                {money(month.revenue)}
               </span>
-              <div className={`mx-auto w-full max-w-12 rounded-t-[4px] transition-colors ${active ? 'bg-rosa' : 'bg-petalo group-hover:bg-rosa/70'}`} style={{ height: `${Math.max((month.revenue / max) * 100, month.revenue ? 2 : 0)}%` }} title={`${monthLabel(month.key)}: ${formatARS(month.revenue)} · ${month.sales} ${month.sales === 1 ? 'venta' : 'ventas'}`} />
+              <div className={`mx-auto w-full max-w-12 rounded-t-[4px] transition-colors ${active ? 'bg-rosa' : 'bg-petalo group-hover:bg-rosa/70'}`} style={{ height: `${Math.max((month.revenue / max) * 100, month.revenue ? 2 : 0)}%` }} title={`${monthLabel(month.key)}: ${money(month.revenue)} · ${month.sales} ${month.sales === 1 ? 'venta' : 'ventas'}`} />
             </div>
           )
         })}
@@ -184,6 +185,16 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
   const [month, setMonth] = useState(() => monthKey(new Date()))
   const [year, setYear] = useState(() => monthKey(new Date()).slice(0, 4))
   const [exporting, setExporting] = useState(false)
+  // Amounts can be hidden (someone looking at the screen); the choice is remembered on this device.
+  const [hideMoney, setHideMoney] = useState(false)
+  useEffect(() => { try { setHideMoney(localStorage.getItem('acv-hide-money') === '1') } catch { /* storage blocked */ } }, [])
+  function toggleMoney() {
+    setHideMoney((current) => {
+      try { localStorage.setItem('acv-hide-money', current ? '0' : '1') } catch { /* storage blocked */ }
+      return !current
+    })
+  }
+  const money = (value: number) => (hideMoney ? '$ •••••' : formatARS(value))
   const [exportError, setExportError] = useState('')
   const error = loadError || exportError
 
@@ -211,7 +222,8 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
 
   const whatsappSales = salesInMonth(month, sales).filter((sale) => sale.source === 'whatsapp').length
   const steps = funnel(month, visits, data.events, data.created, sales)
-  const stepMax = Math.max(...steps.map((step) => step.value), 1)
+  const webSales = steps[steps.length - 1].value
+  const stepMax = Math.max(...steps.map((step) => step.value), whatsappSales, 1)
 
   const deliveries = tasks.filter((task) => task.kind === 'entrega')
   const urgent = deliveries.filter((task) => task.deadline && task.deadline.remaining <= 1).length
@@ -279,14 +291,19 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
       <section aria-labelledby="stats-title">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="stats-title" className="font-display text-lg font-bold text-ciruela">Cómo viene el mes</h2>
+          <div className="flex items-center gap-2">
+          <button type="button" onClick={toggleMoney} aria-pressed={hideMoney} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-2 font-display text-xs font-semibold text-piedra hover:text-ciruela" title={hideMoney ? 'Mostrar montos' : 'Ocultar montos'}>
+            {hideMoney ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}<span className="hidden sm:inline">{hideMoney ? 'Mostrar montos' : 'Ocultar montos'}</span>
+          </button>
           <select value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Mes" className="rounded-full border border-line bg-white px-4 py-2 font-display text-sm font-semibold text-ciruela">
             {months.map((key) => <option key={key} value={key}>{monthLabel(key)}</option>)}
           </select>
+          </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
           <Tile label="Ventas" value={number.format(stats.sales)} delta={change(stats.sales, previous.sales)} previous={previousName} note={whatsappSales ? `${whatsappSales} por WhatsApp` : undefined} />
-          <Tile label="Facturado" value={formatARS(stats.revenue)} delta={change(stats.revenue, previous.revenue)} previous={previousName} />
-          <Tile label="Ticket promedio" value={stats.sales ? formatARS(stats.average) : '—'} delta={change(stats.average, previous.average)} previous={previousName} />
+          <Tile label="Facturado" value={money(stats.revenue)} delta={change(stats.revenue, previous.revenue)} previous={previousName} />
+          <Tile label="Ticket promedio" value={stats.sales ? money(stats.average) : '—'} delta={change(stats.average, previous.average)} previous={previousName} />
           <Tile label="Visitas" value={number.format(stats.visits)} delta={change(stats.visits, previous.visits)} previous={previousName} />
           <Tile label="Conversión" value={stats.conversion === null ? '—' : percent.format(stats.conversion)} delta={stats.conversion !== null && previous.conversion ? change(stats.conversion, previous.conversion) : null} previous={previousName} />
         </div>
@@ -295,7 +312,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
 
       <section className={cardClass} aria-labelledby="funnel-title">
         <h2 id="funnel-title" className="font-display text-lg font-bold text-ciruela">Del clic a la venta</h2>
-        <p className="text-sm text-piedra">{monthLabel(month)} · cuántas personas llegan a cada paso (se cuenta desde el 28/09/2026)</p>
+        <p className="text-sm text-piedra">{monthLabel(month)} · cuántas personas llegan a cada paso en la web (desde el 28/09/2026), y lo que vendiste por WhatsApp</p>
         <ol className="mt-4 space-y-3">
           {steps.map((step, index) => {
             const before = index > 0 ? steps[index - 1].value : 0
@@ -308,14 +325,26 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
             )
           })}
         </ol>
-        <p className="mt-3 text-xs text-piedra">El porcentaje es sobre el paso anterior. Si mucha gente llega a comprar pero no confirma, el freno está en crear la cuenta o en los datos.</p>
+        {/* WhatsApp sales don't go through the web steps: they are shown apart and added to the total. */}
+        <div className="mt-4 space-y-3 border-t border-line pt-4">
+          <div className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 sm:grid-cols-[250px_1fr_110px]">
+            <span className="col-start-1 row-start-1 text-sm font-semibold text-ink"><WhatsAppIcon className="mr-1.5 inline h-4 w-4 -translate-y-px text-whatsapp" />Vendiste por WhatsApp <span className="font-normal text-piedra">· ventas cargadas</span></span>
+            <span className="col-span-2 row-start-2 h-2.5 rounded-full bg-papel sm:col-span-1 sm:col-start-2 sm:row-start-1"><span className="block h-2.5 rounded-full bg-whatsapp" style={{ width: `${(whatsappSales / stepMax) * 100}%` }} /></span>
+            <span className="col-start-2 row-start-1 text-right font-display text-sm font-bold text-ciruela sm:col-start-3">{number.format(whatsappSales)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-papel px-4 py-3">
+            <span className="text-sm font-bold text-ciruela">Total de ventas del mes</span>
+            <span className="text-right font-display text-lg font-extrabold text-ciruela">{number.format(webSales + whatsappSales)}{webSales + whatsappSales > 0 && <span className="ml-2 font-sans text-xs font-normal text-piedra">{number.format(webSales)} web · {number.format(whatsappSales)} WhatsApp</span>}</span>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-piedra">En la web, el porcentaje es sobre el paso anterior. Si mucha gente llega a comprar pero no confirma, el freno está en crear la cuenta o en los datos.</p>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
         <section className={cardClass} aria-labelledby="revenue-title">
           <h2 id="revenue-title" className="font-display text-lg font-bold text-ciruela">Facturación</h2>
           <p className="text-sm text-piedra">Últimos 6 meses hasta {monthLabel(month).toLowerCase()}</p>
-          <div className="mt-4"><RevenueBars months={history} selected={month} /></div>
+          <div className="mt-4"><RevenueBars months={history} selected={month} money={money} /></div>
         </section>
 
         <section className={cardClass} aria-labelledby="top-title">
@@ -325,7 +354,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
             <ol className="mt-4 space-y-3">
               {top.map((item) => (
                 <li key={item.name}>
-                  <div className="flex items-baseline justify-between gap-3 text-sm"><span className="font-semibold text-ink">{item.name}</span><span className="shrink-0 text-piedra">{item.units} u. · {formatARS(item.revenue)}</span></div>
+                  <div className="flex items-baseline justify-between gap-3 text-sm"><span className="font-semibold text-ink">{item.name}</span><span className="shrink-0 text-piedra">{item.units} u. · {money(item.revenue)}</span></div>
                   <div className="mt-1.5 h-2 rounded-full bg-papel"><div className="h-2 rounded-full bg-rosa" style={{ width: `${(item.units / topMax) * 100}%` }} /></div>
                 </li>
               ))}
