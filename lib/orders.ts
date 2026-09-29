@@ -46,6 +46,10 @@ export type Order = {
   created_at: string
   /** When the admin first saw it in Pedidos; null = "Nuevo" (web orders only, her own WhatsApp sales start seen). */
   seen_at?: string | null
+  /** "Esperando al cliente": the delivery clock is stopped since then. */
+  waiting_since?: string | null
+  /** Business days the order waited for the customer, added to the deadline. */
+  paused_days?: number
   order_items: OrderItem[]
 }
 

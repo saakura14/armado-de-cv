@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw, Hourglass } from 'lucide-react'
 import { useHideMoney } from '@/lib/hide-money'
 import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
@@ -171,6 +171,16 @@ function OrderCard({ order, buyer, fresh, onChanged }: { order: AdminOrder; buye
   const { money } = useHideMoney()
   const flash = useFlash()
 
+  // Stops (or restarts) the delivery clock while the customer owes corrections or information.
+  async function setWaiting(waiting: boolean) {
+    setBusy('waiting')
+    const { error } = await supabase.rpc('admin_set_waiting', { p_order: order.id, p_waiting: waiting })
+    setBusy('')
+    if (error) { flash.show('error', errorMessage(error)); return }
+    flash.show('ok', waiting ? 'Plazo en pausa: no cuenta como atrasado mientras esperás al cliente.' : 'Listo: el plazo sigue desde hoy, sumando los días que esperaste.')
+    onChanged()
+  }
+
   async function setStatus(status: OrderStatus, fallbackNote?: string) {
     if (status === 'cancelled' && !window.confirm(`¿Cancelar el pedido #${order.number}?`)) return
     setBusy(status)
@@ -249,7 +259,7 @@ function OrderCard({ order, buyer, fresh, onChanged }: { order: AdminOrder; buye
         </div>
         <p className="shrink-0 font-display text-lg font-extrabold text-ciruela">{money(order.total)}</p>
       </div>
-      {deadline && <p className="mt-2 flex flex-wrap items-center gap-2"><DeadlineChip deadline={deadline} /><span className="text-xs text-piedra">Entregar el {formatDue(deadline.due)}{deadline.express ? ' · Express' : ''}</span></p>}
+      {deadline && <p className="mt-2 flex flex-wrap items-center gap-2"><DeadlineChip deadline={deadline} /><span className="text-xs text-piedra">{deadline.waiting ? `Plazo en pausa desde el ${formatDate(order.waiting_since!)}` : `Entregar el ${formatDue(deadline.due)}${deadline.express ? ' · Express' : ''}`}</span></p>}
       {order.status === 'pending_payment' && <UnpaidSince createdAt={order.created_at} />}
 
       {order.payment_check === 'pending' && (
@@ -326,6 +336,10 @@ function OrderCard({ order, buyer, fresh, onChanged }: { order: AdminOrder; buye
           </label>
           <div className="flex flex-wrap gap-2">
             {order.status === 'paid' && <Button variant="secondary" busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>Marcar entregado</Button>}
+            {deadline && (order.waiting_since
+              ? <Button variant="secondary" busy={busy === 'waiting'} onClick={() => setWaiting(false)}><Hourglass className="h-4 w-4" />El cliente ya respondió</Button>
+              : <Button variant="secondary" busy={busy === 'waiting'} onClick={() => setWaiting(true)}><Hourglass className="h-4 w-4" />Esperando al cliente</Button>)}
+            {order.status === 'delivered' && <Button variant="secondary" busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Volver a En proceso</Button>}
             {template && whatsapp && <a href={whatsapp} onClick={(event) => openBusinessWhatsapp(event, whatsapp)} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 py-2 font-display text-sm font-bold text-ciruela"><WhatsAppIcon className="h-4 w-4" />Escribir sin mensaje</a>}
             {order.status !== 'cancelled' && order.status !== 'delivered' && <Button variant="danger" busy={busy === 'cancelled'} onClick={() => setStatus('cancelled')}>Cancelar pedido</Button>}
           </div>

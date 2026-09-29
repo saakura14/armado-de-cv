@@ -91,19 +91,27 @@ function businessDaysUntil(today: Date, deadline: Date) {
 
 export const hasExpress = (order: Order) => order.order_items.some((item) => item.extras.some((extra) => extra.group_id === 'express'))
 
-export type Deadline = { due: Date; remaining: number; express: boolean }
+export type Deadline = { due: Date; remaining: number; express: boolean; waiting: boolean }
 
 /**
  * Packs take up to 4 business days (Express: 1). The clock starts when the payment is confirmed;
  * after 5 pm or on a weekend it starts the next business day, as the pack conditions say.
+ * Days spent waiting for the customer (corrections, missing information) move the deadline; while waiting, the clock stops.
  */
 export function deliveryDeadline(order: Order, now = new Date()): Deadline | null {
   if (!order.paid_at) return null
   const { day, hour } = arDay(new Date(order.paid_at))
   const start = isWeekend(day) || hour >= 17 ? addBusinessDays(day, 1) : day
   const express = hasExpress(order)
-  const due = addBusinessDays(start, express ? 1 : 4)
-  return { due, remaining: businessDaysUntil(arDay(now).day, due), express }
+  const waiting = Boolean(order.waiting_since)
+  let due = addBusinessDays(start, (express ? 1 : 4) + (order.paused_days ?? 0))
+  // Still waiting: the days since it stopped don't count either.
+  if (waiting) {
+    const since = arDay(new Date(order.waiting_since!)).day
+    const today = arDay(now).day
+    if (today > since) due = addBusinessDays(due, businessDaysUntil(since, today))
+  }
+  return { due, remaining: businessDaysUntil(arDay(now).day, due), express, waiting }
 }
 
 const dueFormat = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })

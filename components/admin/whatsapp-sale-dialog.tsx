@@ -40,8 +40,8 @@ export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { ini
       total: '',
       totalEdited: false,
       phone: '',
-      // Old sales are most likely already delivered.
-      delivered: daysAgo(sale.date) > 7,
+      // Never assumed: an old sale can still be in progress (corrections, customer delays).
+      delivered: false,
     })))
   }, [text, products, extras])
 
@@ -133,7 +133,7 @@ export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { ini
                         <input type="tel" inputMode="tel" value={row.phone} onChange={(event) => update(row.key, { phone: event.target.value })} placeholder="11 2345-6789" className={inputClass} />
                       </label>
                     </div>
-                    <label className="mt-3 flex items-center gap-2 text-sm text-ink"><input type="checkbox" checked={row.delivered} onChange={(event) => update(row.key, { delivered: event.target.checked })} className="accent-rosa" />Ya lo entregué</label>
+                    <label className="mt-3 flex items-center gap-2 text-sm text-ink"><input type="checkbox" checked={row.delivered} onChange={(event) => update(row.key, { delivered: event.target.checked })} className="accent-rosa" />Ya lo entregué{daysAgo(row.date) > 7 && !row.delivered && <span className="text-xs text-piedra">(si todavía no, dejalo sin tildar: queda En proceso)</span>}</label>
                     {missing && <p className="mt-2 text-xs font-semibold text-rosa-deep">No reconocí un producto: elegilo de la lista.</p>}
                   </div>
                 )
