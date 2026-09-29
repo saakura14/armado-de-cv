@@ -84,8 +84,10 @@ Todo el catálogo se edita desde **Panel → Packs y precios**. Precios vigentes
 | CV | Pack Medium (2 CV + carta) | $32.000 | Servicio |
 | CV | **Pack Premium** (2 CV + carta + LinkedIn) — *más elegido* | $60.000 | Servicio |
 | CV | Perfil de LinkedIn (sin CV) | $40.000 | Servicio |
+| CV | Asesoría de LinkedIn (sesión 1 a 1 de 60 min por Meet) | $30.000 | Sesión |
 | Asesorías | E-book individual (a elección entre 3) | $18.000 | Digital |
 | Asesorías | Pack Plus (2 e-books) — *más elegido* | $35.000 | Digital |
+| Asesorías | Asesoría para entrevistas (sesión 1 a 1 de 90 min, sin e-books) | $50.000 | Sesión |
 | Asesorías | Pack Premium (Pack Plus + sesión 1 a 1 de 90 min) | $60.000 | Sesión |
 | Vocacional | Test de orientación vocacional (CHASIDE + TV-A) | $30.000 | Servicio |
 | Guías | Portales de empleo | $16.000 | Digital |
@@ -507,3 +509,5 @@ Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebook
 | 29/09 | Link de pedido para el cliente (`order_links`, página `/pedido/[token]`, compra con varios productos); tarjeta de pedido con cliente y monto en la misma fila; en las ventas de WhatsApp la nota es interna |
 | 29/09 | "Del clic a la venta" suma las ventas por WhatsApp y el total del mes (web + WhatsApp); botón "Ocultar montos" en Cómo viene el mes (tapa facturado, ticket, gráfico y montos de lo más vendido; se recuerda en el dispositivo) |
 | 29/09 | Ficha de pedido más simple (una acción principal, un botón de WhatsApp con el mensaje del paso, el resto en "Más opciones"); link de Canva privado por pedido (`order_private`); aviso de pedidos sin pagar hace más de 24 hs; ocultar montos también en Pedidos (compartido con Inicio); precio especial en el link de pedido (`order_links.custom_total`); permiso opcional para recibir novedades por mail (`profiles.marketing_opt_in`, en la compra y en Mi cuenta) y política de privacidad actualizada |
+| 29/09 | Web y panel sin desborde en celu/tablet (`.grid` con una columna que se achica), aviso de cookies (el píxel de Meta solo con consentimiento y nunca en el panel) |
+| 29/09 | Productos nuevos: Asesoría de LinkedIn ($30.000, en CV) y Asesoría para entrevistas ($50.000, en Asesorías); con 5 packs la grilla va de a 3 con la última fila centrada; las ventas por WhatsApp de sesiones crean la sesión a coordinar (`sessions.user_id` puede quedar vacío); fichas de pedido más compactas y mensaje "Coordinar la sesión" |

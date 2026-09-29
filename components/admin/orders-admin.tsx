@@ -137,7 +137,7 @@ function CanvaLink({ order }: { order: AdminOrder }) {
 
   const current = saved === url ? url.trim() : saved
   if (!editing && !current) {
-    return <button type="button" onClick={() => setEditing(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-piedra hover:text-rosa-deep"><Palette className="h-4 w-4 text-rosa" />+ Link de Canva <span className="text-xs font-normal">(solo lo ves vos)</span></button>
+    return <button type="button" onClick={() => setEditing(true)} className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-semibold text-piedra hover:text-rosa-deep"><Palette className="h-3.5 w-3.5 text-rosa" />+ Link de Canva <span className="text-xs font-normal">(solo lo ves vos)</span></button>
   }
   return (
     <div className="mt-3">
@@ -162,7 +162,7 @@ function CanvaLink({ order }: { order: AdminOrder }) {
 }
 
 // Same height and width for every action button on the card.
-const action = 'min-h-11 w-full px-3 text-center leading-tight'
+const action = 'min-h-10 w-full px-3 text-center !text-[13px] leading-tight'
 
 function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buyer; onChanged: () => void }) {
   const [busy, setBusy] = useState('')
@@ -212,36 +212,39 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
   const products = order.order_items.map((item) => item.product_name).join(' + ')
   const whatsapp = waLink(phone, `¡Hola ${firstName}! Te escribo por tu pedido #${order.number} de Armado de CV.`)
   const service = order.order_items.some((item) => item.products?.delivery === 'service')
+  const session = order.order_items.some((item) => item.products?.delivery === 'session')
   const deadline = service && (order.status === 'paid' || order.status === 'in_progress') ? deliveryDeadline(order) : null
   // Ready-made message for the next step of this order.
   const template = order.status === 'pending_payment'
     ? { label: 'Recordar el pago', text: `¡Hola ${firstName}! Vi tu pedido #${order.number} (${products}) por ${formatARS(order.total)}. ¿Pudiste hacer la transferencia? Si tenés alguna duda, te ayudo.` }
     : service && (order.status === 'paid' || order.status === 'in_progress')
       ? { label: 'Pedir los datos', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, pasame tu CV actual (si tenés) y contame a qué puesto o rubro apuntás.` }
+      : session && (order.status === 'paid' || order.status === 'in_progress')
+        ? { label: 'Coordinar la sesión', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 ¿Qué días y horarios te quedan cómodos para la sesión por Google Meet?` }
       : order.status === 'delivered'
         ? { label: 'Pedir un testimonio', text: `¡Hola ${firstName}! ¿Cómo te fue con tu ${products}? Si te gustó, me ayudaría muchísimo que me cuentes tu experiencia en un mensajito 💕 Si me das permiso, lo comparto en Instagram solo con tu nombre.` }
         : null
   const templateLink = template ? waLink(phone, template.text) : null
 
   return (
-    <li className={cardClass}>
+    <li className="rounded-3xl bg-white p-4 shadow-[0_18px_40px_-34px_rgba(67,32,44,0.6)]">
       {/* Row 1: number, date, origin and status. Row 2: customer and amount, always side by side. */}
       <div className="flex items-start justify-between gap-3">
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-display text-xs font-semibold uppercase tracking-wider text-piedra">
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">
           <span>#{order.number} · {formatDate(order.created_at, true)}</span>
           {order.source === 'whatsapp' && <span className="inline-flex items-center gap-1 rounded-full bg-whatsapp/15 px-2 py-0.5 normal-case tracking-normal text-whatsapp"><WhatsAppIcon className="h-3 w-3" />WhatsApp</span>}
           {(order.order_links?.length ?? 0) > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-petalo-wash px-2 py-0.5 normal-case tracking-normal text-rosa-deep"><Link2 className="h-3 w-3" />Por link</span>}
         </p>
-        <span className={`shrink-0 rounded-full px-3 py-1 font-display text-xs font-bold ${status.tone}`}>{status.label}</span>
+        <span className={`shrink-0 rounded-full px-2.5 py-0.5 font-display text-[11px] font-bold ${status.tone}`}>{status.label}</span>
       </div>
       <div className="mt-2 flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate font-bold text-ink">{name}</p>
-          {(buyer?.email || phone) && <p className="truncate text-sm text-piedra">{buyer?.email}{buyer?.email && phone ? ' · ' : ''}{phone}</p>}
+          <p className="truncate text-[15px] font-bold text-ink">{name}</p>
+          {(buyer?.email || phone) && <p className="truncate text-xs text-piedra">{buyer?.email}{buyer?.email && phone ? ' · ' : ''}{phone}</p>}
         </div>
-        <p className="shrink-0 font-display text-xl font-extrabold text-ciruela">{money(order.total)}</p>
+        <p className="shrink-0 font-display text-lg font-extrabold text-ciruela">{money(order.total)}</p>
       </div>
-      {deadline && <p className="mt-3 flex flex-wrap items-center gap-2"><DeadlineChip deadline={deadline} /><span className="text-xs text-piedra">Entregar el {formatDue(deadline.due)}{deadline.express ? ' · Express' : ''}</span></p>}
+      {deadline && <p className="mt-2 flex flex-wrap items-center gap-2"><DeadlineChip deadline={deadline} /><span className="text-xs text-piedra">Entregar el {formatDue(deadline.due)}{deadline.express ? ' · Express' : ''}</span></p>}
       {order.status === 'pending_payment' && <UnpaidSince createdAt={order.created_at} />}
 
       {order.payment_check === 'pending' && (
@@ -273,7 +276,7 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
       ))}
       {order.payment_check === 'rejected' && <p className="mt-3 text-xs font-semibold text-rosa-deep">✗ Transferencia no acreditada: se quitó el acceso</p>}
 
-      <ul className="mt-4 space-y-2 rounded-2xl bg-papel p-4 text-sm">
+      <ul className="mt-3 space-y-1.5 rounded-2xl bg-papel px-3.5 py-3 text-[13px]">
         {order.order_items.map((item) => (
           <li key={item.id}>
             <p className="font-semibold text-ink">{item.product_name}{item.ebooks ? ` — ${item.ebooks.title}` : ''} <span className="font-normal text-piedra">({money(item.unit_price)})</span></p>
@@ -287,7 +290,7 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
       {/* One main action (the next step), one WhatsApp button (with the message for this step) and the rest under "Más opciones". */}
       {(order.status === 'pending_payment' || order.status === 'payment_review') && !order.receipt_path && <p className="mt-4 text-sm text-piedra">Sin comprobante todavía.</p>}
       {/* Every action button has the same size: two per row, so cards line up whatever the step. */}
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         {(order.status === 'pending_payment' || order.status === 'payment_review') && (order.receipt_path
           ? <Button variant="success" className={action} busy={busy === 'paid'} onClick={() => setStatus('paid')}>Aprobar pago</Button>
           : <Button variant="success" className={action} busy={busy === 'paid'} onClick={approveOutsideWeb}>Me llegó el pago</Button>)}
@@ -295,15 +298,15 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
         {order.status === 'in_progress' && <Button className={action} busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>Marcar entregado</Button>}
         {order.status === 'cancelled' && <Button variant="secondary" className={action} busy={busy === 'pending_payment'} onClick={() => setStatus('pending_payment')}>Reabrir</Button>}
         {(templateLink ?? whatsapp) && (
-          <a href={(templateLink ?? whatsapp)!} onClick={(event) => openBusinessWhatsapp(event, (templateLink ?? whatsapp)!)} target="_blank" rel="noreferrer" title={template?.text ?? 'Se abre en WhatsApp Business (11 5106-0953)'} className={`${action} inline-flex items-center justify-center gap-2 rounded-full border border-whatsapp/40 px-3 py-2 font-display text-sm font-bold text-whatsapp hover:bg-whatsapp hover:text-white`}>
-            <WhatsAppIcon className="h-4 w-4 shrink-0" />{template?.label ?? 'WhatsApp'}
+          <a href={(templateLink ?? whatsapp)!} onClick={(event) => openBusinessWhatsapp(event, (templateLink ?? whatsapp)!)} target="_blank" rel="noreferrer" title={template?.text ?? 'Se abre en WhatsApp Business (11 5106-0953)'} className={`${action} inline-flex items-center justify-center gap-2 rounded-full border border-whatsapp/40 px-3 py-2 font-display text-[13px] font-bold text-whatsapp hover:bg-whatsapp hover:text-white`}>
+            <WhatsAppIcon className="h-3.5 w-3.5 shrink-0" />{template?.label ?? 'WhatsApp'}
           </a>
         )}
         {order.receipt_path && <Button variant="secondary" className={action} onClick={openReceipt}><FileText className="h-4 w-4" />Comprobante</Button>}
       </div>
-      <div className="mt-2 flex justify-end">
-        <button type="button" onClick={() => setMore((open) => !open)} aria-expanded={more} className="inline-flex items-center gap-1 py-1 text-sm font-semibold text-piedra hover:text-ciruela">
-          Más opciones<ChevronDown className={`h-4 w-4 transition-transform ${more ? 'rotate-180' : ''}`} />
+      <div className="mt-1.5 flex justify-end">
+        <button type="button" onClick={() => setMore((open) => !open)} aria-expanded={more} className="inline-flex items-center gap-1 py-0.5 text-xs font-semibold text-piedra hover:text-ciruela">
+          Más opciones<ChevronDown className={`h-3.5 w-3.5 transition-transform ${more ? 'rotate-180' : ''}`} />
         </button>
       </div>
 
@@ -404,10 +407,10 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
   return (
     <div ref={top} className="scroll-mt-24">
       <div className="flex flex-wrap items-center gap-2">
-        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, # o teléfono" aria-label="Buscar pedidos" className="h-11 min-w-0 basis-full rounded-full border border-line bg-white px-4 text-base outline-none sm:basis-auto sm:flex-1 focus:border-rosa sm:max-w-sm sm:text-sm" />
-        <HideMoneyButton className="h-11 w-11 justify-center text-sm sm:w-auto sm:px-4" />
-        <button type="button" onClick={() => setLinkOpen(true)} className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full bg-ciruela px-4 font-display text-sm font-bold text-white hover:bg-rosa sm:flex-none"><Link2 className="h-4 w-4" />Link de pedido</button>
-        <button type="button" onClick={load} className="inline-flex h-11 w-11 shrink-0 items-center justify-center gap-1.5 rounded-full border border-line bg-white font-display text-sm font-bold text-piedra hover:text-ciruela sm:w-auto sm:px-4" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
+        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, # o teléfono" aria-label="Buscar pedidos" className="h-10 min-w-0 basis-full rounded-full border border-line bg-white px-4 text-base outline-none sm:basis-auto sm:flex-1 focus:border-rosa sm:max-w-sm sm:text-sm" />
+        <HideMoneyButton className="h-10 w-10 justify-center text-sm sm:w-auto sm:px-4" />
+        <button type="button" onClick={() => setLinkOpen(true)} className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-ciruela px-4 font-display text-sm font-bold text-white hover:bg-rosa sm:flex-none"><Link2 className="h-4 w-4" />Link de pedido</button>
+        <button type="button" onClick={load} className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-line bg-white font-display text-sm font-bold text-piedra hover:text-ciruela sm:w-auto sm:px-4" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
       </div>
       {search.trim() && <button type="button" onClick={() => { setSearch(''); if (exact) setFilter('activos') }} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">{exact ? `Mostrando el pedido ${search.trim()}` : 'Buscando'} · Ver todos los pedidos</button>}
       {/* One swipeable row on the phone, wrapped on bigger screens */}
@@ -420,7 +423,7 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
       {!loading && shown.length === 0 ? (
         <p className="mt-8 rounded-3xl bg-white p-8 text-center text-piedra">{term ? 'No encontré pedidos con esa búsqueda en esta vista.' : 'No hay pedidos en esta vista.'}</p>
       ) : (
-        <ul className="mt-4 grid gap-4 md:grid-cols-2">{pageOrders.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} onChanged={load} />)}</ul>
+        <ul className="mt-4 grid gap-3 md:grid-cols-2">{pageOrders.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} onChanged={load} />)}</ul>
       )}
       {pages > 1 && (
         <nav aria-label="Páginas de pedidos" className="mt-6 flex flex-col items-center gap-2">
