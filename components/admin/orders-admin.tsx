@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { ChevronDown, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw } from 'lucide-react'
 import { useHideMoney } from '@/lib/hide-money'
 import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
@@ -161,6 +161,9 @@ function CanvaLink({ order }: { order: AdminOrder }) {
   )
 }
 
+// Same height and width for every action button on the card.
+const action = 'min-h-11 w-full px-3 text-center leading-tight'
+
 function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buyer; onChanged: () => void }) {
   const [busy, setBusy] = useState('')
   const [note, setNote] = useState(order.admin_note ?? '')
@@ -283,20 +286,23 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
 
       {/* One main action (the next step), one WhatsApp button (with the message for this step) and the rest under "Más opciones". */}
       {(order.status === 'pending_payment' || order.status === 'payment_review') && !order.receipt_path && <p className="mt-4 text-sm text-piedra">Sin comprobante todavía.</p>}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      {/* Every action button has the same size: two per row, so cards line up whatever the step. */}
+      <div className="mt-4 grid grid-cols-2 gap-2">
         {(order.status === 'pending_payment' || order.status === 'payment_review') && (order.receipt_path
-          ? <Button variant="success" busy={busy === 'paid'} onClick={() => setStatus('paid')}>Aprobar pago</Button>
-          : <Button variant="success" busy={busy === 'paid'} onClick={approveOutsideWeb}>Me llegó el pago</Button>)}
-        {order.status === 'paid' && <Button busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Empezar</Button>}
-        {order.status === 'in_progress' && <Button busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>Marcar entregado</Button>}
-        {order.status === 'cancelled' && <Button variant="secondary" busy={busy === 'pending_payment'} onClick={() => setStatus('pending_payment')}>Reabrir</Button>}
+          ? <Button variant="success" className={action} busy={busy === 'paid'} onClick={() => setStatus('paid')}>Aprobar pago</Button>
+          : <Button variant="success" className={action} busy={busy === 'paid'} onClick={approveOutsideWeb}>Me llegó el pago</Button>)}
+        {order.status === 'paid' && <Button className={action} busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Pasar a En proceso</Button>}
+        {order.status === 'in_progress' && <Button className={action} busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>Marcar entregado</Button>}
+        {order.status === 'cancelled' && <Button variant="secondary" className={action} busy={busy === 'pending_payment'} onClick={() => setStatus('pending_payment')}>Reabrir</Button>}
         {(templateLink ?? whatsapp) && (
-          <a href={(templateLink ?? whatsapp)!} onClick={(event) => openBusinessWhatsapp(event, (templateLink ?? whatsapp)!)} target="_blank" rel="noreferrer" title={template?.text ?? 'Se abre en WhatsApp Business (11 5106-0953)'} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-whatsapp/40 px-4 py-2 font-display text-sm font-bold text-whatsapp hover:bg-whatsapp hover:text-white">
-            <WhatsAppIcon className="h-4 w-4" />{template?.label ?? 'WhatsApp'}
+          <a href={(templateLink ?? whatsapp)!} onClick={(event) => openBusinessWhatsapp(event, (templateLink ?? whatsapp)!)} target="_blank" rel="noreferrer" title={template?.text ?? 'Se abre en WhatsApp Business (11 5106-0953)'} className={`${action} inline-flex items-center justify-center gap-2 rounded-full border border-whatsapp/40 px-3 py-2 font-display text-sm font-bold text-whatsapp hover:bg-whatsapp hover:text-white`}>
+            <WhatsAppIcon className="h-4 w-4 shrink-0" />{template?.label ?? 'WhatsApp'}
           </a>
         )}
-        {order.receipt_path && <Button variant="secondary" onClick={openReceipt}><FileText className="h-4 w-4" />Comprobante</Button>}
-        <button type="button" onClick={() => setMore((open) => !open)} aria-expanded={more} className="ml-auto inline-flex items-center gap-1 text-sm font-semibold text-piedra hover:text-ciruela">
+        {order.receipt_path && <Button variant="secondary" className={action} onClick={openReceipt}><FileText className="h-4 w-4" />Comprobante</Button>}
+      </div>
+      <div className="mt-2 flex justify-end">
+        <button type="button" onClick={() => setMore((open) => !open)} aria-expanded={more} className="inline-flex items-center gap-1 py-1 text-sm font-semibold text-piedra hover:text-ciruela">
           Más opciones<ChevronDown className={`h-4 w-4 transition-transform ${more ? 'rotate-180' : ''}`} />
         </button>
       </div>
@@ -323,6 +329,18 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
   )
 }
 
+const PAGE_SIZE = 10
+
+/** Page numbers to show: first, last and the ones around the current page (null = "…"). */
+function pageList(current: number, pages: number): (number | null)[] {
+  const list: (number | null)[] = []
+  for (let index = 0; index < pages; index++) {
+    if (index === 0 || index === pages - 1 || Math.abs(index - current) <= 1) list.push(index)
+    else if (list[list.length - 1] !== null) list.push(null)
+  }
+  return list
+}
+
 /** `initialFilter` / `initialSearch` come from the home (a status counter or "Ver" on one order, as "#7"). */
 export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: { initialFilter?: Filter; initialSearch?: string }) {
   const [filter, setFilter] = useState<Filter>(initialFilter)
@@ -332,10 +350,12 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
   const [error, setError] = useState('')
   const [search, setSearch] = useState(initialSearch)
   const [linkOpen, setLinkOpen] = useState(false)
+  const [page, setPage] = useState(0)
+  const top = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
-    let query = supabase.from('orders').select(ADMIN_ORDER_SELECT).order('created_at', { ascending: false }).limit(100)
+    let query = supabase.from('orders').select(ADMIN_ORDER_SELECT).order('created_at', { ascending: false }).limit(500)
     if (filter === 'activos') query = query.or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending')
     else if (filter === 'gestionar') query = query.or('status.in.(payment_review,paid),payment_check.eq.pending')
     else if (filter === 'verificar') query = query.eq('payment_check', 'pending')
@@ -371,13 +391,23 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
     return [String(order.number), order.customer_name, order.customer_phone, buyer?.email, buyer?.full_name, buyer?.phone].some((value) => value?.toLowerCase().includes(term))
   }) : orders
 
+  // Many orders are split into pages so the list doesn't become endless.
+  const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE))
+  const current = Math.min(page, pages - 1)
+  const pageOrders = shown.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE)
+  useEffect(() => { setPage(0) }, [filter, search])
+  function goTo(next: number) {
+    setPage(next)
+    top.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   return (
-    <div>
+    <div ref={top} className="scroll-mt-24">
       <div className="flex items-center gap-2">
-        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, # o teléfono" aria-label="Buscar pedidos" className="min-w-0 flex-1 rounded-full border border-line bg-white px-4 py-2.5 text-base outline-none focus:border-rosa sm:max-w-sm sm:text-sm" />
-        <HideMoneyButton />
-        <button type="button" onClick={() => setLinkOpen(true)} className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-ciruela px-3.5 py-2.5 font-display text-xs font-bold text-white hover:bg-rosa sm:text-sm"><Link2 className="h-4 w-4" /><span className="hidden sm:inline">Link de pedido</span><span className="sm:hidden">Link</span></button>
-        <button type="button" onClick={load} className="inline-flex shrink-0 items-center gap-1.5 rounded-full p-2 text-sm font-semibold text-piedra hover:text-ciruela" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
+        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, # o teléfono" aria-label="Buscar pedidos" className="h-11 min-w-0 flex-1 rounded-full border border-line bg-white px-4 text-base outline-none focus:border-rosa sm:max-w-sm sm:text-sm" />
+        <HideMoneyButton className="h-11 px-3 text-sm sm:px-4" />
+        <button type="button" onClick={() => setLinkOpen(true)} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-ciruela px-4 font-display text-sm font-bold text-white hover:bg-rosa"><Link2 className="h-4 w-4" /><span className="hidden sm:inline">Link de pedido</span><span className="sm:hidden">Link</span></button>
+        <button type="button" onClick={load} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-line bg-white px-3 font-display text-sm font-bold text-piedra hover:text-ciruela sm:px-4" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
       </div>
       {search.trim() && <button type="button" onClick={() => { setSearch(''); if (exact) setFilter('activos') }} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">{exact ? `Mostrando el pedido ${search.trim()}` : 'Buscando'} · Ver todos los pedidos</button>}
       {/* One swipeable row on the phone, wrapped on bigger screens */}
@@ -390,7 +420,19 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
       {!loading && shown.length === 0 ? (
         <p className="mt-8 rounded-3xl bg-white p-8 text-center text-piedra">{term ? 'No encontré pedidos con esa búsqueda en esta vista.' : 'No hay pedidos en esta vista.'}</p>
       ) : (
-        <ul className="mt-4 grid gap-4 xl:grid-cols-2">{shown.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} onChanged={load} />)}</ul>
+        <ul className="mt-4 grid gap-4 xl:grid-cols-2">{pageOrders.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} onChanged={load} />)}</ul>
+      )}
+      {pages > 1 && (
+        <nav aria-label="Páginas de pedidos" className="mt-6 flex flex-col items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={() => goTo(current - 1)} disabled={current === 0} className="inline-flex h-10 items-center gap-1 rounded-full bg-white px-3 font-display text-sm font-bold text-ciruela disabled:opacity-40" aria-label="Página anterior"><ChevronLeft className="h-4 w-4" /><span className="hidden sm:inline">Anterior</span></button>
+            {pageList(current, pages).map((item, index) => item === null
+              ? <span key={`gap-${index}`} className="px-1 text-piedra">…</span>
+              : <button key={item} type="button" onClick={() => goTo(item)} aria-current={item === current ? 'page' : undefined} className={`h-10 min-w-10 rounded-full px-2 font-display text-sm font-bold ${item === current ? 'bg-ciruela text-white' : 'bg-white text-piedra hover:text-ciruela'}`}>{item + 1}</button>)}
+            <button type="button" onClick={() => goTo(current + 1)} disabled={current === pages - 1} className="inline-flex h-10 items-center gap-1 rounded-full bg-white px-3 font-display text-sm font-bold text-ciruela disabled:opacity-40" aria-label="Página siguiente"><span className="hidden sm:inline">Siguiente</span><ChevronRight className="h-4 w-4" /></button>
+          </div>
+          <p className="text-xs text-piedra">Pedidos {current * PAGE_SIZE + 1}–{Math.min((current + 1) * PAGE_SIZE, shown.length)} de {shown.length}</p>
+        </nav>
       )}
       {linkOpen && <OrderLinkDialog onClose={() => setLinkOpen(false)} />}
     </div>
