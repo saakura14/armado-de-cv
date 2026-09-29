@@ -31,6 +31,7 @@ Deno.serve(async (request) => {
   const isAdmin = profile?.role === 'admin'
 
   let message: { title: string; body: string; url: string }
+  let logged: { order_id: string; kind: string } | null = null
   if (body.test) {
     if (!isAdmin) return json(403, { error: 'Solo la administradora' })
     message = { title: '¡Las notificaciones funcionan! 🌸', body: 'Te voy a avisar acá cuando entre un pedido o te suban un comprobante.', url: '/admin' }
@@ -44,8 +45,9 @@ Deno.serve(async (request) => {
     const moment = body.kind === 'new_order' ? order.created_at : order.receipt_uploaded_at
     if (!moment || Date.now() - new Date(moment).getTime() > FRESH_MINUTES * 60 * 1000) return json(200, { sent: 0, skipped: 'viejo' })
     // Once per order and kind.
-    const { error: logged } = await admin.from('push_log').insert({ order_id: order.id, kind: body.kind })
-    if (logged) return json(200, { sent: 0, skipped: 'ya avisado' })
+    const { error: duplicate } = await admin.from('push_log').insert({ order_id: order.id, kind: body.kind })
+    if (duplicate) return json(200, { sent: 0, skipped: 'ya avisado' })
+    logged = { order_id: order.id, kind: body.kind }
     const products = (order.order_items as { product_name: string }[]).map((item) => item.product_name).join(' + ')
     const name = order.customer_name ?? 'Cliente'
     message = body.kind === 'new_order'
@@ -60,16 +62,21 @@ Deno.serve(async (request) => {
   const { data: admins } = await admin.from('profiles').select('id').eq('role', 'admin')
   const { data: subscriptions } = await admin.from('push_subscriptions').select('endpoint, p256dh, auth').in('user_id', (admins ?? []).map((row) => row.id))
   let sent = 0
+  const errors: string[] = []
   for (const subscription of subscriptions ?? []) {
     try {
-      await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, JSON.stringify(message), { TTL: 60 * 60 * 24 })
+      // High urgency so Android delivers it right away even with the phone idle.
+      await webpush.sendNotification({ endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } }, JSON.stringify(message), { TTL: 60 * 60 * 24, urgency: 'high' })
       sent++
     } catch (error) {
       const status = (error as { statusCode?: number }).statusCode
+      errors.push(`${status ?? '?'} ${(error as Error).message}`.slice(0, 200))
       // The phone uninstalled the app or revoked permission: forget that subscription.
       if (status === 404 || status === 410) await admin.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint)
       else console.error('push failed', status, (error as Error).message)
     }
   }
-  return json(200, { sent })
+  console.log('push result', { kind: body.test ? 'test' : body.kind, devices: subscriptions?.length ?? 0, sent, failed: errors.length })
+  if (logged) await admin.from('push_log').update({ sent, failed: errors.length, error: errors.join(' | ') || null }).eq('order_id', logged.order_id).eq('kind', logged.kind)
+  return json(200, { sent, devices: subscriptions?.length ?? 0 })
 })

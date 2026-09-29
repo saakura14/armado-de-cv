@@ -164,7 +164,7 @@ function CanvaLink({ order }: { order: AdminOrder }) {
 // Same height and width for every action button on the card.
 const action = 'min-h-10 w-full px-3 text-center !text-[13px] leading-tight'
 
-function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buyer; onChanged: () => void }) {
+function OrderCard({ order, buyer, fresh, onChanged }: { order: AdminOrder; buyer?: Buyer; fresh: boolean; onChanged: () => void }) {
   const [busy, setBusy] = useState('')
   const [note, setNote] = useState(order.admin_note ?? '')
   const [more, setMore] = useState(false)
@@ -231,6 +231,7 @@ function OrderCard({ order, buyer, onChanged }: { order: AdminOrder; buyer?: Buy
       {/* Row 1: number, date, origin and status. Row 2: customer and amount, always side by side. */}
       <div className="flex items-start justify-between gap-3">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">
+          {fresh && <span className="rounded-full bg-rosa px-2 py-0.5 tracking-normal text-white">Nuevo</span>}
           <span>#{order.number} · {formatDate(order.created_at, true)}</span>
           {order.source === 'whatsapp' && <span className="inline-flex items-center gap-1 rounded-full bg-whatsapp/15 px-2 py-0.5 normal-case tracking-normal text-whatsapp"><WhatsAppIcon className="h-3 w-3" />WhatsApp</span>}
           {(order.order_links?.length ?? 0) > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-petalo-wash px-2 py-0.5 normal-case tracking-normal text-rosa-deep"><Link2 className="h-3 w-3" />Por link</span>}
@@ -354,12 +355,15 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
   const [search, setSearch] = useState(initialSearch)
   const [linkOpen, setLinkOpen] = useState(false)
   const [page, setPage] = useState(0)
+  // Orders that were new when this visit started keep the "Nuevo" label until the panel is reopened.
+  const [fresh, setFresh] = useState<Set<string>>(new Set())
   const top = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     let query = supabase.from('orders').select(ADMIN_ORDER_SELECT).order('created_at', { ascending: false }).limit(500)
-    if (filter === 'activos') query = query.or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending')
+    // New web orders show up here from the start (still unpaid), so none goes unnoticed.
+    if (filter === 'activos') query = query.or('status.in.(pending_payment,payment_review,paid,in_progress),payment_check.eq.pending')
     else if (filter === 'gestionar') query = query.or('status.in.(payment_review,paid),payment_check.eq.pending')
     else if (filter === 'verificar') query = query.eq('payment_check', 'pending')
     else if (filter === 'whatsapp') query = query.eq('source', 'whatsapp')
@@ -399,6 +403,19 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
   const current = Math.min(page, pages - 1)
   const pageOrders = shown.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE)
   useEffect(() => { setPage(0) }, [filter, search])
+
+  // Unseen orders on screen count as seen after a moment (the red number on Pedidos goes down).
+  const unseenKey = pageOrders.filter((order) => !order.seen_at).map((order) => order.id).join(',')
+  useEffect(() => {
+    const unseen = unseenKey ? unseenKey.split(',') : []
+    if (!unseen.length) return
+    const timer = window.setTimeout(() => {
+      if (document.visibilityState !== 'visible') return
+      setFresh((current) => new Set([...current, ...unseen]))
+      supabase.rpc('admin_mark_orders_seen', { p_orders: unseen }).then(() => undefined, () => undefined)
+    }, 2500)
+    return () => window.clearTimeout(timer)
+  }, [unseenKey])
   function goTo(next: number) {
     setPage(next)
     top.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -423,7 +440,7 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
       {!loading && shown.length === 0 ? (
         <p className="mt-8 rounded-3xl bg-white p-8 text-center text-piedra">{term ? 'No encontré pedidos con esa búsqueda en esta vista.' : 'No hay pedidos en esta vista.'}</p>
       ) : (
-        <ul className="mt-4 grid gap-3 md:grid-cols-2">{pageOrders.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} onChanged={load} />)}</ul>
+        <ul className="mt-4 grid gap-3 md:grid-cols-2">{pageOrders.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} fresh={!order.seen_at || fresh.has(order.id)} onChanged={load} />)}</ul>
       )}
       {pages > 1 && (
         <nav aria-label="Páginas de pedidos" className="mt-6 flex flex-col items-center gap-2">

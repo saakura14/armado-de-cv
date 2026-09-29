@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { BookOpen, CreditCard, ExternalLink, Home, Loader2, HelpCircle, LogOut, Menu, PlayCircle, ShoppingBag, Star, Tag, UserRound, Video, X } from 'lucide-react'
+import { ArrowRight, BookOpen, CreditCard, ExternalLink, Home, Loader2, HelpCircle, LogOut, Menu, PlayCircle, ShoppingBag, Star, Tag, UserRound, Video, X } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { Avatar } from '@/components/avatar'
 import { AppSetup } from '@/components/admin/app-setup'
@@ -18,6 +18,8 @@ import { PaymentAdmin } from '@/components/admin/payment-admin'
 import { ProductsAdmin } from '@/components/admin/products-admin'
 import { SessionsAdmin } from '@/components/admin/sessions-admin'
 import { TestimonialsAdmin } from '@/components/admin/testimonials-admin'
+import { formatARS } from '@/lib/catalog'
+import { setAppBadge, syncPush } from '@/lib/push'
 import { supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 
@@ -43,7 +45,10 @@ const standalone = () => typeof window !== 'undefined' && window.matchMedia('(di
 export default function AdminPage() {
   const { user, profile, ready, isAdmin, avatarUrl } = useSession()
   const [tab, setTab] = useState<TabId>('inicio')
-  const [counts, setCounts] = useState<{ review: number; sessions: number }>({ review: 0, sessions: 0 })
+  // pedidos: new orders not seen yet + payments to check; sessions: to schedule.
+  const [counts, setCounts] = useState<{ orders: number; sessions: number }>({ orders: 0, sessions: 0 })
+  // A web order that came in while the panel is open.
+  const [incoming, setIncoming] = useState<{ number: number; name: string; total: number } | null>(null)
   // WhatsApp sale form: opened by the button, the app shortcut (?venta=1) or by sharing a WhatsApp note to the app (?text=...).
   const [sale, setSale] = useState<string | null>(null)
   const [more, setMore] = useState(false)
@@ -91,13 +96,44 @@ export default function AdminPage() {
     return () => window.removeEventListener('popstate', onPop)
   }, [isAdmin])
 
+  const recount = useCallback(() => {
+    Promise.all([
+      supabase.from('orders').select('id', { count: 'exact', head: true })
+        .or('seen_at.is.null,status.eq.payment_review,payment_check.eq.pending').neq('status', 'cancelled').lt('number', 90000),
+      supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('status', 'to_schedule'),
+    ]).then(([orders, sessions]) => setCounts({ orders: orders.count ?? 0, sessions: sessions.count ?? 0 }))
+  }, [])
+
+  useEffect(() => { if (isAdmin) recount() }, [isAdmin, tab, refresh, recount])
+
+  // Live: recount on every change and show a notice when a web order comes in, even if the phone notification is late.
   useEffect(() => {
     if (!isAdmin) return
-    Promise.all([
-      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'payment_review'),
-      supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('status', 'to_schedule'),
-    ]).then(([orders, sessions]) => setCounts({ review: orders.count ?? 0, sessions: sessions.count ?? 0 }))
-  }, [isAdmin, tab, refresh])
+    let timer: number | undefined
+    const channel = supabase.channel('admin-shell')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (change) => {
+        window.clearTimeout(timer); timer = window.setTimeout(recount, 800)
+        const row = change.new as { number?: number; source?: string; customer_name?: string | null; total?: number }
+        if (change.eventType === 'INSERT' && row.source === 'web' && (row.number ?? 90000) < 90000) {
+          setIncoming({ number: row.number!, name: row.customer_name || 'Cliente', total: row.total ?? 0 })
+          navigator.vibrate?.(200)
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => { window.clearTimeout(timer); timer = window.setTimeout(recount, 800) })
+      .subscribe()
+    return () => { window.clearTimeout(timer); supabase.removeChannel(channel) }
+  }, [isAdmin, recount])
+
+  // Keep this device's notification subscription saved.
+  useEffect(() => { if (isAdmin && user) syncPush(user.id) }, [isAdmin, user])
+
+  // Pending count on the browser tab and on the app icon.
+  useEffect(() => {
+    if (!isAdmin) return
+    const pending = counts.orders + counts.sessions
+    document.title = counts.orders ? `(${counts.orders}) Administración · Armado de CV` : 'Administración · Armado de CV'
+    setAppBadge(pending)
+  }, [isAdmin, counts])
 
   const select = useCallback((id: TabId, view: { filter: Filter; search: string } | null = null) => {
     setOrdersView(view)
@@ -134,7 +170,7 @@ export default function AdminPage() {
   if (!user) return <section className="min-h-[80vh] bg-arena/40 px-4 py-16"><AdminLogo className="mb-8 justify-center" /><AuthPanel title="Administración" text="Área privada." /></section>
   if (!isAdmin) return <section className="mx-auto max-w-md px-4 py-20 text-center"><p className="font-script text-5xl text-rosa">Sin acceso</p><p className="mt-3 text-piedra">Esta sección es solo para administración.</p><Link href="/cuenta" className="mt-6 inline-block font-semibold text-rosa-deep underline">Ir a Mi cuenta</Link></section>
 
-  const badge = (id: TabId) => (id === 'pedidos' ? counts.review : id === 'sesiones' ? counts.sessions : 0)
+  const badge = (id: TabId) => (id === 'pedidos' ? counts.orders : id === 'sesiones' ? counts.sessions : 0)
   const current = TABS.find((item) => item.id === tab)!
   const moreBadge = TABS.filter((item) => !BAR.includes(item.id)).reduce((sum, item) => sum + badge(item.id), 0)
   const name = profile?.full_name?.trim() || user.email || ''
@@ -242,8 +278,24 @@ export default function AdminPage() {
         </Sheet>
       )}
 
+      {incoming && <IncomingOrder order={incoming} onOpen={() => { setIncoming(null); select('pedidos', { filter: 'activos', search: '' }) }} onClose={() => setIncoming(null)} />}
       <UpdateBanner />
       {sale !== null && <WhatsappSaleDialog initialText={sale} onClose={closeOverlay} onSaved={() => setRefresh((value) => value + 1)} />}
+    </div>
+  )
+}
+
+/** Notice for an order that just came in through the web. Stays until opened or closed. */
+function IncomingOrder({ order, onOpen, onClose }: { order: { number: number; name: string; total: number }; onOpen: () => void; onClose: () => void }) {
+  return (
+    <div role="status" className="fixed inset-x-3 top-3 z-[60] mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-ciruela p-3 pl-4 text-white shadow-2xl">
+      <ShoppingBag className="h-5 w-5 shrink-0 text-petalo" />
+      <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
+        <span className="block font-display text-sm font-bold">¡Nuevo pedido #{order.number}!</span>
+        <span className="block truncate text-xs text-white/80">{order.name}{order.total ? ` · ${formatARS(order.total)}` : ''}</span>
+      </button>
+      <button type="button" onClick={onOpen} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-3 py-1.5 font-display text-xs font-bold text-ciruela">Ver<ArrowRight className="h-3.5 w-3.5" /></button>
+      <button type="button" onClick={onClose} aria-label="Cerrar" className="shrink-0 rounded-full p-1 text-white/70 hover:text-white"><X className="h-4 w-4" /></button>
     </div>
   )
 }

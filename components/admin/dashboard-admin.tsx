@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, Clock, Download, FileCheck2, RefreshCw, Sparkles, Zap } from 'lucide-react'
+import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, Clock, Download, FileCheck2, RefreshCw, ShoppingBag, Sparkles, Zap } from 'lucide-react'
 import { useHideMoney } from '@/lib/hide-money'
 import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
@@ -133,17 +133,17 @@ function StatusTile({ label, value, note, tone, onClick }: { label: string; valu
   )
 }
 
-type Data = { orders: Order[]; sales: Sale[]; visits: VisitRow[]; events: EventRow[]; created: string[]; delivered: string[]; unpaid: number; sessionsToSchedule: number }
+type Data = { orders: Order[]; sales: Sale[]; visits: VisitRow[]; events: EventRow[]; created: string[]; delivered: string[]; unpaid: number; fresh: number; sessionsToSchedule: number }
 
 /** Loads everything the home needs; the view below only draws it. */
 export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpen: (target: OpenTarget) => void }) {
-  const [data, setData] = useState<Data>({ orders: [], sales: [], visits: [], events: [], created: [], delivered: [], unpaid: 0, sessionsToSchedule: 0 })
+  const [data, setData] = useState<Data>({ orders: [], sales: [], visits: [], events: [], created: [], delivered: [], unpaid: 0, fresh: 0, sessionsToSchedule: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [open, paid, traffic, sessions, steps, created, delivered, unpaid] = await Promise.all([
+    const [open, paid, traffic, sessions, steps, created, delivered, unpaid, fresh] = await Promise.all([
       supabase.from('orders').select(ORDER_SELECT).or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending').order('created_at'),
       supabase.from('orders').select(SALE_SELECT).not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000),
       supabase.from('site_visits').select('day, path, visits, views').order('day'),
@@ -153,6 +153,8 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
       supabase.from('orders').select('delivered_at, paid_at').eq('status', 'delivered').lt('number', 90000),
       // Orders waiting for the payment for more than a day: time for a reminder.
       supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'pending_payment').lt('number', 90000).lt('created_at', new Date(Date.now() - 864e5).toISOString()),
+      // Web orders not seen yet in Pedidos.
+      supabase.from('orders').select('id', { count: 'exact', head: true }).is('seen_at', null).neq('status', 'cancelled').lt('number', 90000),
     ])
     const failed = open.error ?? paid.error ?? traffic.error
     setError(failed ? errorMessage(failed) : '')
@@ -164,6 +166,7 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
       created: ((created.data as { created_at: string }[] | null) ?? []).map((row) => row.created_at),
       delivered: ((delivered.data as { delivered_at: string | null; paid_at: string | null }[] | null) ?? []).flatMap((row) => { const at = row.delivered_at ?? row.paid_at; return at ? [at] : [] }),
       unpaid: unpaid.count ?? 0,
+      fresh: fresh.count ?? 0,
       sessionsToSchedule: sessions.count ?? 0,
     })
     setLoading(false)
@@ -266,6 +269,12 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
           <h2 id="todo-title" className="font-display text-lg font-bold text-ciruela">Tus pedidos</h2>
           <button type="button" onClick={onReload} className="inline-flex items-center gap-1.5 text-sm font-semibold text-piedra hover:text-ciruela"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Actualizar</button>
         </div>
+        {data.fresh > 0 && (
+          <button type="button" onClick={() => onOpen({ tab: 'pedidos', filter: 'activos' })} className="mt-3 flex w-full items-center justify-between gap-3 rounded-2xl bg-rosa px-4 py-3 text-left text-sm text-white shadow-lg shadow-rosa/25">
+            <span className="flex items-center gap-2"><ShoppingBag className="h-4 w-4 shrink-0" /><span><b>{data.fresh === 1 ? '¡Tenés un pedido nuevo!' : `¡Tenés ${data.fresh} pedidos nuevos!`}</b> {data.fresh === 1 ? 'Entró por la web y todavía no lo viste.' : 'Entraron por la web y todavía no los viste.'}</span></span>
+            <ArrowRight className="h-4 w-4 shrink-0" />
+          </button>
+        )}
         <div className="mt-3 grid grid-cols-3 gap-3">
           <StatusTile label="A gestionar" value={toManage.length} tone="rosa" note={reviews ? `${reviews} ${reviews === 1 ? 'pago' : 'pagos'} por revisar` : urgent ? `${urgent} ${urgent === 1 ? 'vence' : 'vencen'} pronto` : 'Pagados, sin empezar'} onClick={() => onOpen({ tab: 'pedidos', filter: 'gestionar' })} />
           <StatusTile label="En proceso" value={inProgress} tone="arena" note="Trabajando en ellos" onClick={() => onOpen({ tab: 'pedidos', filter: 'in_progress' })} />

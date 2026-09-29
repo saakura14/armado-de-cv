@@ -44,6 +44,8 @@ export type Order = {
   payment_method: 'transfer' | 'card' | null
   card_total: number | null
   created_at: string
+  /** When the admin first saw it in Pedidos; null = "Nuevo" (web orders only, her own WhatsApp sales start seen). */
+  seen_at?: string | null
   order_items: OrderItem[]
 }
 

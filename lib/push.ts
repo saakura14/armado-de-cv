@@ -36,6 +36,29 @@ export async function enablePush(userId: string) {
   if (error) throw error
 }
 
+/**
+ * Runs each time the panel opens: if notifications are allowed here, make sure this device's current subscription is saved.
+ * Phones renew subscriptions on their own (app reinstalled, Chrome updated); without this the old one kept receiving nothing.
+ */
+export async function syncPush(userId: string) {
+  try {
+    if (!pushSupported() || Notification.permission !== 'granted') return
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    await navigator.serviceWorker.ready
+    const subscription = (await registration.pushManager.getSubscription())
+      ?? await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC_KEY) })
+    const { endpoint, keys } = subscription.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }
+    await supabase.from('push_subscriptions').upsert({ endpoint, user_id: userId, p256dh: keys.p256dh, auth: keys.auth })
+  } catch { /* notifications are a bonus: the panel works the same */ }
+}
+
+/** Number on the app icon (where the phone or computer supports it). */
+export function setAppBadge(count: number) {
+  const nav = navigator as Navigator & { setAppBadge?: (count?: number) => Promise<void>; clearAppBadge?: () => Promise<void> }
+  if (count > 0) nav.setAppBadge?.(count).catch(() => undefined)
+  else nav.clearAppBadge?.().catch(() => undefined)
+}
+
 export async function disablePush() {
   const registration = await navigator.serviceWorker.getRegistration('/')
   const subscription = await registration?.pushManager.getSubscription()
