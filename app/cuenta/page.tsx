@@ -29,6 +29,7 @@ export default function AccountPage() {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [saved, setSaved] = useState(false)
+  const [news, setNews] = useState(false)
 
   const load = useCallback(async () => {
     const [o, e, c, s] = await Promise.all([
@@ -47,7 +48,7 @@ export default function AccountPage() {
   // The admin lands on her panel; "?cliente" keeps this page to see it as a customer.
   useEffect(() => { if (isAdmin && !window.location.search.includes('cliente')) router.replace('/admin') }, [isAdmin, router])
   useEffect(() => { if (user) load() }, [user, load])
-  useEffect(() => { if (profile) { setName(profile.full_name ?? ''); setPhone(profile.phone ?? '') } }, [profile])
+  useEffect(() => { if (profile) { setName(profile.full_name ?? ''); setPhone(profile.phone ?? ''); setNews(Boolean(profile.marketing_opt_in)) } }, [profile])
 
   async function download(item: EbookAccess) {
     if (!item.ebooks?.file_path) { setError('Este e-book todavía no está disponible para descargar. Escribime y te lo envío.'); return }
@@ -72,7 +73,7 @@ export default function AccountPage() {
   async function saveProfile(event: React.FormEvent) {
     event.preventDefault()
     if (!user) return
-    const { data, error: updateError } = await supabase.from('profiles').update({ full_name: name.trim() || null, phone: phone.trim() || null }).eq('id', user.id).select().single()
+    const { data, error: updateError } = await supabase.from('profiles').update({ full_name: name.trim() || null, phone: phone.trim() || null, marketing_opt_in: news, ...(news && !profile?.marketing_opt_in ? { marketing_opt_in_at: new Date().toISOString() } : {}) }).eq('id', user.id).select().single()
     if (updateError) { setError(errorMessage(updateError)); return }
     setProfile(data)
     setSaved(true); window.setTimeout(() => setSaved(false), 2000)
@@ -174,6 +175,7 @@ export default function AccountPage() {
               <h2 className="font-bold text-ciruela">Mis datos</h2>
               <label className="mt-4 block text-sm font-semibold text-ciruela">Nombre y apellido<input value={name} onChange={(event) => setName(event.target.value)} className={input} /></label>
               <label className="mt-3 block text-sm font-semibold text-ciruela">WhatsApp<input value={phone} onChange={(event) => setPhone(event.target.value)} type="tel" className={input} /></label>
+              <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm text-ink"><input type="checkbox" checked={news} onChange={(event) => setNews(event.target.checked)} className="mt-1 accent-rosa" />Recibir por mail novedades y nuevos e-books</label>
               <button className="mt-4 min-h-10 w-full rounded-full border border-ciruela px-4 py-2 font-display text-sm font-bold text-ciruela hover:bg-ciruela hover:text-white">{saved ? '¡Guardado!' : 'Guardar'}</button>
               <Link href="/cuenta/nueva-clave" className="mt-3 block text-center text-sm font-semibold text-rosa-deep hover:underline">Cambiar contraseña</Link>
             </form>

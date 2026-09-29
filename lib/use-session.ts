@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 
-export type Profile = { id: string; email: string | null; full_name: string | null; phone: string | null; avatar_url: string | null; role: 'client' | 'admin' }
+export type Profile = { id: string; email: string | null; full_name: string | null; phone: string | null; avatar_url: string | null; role: 'client' | 'admin'; marketing_opt_in?: boolean }
 
 /** Current Supabase session plus the profile row (role decides access to /admin). */
 export function useSession() {

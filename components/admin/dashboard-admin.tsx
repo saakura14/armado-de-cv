@@ -1,7 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, Clock, Download, Eye, EyeOff, FileCheck2, RefreshCw, Sparkles, Zap } from 'lucide-react'
+import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarClock, Clock, Download, FileCheck2, RefreshCw, Sparkles, Zap } from 'lucide-react'
+import { useHideMoney } from '@/lib/hide-money'
+import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, needsCoordination, type Order } from '@/lib/orders'
@@ -10,7 +12,7 @@ import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass } from './ui'
 
 /** Where "Ver" and the status counters take you: a tab, optionally a filter or a single order. */
-export type OpenTarget = { tab: 'pedidos' | 'sesiones'; filter?: 'gestionar' | 'in_progress' | 'delivered' | 'activos'; order?: number }
+export type OpenTarget = { tab: 'pedidos' | 'sesiones'; filter?: 'gestionar' | 'in_progress' | 'delivered' | 'activos' | 'pending_payment'; order?: number }
 
 type Task = { order: Order; kind: 'pago' | 'verificar' | 'entrega' | 'sesion'; deadline: Deadline | null }
 
@@ -41,13 +43,14 @@ export function DeadlineChip({ deadline }: { deadline: Deadline }) {
 }
 
 function TaskRow({ task, onOpen }: { task: Task; onOpen: () => void }) {
+  const { money } = useHideMoney()
   const { order, kind, deadline } = task
   const name = order.customer_name || 'Cliente'
   const products = order.order_items.map((item) => item.product_name).join(' + ')
   return (
     <li className="flex flex-col gap-3 border-b border-line py-4 last:border-0 sm:flex-row sm:items-center">
       <div className="min-w-0 flex-1">
-        <p className="font-display text-xs font-semibold uppercase tracking-wider text-piedra">#{order.number}{isTestOrder(order) ? ' · prueba' : ''}{order.source === 'whatsapp' ? ' · WhatsApp' : ''} · {formatARS(order.total)}</p>
+        <p className="font-display text-xs font-semibold uppercase tracking-wider text-piedra">#{order.number}{isTestOrder(order) ? ' · prueba' : ''}{order.source === 'whatsapp' ? ' · WhatsApp' : ''} · {money(order.total)}</p>
         <p className="mt-0.5 truncate font-bold text-ink">{name}</p>
         <p className="truncate text-sm text-piedra">{products}</p>
       </div>
@@ -130,17 +133,17 @@ function StatusTile({ label, value, note, tone, onClick }: { label: string; valu
   )
 }
 
-type Data = { orders: Order[]; sales: Sale[]; visits: VisitRow[]; events: EventRow[]; created: string[]; delivered: string[]; sessionsToSchedule: number }
+type Data = { orders: Order[]; sales: Sale[]; visits: VisitRow[]; events: EventRow[]; created: string[]; delivered: string[]; unpaid: number; sessionsToSchedule: number }
 
 /** Loads everything the home needs; the view below only draws it. */
 export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpen: (target: OpenTarget) => void }) {
-  const [data, setData] = useState<Data>({ orders: [], sales: [], visits: [], events: [], created: [], delivered: [], sessionsToSchedule: 0 })
+  const [data, setData] = useState<Data>({ orders: [], sales: [], visits: [], events: [], created: [], delivered: [], unpaid: 0, sessionsToSchedule: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [open, paid, traffic, sessions, steps, created, delivered] = await Promise.all([
+    const [open, paid, traffic, sessions, steps, created, delivered, unpaid] = await Promise.all([
       supabase.from('orders').select(ORDER_SELECT).or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending').order('created_at'),
       supabase.from('orders').select(SALE_SELECT).not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000),
       supabase.from('site_visits').select('day, path, visits, views').order('day'),
@@ -148,6 +151,8 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
       supabase.from('site_events').select('day, event, count'),
       supabase.from('orders').select('created_at').lt('number', 90000).eq('source', 'web'),
       supabase.from('orders').select('delivered_at, paid_at').eq('status', 'delivered').lt('number', 90000),
+      // Orders waiting for the payment for more than a day: time for a reminder.
+      supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'pending_payment').lt('number', 90000).lt('created_at', new Date(Date.now() - 864e5).toISOString()),
     ])
     const failed = open.error ?? paid.error ?? traffic.error
     setError(failed ? errorMessage(failed) : '')
@@ -158,6 +163,7 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
       events: (steps.data as EventRow[] | null) ?? [],
       created: ((created.data as { created_at: string }[] | null) ?? []).map((row) => row.created_at),
       delivered: ((delivered.data as { delivered_at: string | null; paid_at: string | null }[] | null) ?? []).flatMap((row) => { const at = row.delivered_at ?? row.paid_at; return at ? [at] : [] }),
+      unpaid: unpaid.count ?? 0,
       sessionsToSchedule: sessions.count ?? 0,
     })
     setLoading(false)
@@ -185,16 +191,8 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
   const [month, setMonth] = useState(() => monthKey(new Date()))
   const [year, setYear] = useState(() => monthKey(new Date()).slice(0, 4))
   const [exporting, setExporting] = useState(false)
-  // Amounts can be hidden (someone looking at the screen); the choice is remembered on this device.
-  const [hideMoney, setHideMoney] = useState(false)
-  useEffect(() => { try { setHideMoney(localStorage.getItem('acv-hide-money') === '1') } catch { /* storage blocked */ } }, [])
-  function toggleMoney() {
-    setHideMoney((current) => {
-      try { localStorage.setItem('acv-hide-money', current ? '0' : '1') } catch { /* storage blocked */ }
-      return !current
-    })
-  }
-  const money = (value: number) => (hideMoney ? '$ •••••' : formatARS(value))
+  // Amounts can be hidden (someone looking at the screen); shared with Pedidos and remembered on this device.
+  const { money } = useHideMoney()
   const [exportError, setExportError] = useState('')
   const error = loadError || exportError
 
@@ -274,6 +272,13 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
           <StatusTile label="Entregados" value={deliveredMonth} tone="verde" note={`Este mes · ${data.delivered.length} en total`} onClick={() => onOpen({ tab: 'pedidos', filter: 'delivered' })} />
         </div>
 
+        {data.unpaid > 0 && (
+          <button type="button" onClick={() => onOpen({ tab: 'pedidos', filter: 'pending_payment' })} className="mt-3 flex w-full items-center justify-between gap-3 rounded-2xl bg-petalo-wash px-4 py-3 text-left text-sm text-rosa-deep">
+            <span><b>{data.unpaid} {data.unpaid === 1 ? 'pedido sin pagar' : 'pedidos sin pagar'}</b> hace más de 24 hs. Mandales el recordatorio con un toque.</span>
+            <ArrowRight className="h-4 w-4 shrink-0" />
+          </button>
+        )}
+
         {upcoming.length > 0 && (
           <div className={`${cardClass} mt-4`}>
             <div className="flex items-baseline justify-between gap-3">
@@ -292,9 +297,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="stats-title" className="font-display text-lg font-bold text-ciruela">Cómo viene el mes</h2>
           <div className="flex items-center gap-2">
-          <button type="button" onClick={toggleMoney} aria-pressed={hideMoney} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-2 font-display text-xs font-semibold text-piedra hover:text-ciruela" title={hideMoney ? 'Mostrar montos' : 'Ocultar montos'}>
-            {hideMoney ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}<span className="hidden sm:inline">{hideMoney ? 'Mostrar montos' : 'Ocultar montos'}</span>
-          </button>
+          <HideMoneyButton />
           <select value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Mes" className="rounded-full border border-line bg-white px-4 py-2 font-display text-sm font-semibold text-ciruela">
             {months.map((key) => <option key={key} value={key}>{monthLabel(key)}</option>)}
           </select>
@@ -333,8 +336,11 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
             <span className="col-start-2 row-start-1 text-right font-display text-sm font-bold text-ciruela sm:col-start-3">{number.format(whatsappSales)}</span>
           </div>
           <div className="flex items-center justify-between gap-3 rounded-2xl bg-papel px-4 py-3">
-            <span className="text-sm font-bold text-ciruela">Total de ventas del mes</span>
-            <span className="text-right font-display text-lg font-extrabold text-ciruela">{number.format(webSales + whatsappSales)}{webSales + whatsappSales > 0 && <span className="ml-2 font-sans text-xs font-normal text-piedra">{number.format(webSales)} web · {number.format(whatsappSales)} WhatsApp</span>}</span>
+            <span>
+              <span className="block text-sm font-bold text-ciruela">Total de ventas del mes</span>
+              <span className="block text-xs text-piedra">{number.format(webSales)} por la web · {number.format(whatsappSales)} por WhatsApp</span>
+            </span>
+            <span className="font-display text-2xl font-extrabold tabular-nums text-ciruela">{number.format(webSales + whatsappSales)}</span>
           </div>
         </div>
         <p className="mt-3 text-xs text-piedra">En la web, el porcentaje es sobre el paso anterior. Si mucha gente llega a comprar pero no confirma, el freno está en crear la cuenta o en los datos.</p>

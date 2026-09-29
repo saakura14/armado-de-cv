@@ -29,7 +29,7 @@ function Summary({ order }: { order: PendingOrder }) {
       <ul className="mt-4 space-y-1.5 text-sm">
         {order.items ? (
           // Order link: every product and add-on is its own line.
-          order.lines.map((line, index) => <li key={index} className={`flex justify-between gap-4 ${line.text.startsWith('+') ? 'pl-3 text-piedra' : ''}`}><span>{line.text}</span><span className={line.text.startsWith('+') ? '' : 'font-semibold'}>{formatARS(line.price)}</span></li>)
+          order.lines.map((line, index) => <li key={index} className={`flex justify-between gap-4 ${line.text.startsWith('+') ? 'pl-3 text-piedra' : ''}`}><span>{line.text}</span><span className={line.price < 0 ? 'font-semibold text-whatsapp' : line.text.startsWith('+') ? '' : 'font-semibold'}>{formatARS(line.price)}</span></li>)
         ) : (
           <>
             <li className="flex justify-between gap-4"><span>{order.productName}</span><span className="font-semibold">{formatARS(order.total - order.lines.reduce((sum, line) => sum + line.price, 0))}</span></li>
@@ -50,6 +50,8 @@ export default function CheckoutPage() {
   const [phone, setPhone] = useState('')
   const [note, setNote] = useState('')
   const [accepted, setAccepted] = useState(false)
+  // Optional: news and new e-books by email (never pre-checked).
+  const [news, setNews] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -76,6 +78,7 @@ export default function CheckoutPage() {
     })
     if (rpcError) { setError(errorMessage(rpcError)); setBusy(false); return }
     track('Lead', { value: pending.total, currency: 'ARS', content_ids: [pending.item.product_id] })
+    if (news && user) await supabase.from('profiles').update({ marketing_opt_in: true, marketing_opt_in_at: new Date().toISOString() }).eq('id', user.id)
     if (pending.linkToken) await supabase.rpc('claim_order_link', { p_token: pending.linkToken, p_order: data as string })
     notifyAdmin(data as string, 'new_order')
     clearPending()
@@ -139,6 +142,12 @@ export default function CheckoutPage() {
                 <input type="checkbox" required checked={accepted} onChange={(event) => setAccepted(event.target.checked)} className="mt-1 accent-rosa" />
                 <span>Leí y acepto los <Link href="/terminos" target="_blank" className="font-semibold text-rosa-deep underline">términos y condiciones</Link> (incluida la política de cambios y devoluciones y, en Asesorías, el consentimiento informado) y la <Link href="/privacidad" target="_blank" className="font-semibold text-rosa-deep underline">política de privacidad</Link>.</span>
               </label>
+              {!profile?.marketing_opt_in && (
+                <label className="flex cursor-pointer items-start gap-3 px-1 text-sm leading-relaxed text-ink">
+                  <input type="checkbox" checked={news} onChange={(event) => setNews(event.target.checked)} className="mt-1 accent-rosa" />
+                  <span>Quiero recibir por mail novedades y nuevos e-books para mi búsqueda (opcional; me doy de baja cuando quiera desde Mi cuenta).</span>
+                </label>
+              )}
             </div>
             {error && <p role="alert" className="mt-4 rounded-xl bg-petalo-wash px-3 py-2 text-sm font-semibold text-rosa-deep">{error}</p>}
             <button disabled={busy || !accepted} className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-ciruela px-5 py-3 font-display text-sm font-bold text-white transition-colors hover:bg-rosa disabled:opacity-50">

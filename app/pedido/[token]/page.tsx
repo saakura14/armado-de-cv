@@ -10,7 +10,7 @@ import { savePending } from '@/lib/cart'
 import { supabase } from '@/lib/supabase'
 
 type LinkItem = { product_id: string; name: string; subtitle: string | null; price: number; delivery: Delivery; active: boolean; notes: string[]; extras: { group_id: string; option_id: string; label: string; price: number }[] }
-type OrderLink = { items: LinkItem[]; customer_name: string | null; message: string | null; used: boolean; expired: boolean; order_id: string | null }
+type OrderLink = { items: LinkItem[]; customer_name: string | null; message: string | null; custom_total: number | null; used: boolean; expired: boolean; order_id: string | null }
 
 /** An order Vale built for a customer: they review it and continue to the usual checkout (account, terms, payment). */
 export default function OrderLinkPage() {
@@ -41,7 +41,10 @@ export default function OrderLinkPage() {
     )
   }
 
-  const total = link.items.reduce((sum, item) => sum + item.price + item.extras.reduce((acc, extra) => acc + extra.price, 0), 0)
+  const listTotal = link.items.reduce((sum, item) => sum + item.price + item.extras.reduce((acc, extra) => acc + extra.price, 0), 0)
+  // A special price agreed with Vale replaces the catalog total.
+  const total = link.custom_total ?? listTotal
+  const discount = listTotal - total
   const firstName = link.customer_name?.trim().split(/\s+/)[0]
   const notes = [...new Set(link.items.flatMap((item) => item.notes))]
 
@@ -57,7 +60,10 @@ export default function OrderLinkPage() {
       subtitle: link.items.map((item) => item.name).join(' + '),
       // The note field of the checkout follows the kind of work (a CV pack asks for details).
       delivery: link.items.find((item) => item.delivery === 'service')?.delivery ?? link.items[0].delivery,
-      lines: link.items.flatMap((item) => [{ text: item.name, price: item.price }, ...item.extras.map((extra) => ({ text: `+ ${extra.label}`, price: extra.price }))]),
+      lines: [
+        ...link.items.flatMap((item) => [{ text: item.name, price: item.price }, ...item.extras.map((extra) => ({ text: `+ ${extra.label}`, price: extra.price }))]),
+        ...(discount !== 0 ? [{ text: discount > 0 ? 'Precio especial' : 'Ajuste de precio', price: -discount }] : []),
+      ],
       total,
       notes,
     })
@@ -81,7 +87,8 @@ export default function OrderLinkPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-5 flex items-baseline justify-between border-t border-line pt-4 font-display font-extrabold text-ciruela"><span className="text-sm">Total</span><span className="text-3xl">{formatARS(total)}</span></p>
+          {discount !== 0 && <p className="mt-5 flex items-baseline justify-between border-t border-line pt-4 text-sm text-piedra"><span>{discount > 0 ? 'Precio especial para vos' : 'Ajuste de precio'}</span><span className={discount > 0 ? 'font-semibold text-whatsapp' : ''}>{discount > 0 ? '−' : '+'}{formatARS(Math.abs(discount))}</span></p>}
+          <p className={`flex items-baseline justify-between font-display font-extrabold text-ciruela ${discount !== 0 ? 'mt-2' : 'mt-5 border-t border-line pt-4'}`}><span className="text-sm">Total</span><span className="text-3xl">{formatARS(total)}</span></p>
           <button type="button" onClick={checkout} className="group mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-rosa px-5 py-3 font-display text-sm font-bold text-white shadow-lg shadow-rosa/30 transition-colors hover:bg-rosa-deep">
             Confirmar y pagar<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </button>

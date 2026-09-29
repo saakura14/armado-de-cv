@@ -28,6 +28,8 @@ export function OrderLinkDialog({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [message, setMessage] = useState('')
+  // Special price agreed with the customer; empty = catalog price.
+  const [customTotal, setCustomTotal] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [created, setCreated] = useState<string | null>(null)
@@ -47,7 +49,9 @@ export function OrderLinkDialog({ onClose }: { onClose: () => void }) {
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
   }, [onClose])
 
-  const total = totalOf(items)
+  const catalogTotal = totalOf(items)
+  const special = Number(customTotal) > 0 && Number(customTotal) !== catalogTotal ? Number(customTotal) : null
+  const total = special ?? catalogTotal
   const ready = items.length > 0 && items.every((item) => item.productId)
 
   async function create() {
@@ -55,6 +59,7 @@ export function OrderLinkDialog({ onClose }: { onClose: () => void }) {
     const { data, error: insertError } = await supabase.from('order_links').insert({
       items: items.map((item) => ({ product_id: item.productId, extras: item.extras.map((extra) => ({ group_id: extra.groupId, option_id: extra.optionId })) })),
       customer_name: name.trim() || null, customer_phone: phone.trim() || null, message: message.trim() || null,
+      custom_total: special,
     }).select('token').single()
     setBusy(false)
     if (insertError || !data) { setError(errorMessage(insertError)); return }
@@ -94,7 +99,7 @@ export function OrderLinkDialog({ onClose }: { onClose: () => void }) {
               <div className="mt-3 flex flex-wrap gap-2">
                 <a href={whatsappTo(phone, shareText(created))} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full bg-whatsapp px-4 py-2 font-display text-sm font-bold text-white"><WhatsAppIcon className="h-4 w-4" />Enviar por WhatsApp</a>
                 <Button variant="secondary" onClick={() => copy(created)}>{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}{copied ? 'Copiado' : 'Copiar link'}</Button>
-                <Button variant="secondary" onClick={() => { setCreated(null); setItems([{ productId: null, extras: [] }]); setName(''); setPhone(''); setMessage('') }}>Armar otro</Button>
+                <Button variant="secondary" onClick={() => { setCreated(null); setItems([{ productId: null, extras: [] }]); setName(''); setPhone(''); setMessage(''); setCustomTotal('') }}>Armar otro</Button>
               </div>
               <p className="mt-2 text-xs text-piedra">Vence en 30 días. Cuando lo confirme, el pedido aparece en Pedidos con la etiqueta &quot;Por link&quot; y te llega el aviso.</p>
             </div>
@@ -108,8 +113,13 @@ export function OrderLinkDialog({ onClose }: { onClose: () => void }) {
                 <p className={label}>Qué va a comprar</p>
                 <SaleItemsEditor items={items} onChange={setItems} products={products} extras={extras} onlyOffered />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <p className="col-span-2 -mb-2 text-sm text-ink sm:col-span-1 sm:mb-0 sm:self-end">Según tu catálogo: <b>{formatARS(catalogTotal)}</b></p>
+                <label className={`col-span-2 sm:col-span-1 ${label}`}>Precio final (opcional)<input inputMode="numeric" value={customTotal} onChange={(event) => setCustomTotal(event.target.value.replace(/\D/g, ''))} placeholder={catalogTotal ? String(catalogTotal) : 'Ej: 100000'} className={inputClass} /></label>
+                {special && <p className="col-span-2 -mt-1 text-xs text-whatsapp">El cliente va a ver el precio especial de {formatARS(special)} (en lugar de {formatARS(catalogTotal)}).</p>}
+              </div>
               <label className={`block ${label}`}>Mensaje (opcional)<textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={2} placeholder="Ej: Como hablamos, te armé el Premium con la sección Servicios." className={inputClass} /></label>
-              <p className="text-xs text-piedra">El precio sale de tu catálogo. Los adicionales son los que ofrece cada pack en la web.</p>
+              <p className="text-xs text-piedra">Los adicionales son los que ofrece cada pack en la web. Si ponés un precio final, el cliente paga ese monto.</p>
             </>
           )}
 
