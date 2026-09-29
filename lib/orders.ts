@@ -23,7 +23,9 @@ export type ReceiptReading = {
 export type Order = {
   id: string
   number: number
-  user_id: string
+  /** null for sales recorded by hand from WhatsApp (no customer account). */
+  user_id: string | null
+  source: 'web' | 'whatsapp'
   status: OrderStatus
   total: number
   customer_name: string | null

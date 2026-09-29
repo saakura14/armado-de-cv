@@ -154,6 +154,12 @@ Tipos de entrega (`delivery`):
 
 Al ingresar, la administradora va directo al panel (Mi cuenta la redirige a `/admin`; con `/cuenta?cliente` se ve como cliente, y el panel tiene el link "Ver mi cuenta como cliente").
 
+**App del panel en el celu.** El panel tiene su propio manifest (`public/admin.webmanifest`): desde Chrome en Android se instala como **"Panel ACV"** y abre directo en `/admin`. Accesos directos: "Venta por WhatsApp" y "Pedidos". En Inicio está la tarjeta "Tu panel en el celu" para instalarla y activar los avisos.
+
+**Notificaciones push.** Al activarlas, el celu se guarda en `push_subscriptions` y el service worker (`public/sw.js`) muestra los avisos. El navegador del cliente llama a la función `notify-admin` al confirmar un pedido y al subir el comprobante (una vez por pedido y tipo, solo pedidos de hace menos de 15 minutos). Botón "Probar" para un aviso de prueba. Las claves VAPID están en Supabase Vault (`vapid_private_key`, `vapid_public_key`); la pública también en `lib/push.ts`.
+
+**Ventas por WhatsApp.** Botón verde "Venta por WhatsApp" (arriba del panel): se pega la nota tal cual ("Nombre / Pack + fecha", una o varias por renglón, incluso mensajes copiados de WhatsApp) y `lib/whatsapp-sale.ts` reconoce cliente, producto, fecha y "express". Se revisa, se corrige y se guarda con `admin_record_sale`: queda como pedido pagado (o entregado) con `source = 'whatsapp'`, sin cuenta de cliente, con el número correlativo de siempre. En Android también se puede **compartir** la nota desde WhatsApp a "Panel ACV" y el formulario se abre completo. Estas ventas cuentan en métricas, lo más vendido y el Excel (columna "Origen"), pero no en el embudo de la web. Filtro "De WhatsApp" en Pedidos.
+
 | Pestaña | Para qué sirve |
 |---|---|
 | **Inicio** | Saludo aleatorio; **Para gestionar**: pagos a revisar, sesiones a agendar y packs a entregar con el plazo restante (4 días hábiles desde el pago, Express 1; después de las 17 hs o en fin de semana arranca el siguiente día hábil; no descuenta feriados). **Cómo viene el mes**: ventas, facturado, ticket promedio, visitas y conversión con la variación contra el mes anterior, facturación de los últimos 6 meses, lo más vendido y por qué página entraron. **Del clic a la venta**: embudo del mes (entraron, tocaron "Lo quiero", llegaron a comprar, confirmaron el pedido, pagaron) con el porcentaje de cada paso. **Reporte en Excel** del año con logo y colores de la marca (resumen mensual, más vendidos, detalle de ventas y visitas por día). Las ventas son pedidos con pago confirmado, sin cancelados ni pedidos de prueba (#90000 en adelante). |
@@ -285,6 +291,8 @@ El historial completo está en `supabase/migrations/`. Se aplica en orden por fe
 | `card_payments` | Cada link de pago de Ualá creado para un pedido, con monto y estado. Solo lo escribe la función `uala`; el admin lo puede leer. |
 | `faqs` | Preguntas de Sakura y de la web. |
 | `testimonials` | Testimonios con @ de Instagram. |
+| `push_subscriptions` | Celulares de la admin con avisos activados (endpoint y claves de cifrado). Solo la admin puede suscribirse. |
+| `push_log` | Qué avisos ya se mandaron (uno por pedido y tipo). |
 | `site_events` | Pasos del embudo por día (`lo_quiero`, `checkout`), una vez por sesión del navegador. Sin datos personales; solo la lee el admin. Cuenta desde el 28/09/2026. |
 | `site_visits` | Visitas anónimas por día y página (`visits` = llegadas a la web, `views` = páginas vistas). Sin datos personales; solo la lee el admin. Cuenta desde el 28/09/2026. |
 | `admin_upload_tokens` | Tokens de un solo uso (2 hs) para subir archivos desde herramientas de administración. |
@@ -301,6 +309,8 @@ El historial completo está en `supabase/migrations/`. Se aplica en orden por fe
 | `admin_set_order_status(order, status, note)` | Admin | Cambia el estado. La primera vez que se aprueba el pago otorga e-books y cursos, crea las sesiones y marca como entregados los pedidos solo digitales. |
 | `admin_update_session(...)` | Admin | Fecha, link de Meet, estado y nota de una sesión. |
 | `mark_card_payment(uala_order, status)` | Solo la función `uala` | Guarda el estado que la función leyó de Ualá. Si es `APPROVED` o `PROCESSED` y el pedido no estaba pago, lo aprueba como una transferencia (`payment_method = 'card'`, guarda `card_total`). Nadie más la puede llamar. |
+| `admin_record_sale(name, phone, product, total, paid_on, express, delivered, note)` | Admin | Carga una venta cerrada por WhatsApp como pedido pagado o entregado, sin cuenta de cliente (`source = 'whatsapp'`). |
+| `push_config()` | Solo funciones (service role) | Devuelve las claves VAPID guardadas en Vault. |
 | `track_event(event)` | Todos | Suma un paso del embudo. Solo acepta `lo_quiero` y `checkout` e ignora al admin. |
 | `track_visit(path, new_visit)` | Todos | Suma una visita anónima del día. Ignora al admin y las páginas privadas; las rutas desconocidas se agrupan en `/otras`. |
 | `is_admin()` | Todos | Usada por las políticas de seguridad. |
@@ -335,6 +345,7 @@ Código en `supabase/functions/`. Se despliegan en Supabase.
 | Función | Autenticación | Qué hace |
 |---|---|---|
 | `ebook-download` | Sesión del cliente (JWT) | Verifica que el usuario tenga acceso al e-book y descarga el PDF del bucket privado. Agrega en cada página, arriba del pie, la línea *"E-book adquirido por {email} - Pedido #N"* y guarda email y pedido en los metadatos del PDF. |
+| `notify-admin` | Sesión (JWT) | Manda la notificación push al celu de la admin: pedido nuevo o comprobante (solo del propio cliente, pedido reciente, una vez por tipo) o `{ test: true }` desde la admin. Usa `web-push` y las claves de Vault. |
 | `verify-receipt` | Sesión del cliente (JWT) | Para pedidos solo digitales: lee el comprobante con Claude (`ANTHROPIC_API_KEY`) y valida destinatario, monto, fecha, señales de edición y número de operación. Llama a `finish_receipt_check`, que habilita todo si pasa. |
 | `admin-upload` | Token de `admin_upload_tokens` (encabezado `x-upload-token`) | `?ebook=<id>&name=` sube el PDF de un e-book y lo vincula (borra el anterior). `?social=<ruta>` sube PNG, JPG, PDF o MP4 al bucket público `social` y devuelve la URL. |
 | `uala` | Sesión del cliente (se valida adentro), `?webhook=1` sin sesión, o `check` para el admin | Pago con tarjeta por Ualá Bis (API v2). Los clientes solo pueden pagar con tarjeta en producción y con la casilla activada; en modo prueba solo el admin (así nadie usa la tarjeta de prueba pública). `check` (botón "Probar conexión con Ualá") pide un token y dice qué secretos están cargados, sin mostrarlos. `create` arma el link de pago con el total más el costo de Ualá (`card_fee`, 4,9% + IVA = 5,929%, redondeado hacia arriba a $10; el monto se manda a Ualá **en pesos**, aunque su documentación diga centavos) y lo reutiliza 30 minutos. `sync` (al volver del pago) y el webhook **vuelven a consultar la orden en Ualá con nuestro token** antes de llamar a `mark_card_payment`: el aviso de Ualá no está firmado, así que nunca se le cree directamente. Si el monto o la referencia no coinciden, queda como `REVISAR_…` para el admin. Secretos: `UALA_USERNAME`, `UALA_CLIENT_ID`, `UALA_CLIENT_SECRET`, `UALA_ENV` (`stage` o `production`; sin valor usa stage). |
@@ -481,3 +492,4 @@ Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebook
 | 28/09 | El Kit Búsqueda Laboral pasa a ser la primera tarjeta de Guías (orden 29); en tablet y compu las guías se acomodan con la última fila centrada; /gratis presenta primero el Kit |
 | 28/09 | Panel con pestaña **Inicio** (saludo, pedidos a gestionar con plazo restante, métricas del mes, más vendidos, visitas y reporte Excel anual con la marca); la admin entra directo al panel; contador de visitas anónimo propio (`site_visits`) y política de privacidad actualizada |
 | 28/09 | Frases motivacionales personales en el saludo del panel; embudo "Del clic a la venta" (`site_events`); plazo de entrega y mensajes de WhatsApp listos en cada pedido; "Ajustes incluidos" junto a los precios de los packs |
+| 29/09 | App del panel para el celu ("Panel ACV"), notificaciones push de pedidos y comprobantes (`notify-admin`, Vault), y carga de ventas por WhatsApp pegando o compartiendo la nota (`admin_record_sale`, `orders.source`, pedidos sin cuenta de cliente) |

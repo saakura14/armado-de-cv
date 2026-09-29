@@ -43,7 +43,7 @@ function TaskRow({ task, onOpen }: { task: Task; onOpen: () => void }) {
   return (
     <li className="flex flex-col gap-3 border-b border-line py-4 last:border-0 sm:flex-row sm:items-center">
       <div className="min-w-0 flex-1">
-        <p className="font-display text-xs font-semibold uppercase tracking-wider text-piedra">#{order.number}{isTestOrder(order) ? ' · prueba' : ''} · {formatARS(order.total)}</p>
+        <p className="font-display text-xs font-semibold uppercase tracking-wider text-piedra">#{order.number}{isTestOrder(order) ? ' · prueba' : ''}{order.source === 'whatsapp' ? ' · WhatsApp' : ''} · {formatARS(order.total)}</p>
         <p className="mt-0.5 truncate font-bold text-ink">{name}</p>
         <p className="truncate text-sm text-piedra">{products}</p>
       </div>
@@ -71,11 +71,12 @@ function Delta({ value, previous }: { value: number | null; previous: string }) 
   return <p className="mt-1 flex items-center gap-1 text-xs text-piedra"><Icon className={`h-3.5 w-3.5 ${up ? 'text-whatsapp' : 'text-rosa-deep'}`} />{up ? '+' : ''}{percent.format(value)} vs {previous}</p>
 }
 
-function Tile({ label, value, delta, previous }: { label: string; value: string; delta: number | null; previous: string }) {
+function Tile({ label, value, delta, previous, note }: { label: string; value: string; delta: number | null; previous: string; note?: string }) {
   return (
     <div className="rounded-3xl bg-white p-5 shadow-[0_18px_40px_-34px_rgba(67,32,44,0.6)]">
       <p className="font-display text-xs font-semibold uppercase tracking-wider text-piedra">{label}</p>
       <p className="mt-2 font-display text-2xl font-extrabold text-ciruela sm:text-[28px]">{value}</p>
+      {note && <p className="text-xs font-semibold text-whatsapp">{note}</p>}
       <Delta value={delta} previous={previous} />
     </div>
   )
@@ -122,7 +123,7 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
       supabase.from('site_visits').select('day, path, visits, views').order('day'),
       supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('status', 'to_schedule'),
       supabase.from('site_events').select('day, event, count'),
-      supabase.from('orders').select('created_at').lt('number', 90000),
+      supabase.from('orders').select('created_at').lt('number', 90000).eq('source', 'web'),
     ])
     const failed = open.error ?? paid.error ?? traffic.error
     setError(failed ? errorMessage(failed) : '')
@@ -174,6 +175,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
   const topMax = Math.max(...top.map((item) => item.units), 1)
   const landings = Object.entries(visits.filter((row) => row.day.startsWith(month)).reduce<Record<string, number>>((acc, row) => ({ ...acc, [row.path]: (acc[row.path] ?? 0) + row.visits }), {})).sort((a, b) => b[1] - a[1]).slice(0, 4)
 
+  const whatsappSales = salesInMonth(month, sales).filter((sale) => sale.source === 'whatsapp').length
   const steps = funnel(month, visits, data.events, data.created, sales)
   const stepMax = Math.max(...steps.map((step) => step.value), 1)
 
@@ -231,7 +233,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
           </select>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <Tile label="Ventas" value={number.format(stats.sales)} delta={change(stats.sales, previous.sales)} previous={previousName} />
+          <Tile label="Ventas" value={number.format(stats.sales)} delta={change(stats.sales, previous.sales)} previous={previousName} note={whatsappSales ? `${whatsappSales} por WhatsApp` : undefined} />
           <Tile label="Facturado" value={formatARS(stats.revenue)} delta={change(stats.revenue, previous.revenue)} previous={previousName} />
           <Tile label="Ticket promedio" value={stats.sales ? formatARS(stats.average) : '—'} delta={change(stats.average, previous.average)} previous={previousName} />
           <Tile label="Visitas" value={number.format(stats.visits)} delta={change(stats.visits, previous.visits)} previous={previousName} />

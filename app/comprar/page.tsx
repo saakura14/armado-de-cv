@@ -12,6 +12,7 @@ import { errorMessage, supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 import { track } from '@/lib/pixel'
 import { countStep } from '@/components/visit-tracker'
+import { notifyAdmin } from '@/lib/push'
 
 // E-books and courses need nothing else from the buyer, so they skip the note.
 const NOTE_FIELD: Partial<Record<Delivery, { label: string; placeholder: string }>> = {
@@ -68,6 +69,7 @@ export default function CheckoutPage() {
     })
     if (rpcError) { setError(errorMessage(rpcError)); setBusy(false); return }
     track('Lead', { value: pending.total, currency: 'ARS', content_ids: [pending.item.product_id] })
+    notifyAdmin(data as string, 'new_order')
     clearPending()
     router.replace(`/cuenta/pedido/${data as string}`)
   }

@@ -12,10 +12,11 @@ export type Sale = {
   paid_at: string
   payment_method: Order['payment_method']
   customer_name: string | null
+  source: 'web' | 'whatsapp'
   order_items: { product_id: string; product_name: string; line_total: number }[]
 }
 
-export const SALE_SELECT = 'id, number, status, total, paid_at, payment_method, customer_name, order_items(product_id, product_name, line_total)'
+export const SALE_SELECT = 'id, number, status, total, paid_at, payment_method, customer_name, source, order_items(product_id, product_name, line_total)'
 
 export type VisitRow = { day: string; path: string; visits: number; views: number }
 export type EventRow = { day: string; event: 'lo_quiero' | 'checkout'; count: number }
@@ -31,7 +32,7 @@ export function funnel(key: string, visits: VisitRow[], events: EventRow[], crea
     { label: 'Tocaron "Lo quiero"', hint: 'miraron un producto', value: sum(inMonth.filter((row) => row.event === 'lo_quiero')) },
     { label: 'Llegaron a comprar', hint: 'cuenta y datos', value: sum(inMonth.filter((row) => row.event === 'checkout')) },
     { label: 'Confirmaron el pedido', hint: 'pedidos creados', value: created.filter((date) => monthKey(date) === key).length },
-    { label: 'Pagaron', hint: 'ventas', value: sales.filter((sale) => monthKey(sale.paid_at) === key).length },
+    { label: 'Pagaron', hint: 'ventas de la web', value: sales.filter((sale) => sale.source !== 'whatsapp' && monthKey(sale.paid_at) === key).length },
   ]
 }
 
