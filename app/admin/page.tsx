@@ -21,15 +21,16 @@ import { supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 
 const TABS = [
-  { id: 'inicio', label: 'Inicio', icon: Home },
-  { id: 'pedidos', label: 'Pedidos', icon: ShoppingBag },
-  { id: 'sesiones', label: 'Sesiones', icon: Video },
-  { id: 'productos', label: 'Packs y precios', icon: Tag },
-  { id: 'ebooks', label: 'E-books', icon: BookOpen },
-  { id: 'cursos', label: 'Cursos', icon: PlayCircle },
-  { id: 'sakura', label: 'Sakura (preguntas)', icon: HelpCircle },
-  { id: 'testimonios', label: 'Testimonios', icon: Star },
-  { id: 'pago', label: 'Datos de pago', icon: CreditCard },
+  // `short` fits the one-line tab bar on the computer; `label` is used in titles and the "Más" menu.
+  { id: 'inicio', label: 'Inicio', short: 'Inicio', icon: Home },
+  { id: 'pedidos', label: 'Pedidos', short: 'Pedidos', icon: ShoppingBag },
+  { id: 'sesiones', label: 'Sesiones', short: 'Sesiones', icon: Video },
+  { id: 'productos', label: 'Packs y precios', short: 'Precios', icon: Tag },
+  { id: 'ebooks', label: 'E-books', short: 'E-books', icon: BookOpen },
+  { id: 'cursos', label: 'Cursos', short: 'Cursos', icon: PlayCircle },
+  { id: 'sakura', label: 'Sakura (preguntas)', short: 'Sakura', icon: HelpCircle },
+  { id: 'testimonios', label: 'Testimonios', short: 'Testimonios', icon: Star },
+  { id: 'pago', label: 'Datos de pago', short: 'Cobros', icon: CreditCard },
 ] as const
 type TabId = (typeof TABS)[number]['id']
 const isTab = (value: unknown): value is TabId => TABS.some((item) => item.id === value)
@@ -135,8 +136,7 @@ export default function AdminPage() {
       <header className="sticky top-0 z-40 border-b border-line/70 bg-blanco/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:h-16">
           <AdminLogo />
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => openOverlay(() => setSale(''))} className="hidden min-h-10 items-center gap-2 rounded-full bg-whatsapp px-4 py-2 font-display text-sm font-bold text-white shadow-sm hover:brightness-95 lg:inline-flex"><WhatsAppIcon className="h-4 w-4" />Venta por WhatsApp</button>
+          <div className="flex items-center gap-3">
             <button type="button" onClick={() => openOverlay(() => setAccount(true))} aria-label="Tu cuenta" className="rounded-full ring-2 ring-transparent transition hover:ring-rosa/40">
               <Avatar src={avatarUrl} size="h-9 w-9" />
             </button>
@@ -144,11 +144,11 @@ export default function AdminPage() {
         </div>
         {/* Desktop: all sections as tabs */}
         <nav aria-label="Secciones del panel" className="mx-auto hidden max-w-6xl px-6 lg:block">
-          <ul className="flex gap-1">
-            {TABS.map(({ id, label, icon: Icon }) => (
+          <ul className="-mx-3 flex gap-0.5 overflow-x-auto xl:justify-between">
+            {TABS.map(({ id, label, short, icon: Icon }) => (
               <li key={id}>
-                <button type="button" onClick={() => select(id)} aria-current={tab === id ? 'page' : undefined} className={`relative flex items-center gap-2 px-3 pb-3 pt-1 font-display text-sm font-semibold transition-colors ${tab === id ? 'text-ciruela after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-rosa' : 'text-piedra hover:text-ciruela'}`}>
-                  <Icon className="h-4 w-4" />{label}
+                <button type="button" onClick={() => select(id)} aria-current={tab === id ? 'page' : undefined} title={label} className={`relative flex items-center gap-1.5 whitespace-nowrap px-3 pb-3 pt-1 font-display text-sm font-semibold transition-colors ${tab === id ? 'text-ciruela after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-rosa' : 'text-piedra hover:text-ciruela'}`}>
+                  <Icon className="h-4 w-4 shrink-0" />{short}
                   {badge(id) > 0 && <span className="rounded-full bg-rosa px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">{badge(id)}</span>}
                 </button>
               </li>
@@ -196,6 +196,12 @@ export default function AdminPage() {
           </li>
         </ul>
       </nav>
+
+      {/* Computer: WhatsApp sale as a floating button (on the phone it sits in the middle of the bottom bar) */}
+      <button type="button" onClick={() => openOverlay(() => setSale(''))} aria-label="Venta por WhatsApp" className="group fixed bottom-6 right-6 z-30 hidden h-14 items-center gap-2 rounded-full bg-whatsapp pl-4 pr-4 font-display text-sm font-bold text-white shadow-xl shadow-whatsapp/30 transition-all hover:pr-5 lg:flex">
+        <WhatsAppIcon className="h-6 w-6 shrink-0" />
+        <span className="max-w-0 overflow-hidden whitespace-nowrap transition-all duration-200 group-hover:max-w-40 group-focus-visible:max-w-40">Venta por WhatsApp</span>
+      </button>
 
       {/* "Más": the rest of the sections */}
       {more && (

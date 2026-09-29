@@ -55,7 +55,7 @@ export function AppSetup({ userId }: { userId: string }) {
   if (installed && push === 'on' && !message) {
     return (
       <p className="flex flex-wrap items-center gap-2 text-sm text-piedra">
-        <BellRing className="h-4 w-4 text-whatsapp" />Notificaciones activadas en este celu.
+        <BellRing className="h-4 w-4 text-whatsapp" />Notificaciones activadas en este dispositivo.
         <button type="button" className="font-semibold text-rosa-deep hover:underline" onClick={() => run('test', async () => { await sendTestPush(); return 'Te mandé una notificación de prueba.' })}>Probar</button>
       </p>
     )
