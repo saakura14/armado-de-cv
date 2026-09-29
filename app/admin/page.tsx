@@ -20,6 +20,7 @@ import { SessionsAdmin } from '@/components/admin/sessions-admin'
 import { TestimonialsAdmin } from '@/components/admin/testimonials-admin'
 import { formatARS } from '@/lib/catalog'
 import { setAppBadge, syncPush } from '@/lib/push'
+import { countSessionsToSchedule } from '@/lib/sessions'
 import { supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 
@@ -100,8 +101,8 @@ export default function AdminPage() {
     Promise.all([
       supabase.from('orders').select('id', { count: 'exact', head: true })
         .or('seen_at.is.null,status.eq.payment_review,payment_check.eq.pending').neq('status', 'cancelled').lt('number', 90000),
-      supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('status', 'to_schedule'),
-    ]).then(([orders, sessions]) => setCounts({ orders: orders.count ?? 0, sessions: sessions.count ?? 0 }))
+      countSessionsToSchedule(),
+    ]).then(([orders, sessions]) => setCounts({ orders: orders.count ?? 0, sessions }))
   }, [])
 
   useEffect(() => { if (isAdmin) recount() }, [isAdmin, tab, refresh, recount])

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, Camera, ClipboardCheck, Clock, Megaphone } from 'lucide-react'
+import { ArrowRight, Camera, ClipboardCheck, Clock, Megaphone, Zap } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { ProductGrid } from '@/components/product-grid'
 import { Faq, HowToBuy, SectionTitle } from '@/components/sections'
@@ -35,7 +35,7 @@ const steps = [
 export default async function Home() {
   const [cvProducts, guides, faqs] = await Promise.all([getProducts(['cv']), getProducts(['guias']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
   const extraPrice = (id: string) => cvProducts.flatMap((product) => product.extras).find((group) => group.id === id)?.unitPrice ?? 15000
-  const price = { language: extraPrice('idiomas'), from: cvProducts.length > 0 ? Math.min(...cvProducts.map((product) => product.price)) : null }
+  const price = { language: extraPrice('idiomas'), express: extraPrice('express'), from: cvProducts.length > 0 ? Math.min(...cvProducts.map((product) => product.price)) : null }
   return (
     <>
       {/* Hero */}
@@ -51,7 +51,7 @@ export default async function Home() {
               <a href="#precios" className="inline-flex min-h-12 items-center justify-center rounded-full bg-rosa px-7 py-3.5 font-display font-bold text-white shadow-lg shadow-rosa/25 transition-colors hover:bg-rosa-deep">{price.from ? `Ver packs · desde ${formatARS(price.from)}` : 'Ver packs y precios'}</a>
               <a href={whatsappUrl('¡Hola! Quiero consultar por el armado de mi CV.')} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-ciruela/15 px-6 py-3 font-display font-bold text-ciruela hover:border-whatsapp hover:text-whatsapp"><WhatsAppIcon className="h-5 w-5" />Consultar</a>
             </div>
-            <p className="mt-6 flex items-center gap-2 text-sm text-piedra"><Clock className="h-4 w-4 text-rosa" />3 a 4 días hábiles · Express en 24 hs hábiles</p>
+            <p className="mt-6 flex items-center gap-2 text-sm text-piedra"><Clock className="h-4 w-4 text-rosa" />3 a 4 días hábiles · Express en 24 hs hábiles · <a href="#urgente" className="font-semibold text-rosa-deep hover:underline">¿Urgente?</a></p>
           </div>
           <Image src="/img/hero-banner.jpg" alt="Valeria mostrando un CV y un perfil de LinkedIn en el celular" width={1472} height={704} priority className="h-64 w-full object-cover object-[78%_center] sm:h-80 lg:hidden" />
         </div>
@@ -85,6 +85,19 @@ export default async function Home() {
         <div className="mx-auto max-w-6xl">
           <SectionTitle id="cv-title" script="Catálogo" title="Packs de CV y LinkedIn" text="Cada pack incluye dos CV: uno con diseño moderno y otro optimizado para los filtros ATS que usan las empresas." />
           <ProductGrid products={cvProducts} tone="cv" />
+          {/* Urgent orders: Express is picked in the order; a specific time is quoted by WhatsApp. */}
+          <div id="urgente" className="mt-14 scroll-mt-28 overflow-hidden rounded-[28px] bg-ciruela text-white shadow-[0_22px_44px_-30px_rgba(67,32,44,0.8)] md:grid md:grid-cols-2">
+            <div className="p-6 sm:p-8">
+              <p className="font-script text-4xl leading-none text-petalo">¿Lo necesitás urgente?</p>
+              <p className="mt-4 flex items-center gap-2 font-display text-lg font-bold"><Zap className="h-5 w-5 text-petalo" />Versión Express: en 24 hs hábiles</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-white/80">Sumala a cualquier pack al tocar &quot;Lo quiero&quot;. <b className="text-white">+{formatARS(price.express)}</b>. Avisame antes de que empiece a trabajar.</p>
+            </div>
+            <div className="border-t border-white/10 bg-white/5 p-6 sm:p-8 md:border-l md:border-t-0">
+              <p className="flex items-center gap-2 font-display text-lg font-bold"><Clock className="h-5 w-5 text-petalo" />¿Lo necesitás para un horario puntual?</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-white/80">Por ejemplo, para hoy a la tarde o antes de una entrevista. Escribime con el horario y te cotizo en el momento según disponibilidad.</p>
+              <a href={whatsappUrl('¡Hola! Necesito mi CV para un horario puntual: ____. ¿Me cotizás?')} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-5 py-2.5 font-display text-sm font-bold text-white hover:brightness-95"><WhatsAppIcon className="h-4 w-4" />Consultar por WhatsApp</a>
+            </div>
+          </div>
           <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <div className="rounded-3xl bg-petalo-wash px-6 py-5">
               <h3 className="font-bold text-ciruela">Idiomas y plataformas</h3>

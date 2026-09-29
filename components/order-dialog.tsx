@@ -205,7 +205,8 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
               const option = group.options[0]
               const on = list.includes(option.id)
               return (
-                <button key={group.id} type="button" role="switch" aria-checked={on} onClick={() => toggle(group.id, option.id)} className={`flex w-full items-center gap-4 rounded-2xl border-2 p-4 text-left transition-all duration-200 ${on ? 'border-rosa bg-petalo-wash' : 'border-line bg-white hover:border-petalo'}`}>
+                <div key={group.id}>
+                <button type="button" role="switch" aria-checked={on} onClick={() => toggle(group.id, option.id)} className={`flex w-full items-center gap-4 rounded-2xl border-2 p-4 text-left transition-all duration-200 ${on ? 'border-rosa bg-petalo-wash' : 'border-line bg-white hover:border-petalo'}`}>
                   <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${on ? 'bg-rosa text-white' : 'bg-arena text-ciruela'}`}>{groupIcon(group)}</span>
                   <span className="flex-1">
                     <span className="block font-display text-sm font-bold text-ciruela">{option.label}</span>
@@ -216,6 +217,12 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
                     <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all duration-200 ${on ? 'left-6' : 'left-1'}`} />
                   </span>
                 </button>
+                {group.id === 'express' && (
+                  <a href={whatsappUrl(`¡Hola! Quiero el ${product.name} para un horario puntual: ____. ¿Me cotizás?`)} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 px-1 text-xs font-semibold text-whatsapp hover:underline">
+                    <WhatsAppIcon className="h-3.5 w-3.5" />¿Lo necesitás para un horario puntual? Escribime y te cotizo en el momento
+                  </a>
+                )}
+                </div>
               )
             }
 

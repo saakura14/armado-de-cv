@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Video } from 'lucide-react'
 import { formatDate } from '@/lib/orders'
+import { SESSION_ORDER_SELECT, waitsForCv, type SessionOrder } from '@/lib/sessions'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, Field, cardClass, inputClass, useFlash } from './ui'
 
 type Session = {
   id: string; order_id: string; user_id: string; title: string; duration_minutes: number
   status: 'to_schedule' | 'scheduled' | 'done' | 'cancelled'; scheduled_at: string | null; meet_url: string | null; admin_note: string | null
-  orders: { number: number; customer_name: string | null; customer_phone: string | null } | null
+  orders: ({ number: number; customer_name: string | null; customer_phone: string | null } & NonNullable<SessionOrder>) | null
 }
 
 const LABEL: Record<Session['status'], string> = { to_schedule: 'A coordinar', scheduled: 'Agendada', done: 'Realizada', cancelled: 'Cancelada' }
@@ -41,15 +42,17 @@ function SessionCard({ session, onChanged }: { session: Session; onChanged: () =
     else { flash.show('ok', 'Guardado. El cliente ya lo ve en "Mi cuenta".'); onChanged() }
   }
 
+  const waiting = waitsForCv(session)
   return (
-    <li className={cardClass}>
+    <li className={`${cardClass} ${waiting ? 'opacity-80' : ''}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="font-bold text-ink">{session.title}</p>
           <p className="text-sm text-piedra">Pedido #{session.orders?.number} · {session.orders?.customer_name ?? 'Cliente'}{session.orders?.customer_phone ? ` · ${session.orders.customer_phone}` : ''} · {session.duration_minutes} min</p>
         </div>
-        <span className="rounded-full bg-arena px-3 py-1 font-display text-xs font-bold text-ciruela">{LABEL[session.status]}</span>
+        <span className={`rounded-full px-3 py-1 font-display text-xs font-bold ${waiting ? 'bg-papel text-piedra' : 'bg-arena text-ciruela'}`}>{waiting ? 'Después del CV' : LABEL[session.status]}</span>
       </div>
+      {waiting && <p className="mt-3 rounded-2xl bg-papel px-3 py-2 text-sm text-ink">Primero va el CV de este pedido. Cuando lo marques como entregado, la sesión pasa a &quot;A coordinar&quot;.</p>}
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Field label="Día y hora"><input type="datetime-local" value={when} onChange={(event) => setWhen(event.target.value)} className={inputClass} /></Field>
         <Field label="Link de Google Meet"><input type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://meet.google.com/..." className={inputClass} /></Field>
@@ -73,10 +76,12 @@ export function SessionsAdmin() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    let query = supabase.from('sessions').select('*, orders(number, customer_name, customer_phone)').order('scheduled_at', { ascending: true, nullsFirst: true })
+    let query = supabase.from('sessions').select(`*, ${SESSION_ORDER_SELECT}`).order('scheduled_at', { ascending: true, nullsFirst: true })
     if (!showPast) query = query.in('status', ['to_schedule', 'scheduled'])
     const { data } = await query
-    setSessions((data as Session[] | null) ?? [])
+    // Ready to schedule first; the ones waiting for the CV go last.
+    const list = (data as Session[] | null) ?? []
+    setSessions([...list.filter((session) => !waitsForCv(session)), ...list.filter((session) => waitsForCv(session))])
     setLoading(false)
   }, [showPast])
 
