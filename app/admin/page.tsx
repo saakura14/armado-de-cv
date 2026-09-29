@@ -10,10 +10,10 @@ import { WhatsappSaleDialog } from '@/components/admin/whatsapp-sale-dialog'
 import { UpdateBanner } from '@/components/admin/update-banner'
 import { AuthPanel } from '@/components/auth-panel'
 import { CoursesAdmin } from '@/components/admin/courses-admin'
-import { DashboardAdmin } from '@/components/admin/dashboard-admin'
+import { DashboardAdmin, type OpenTarget } from '@/components/admin/dashboard-admin'
 import { EbooksAdmin } from '@/components/admin/ebooks-admin'
 import { FaqsAdmin } from '@/components/admin/faqs-admin'
-import { OrdersAdmin } from '@/components/admin/orders-admin'
+import { OrdersAdmin, type Filter } from '@/components/admin/orders-admin'
 import { PaymentAdmin } from '@/components/admin/payment-admin'
 import { ProductsAdmin } from '@/components/admin/products-admin'
 import { SessionsAdmin } from '@/components/admin/sessions-admin'
@@ -49,6 +49,8 @@ export default function AdminPage() {
   const [more, setMore] = useState(false)
   const [account, setAccount] = useState(false)
   const [refresh, setRefresh] = useState(0)
+  // How Pedidos opens when coming from the home: a status filter or one order ("#7").
+  const [ordersView, setOrdersView] = useState<{ filter: Filter; search: string } | null>(null)
   const historyReady = useRef(false)
 
   useEffect(() => {
@@ -97,7 +99,8 @@ export default function AdminPage() {
     ]).then(([orders, sessions]) => setCounts({ review: orders.count ?? 0, sessions: sessions.count ?? 0 }))
   }, [isAdmin, tab, refresh])
 
-  const select = useCallback((id: TabId) => {
+  const select = useCallback((id: TabId, view: { filter: Filter; search: string } | null = null) => {
+    setOrdersView(view)
     setMore(false); setAccount(false)
     if (id === tab && history.state?.acv === 'tab') return
     // From a menu window, replace its entry so "back" doesn't reopen it.
@@ -106,6 +109,11 @@ export default function AdminPage() {
     setTab(id)
     window.scrollTo(0, 0)
   }, [tab])
+
+  const openFromHome = useCallback((target: OpenTarget) => {
+    if (target.tab === 'sesiones') { select('sesiones'); return }
+    select('pedidos', target.order ? { filter: 'todos', search: `#${target.order}` } : { filter: target.filter ?? 'activos', search: '' })
+  }, [select])
 
   // Windows (menu, account, WhatsApp sale) get their own history entry so "back" closes them.
   function openOverlay(open: () => void) {
@@ -164,10 +172,10 @@ export default function AdminPage() {
           {tab === 'inicio' && (
             <div className="space-y-6">
               <AppSetup userId={user.id} />
-              <DashboardAdmin firstName={profile?.full_name?.trim().split(/\s+/)[0] || 'Vale'} onOpen={select} />
+              <DashboardAdmin firstName={profile?.full_name?.trim().split(/\s+/)[0] || 'Vale'} onOpen={openFromHome} />
             </div>
           )}
-          {tab === 'pedidos' && <OrdersAdmin />}
+          {tab === 'pedidos' && <OrdersAdmin key={`${ordersView?.filter}-${ordersView?.search}`} initialFilter={ordersView?.filter} initialSearch={ordersView?.search} />}
           {tab === 'sesiones' && <SessionsAdmin />}
           {tab === 'productos' && <ProductsAdmin />}
           {tab === 'ebooks' && <EbooksAdmin />}
