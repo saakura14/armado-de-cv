@@ -7,6 +7,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { Avatar } from '@/components/avatar'
 import { AppSetup } from '@/components/admin/app-setup'
 import { WhatsappSaleDialog } from '@/components/admin/whatsapp-sale-dialog'
+import { UpdateBanner } from '@/components/admin/update-banner'
 import { AuthPanel } from '@/components/auth-panel'
 import { CoursesAdmin } from '@/components/admin/courses-admin'
 import { DashboardAdmin } from '@/components/admin/dashboard-admin'
@@ -233,6 +234,7 @@ export default function AdminPage() {
         </Sheet>
       )}
 
+      <UpdateBanner />
       {sale !== null && <WhatsappSaleDialog initialText={sale} onClose={closeOverlay} onSaved={() => setRefresh((value) => value + 1)} />}
     </div>
   )
