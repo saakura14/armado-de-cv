@@ -58,7 +58,7 @@ export function SaleItemsEditor({ items, onChange, products, extras, onlyOffered
           return (
             <li key={index} className="rounded-xl bg-papel p-3">
               <div className="flex items-center gap-2">
-                <select value={item.productId ?? ''} aria-label="Producto" className={inputClass}
+                <select value={item.productId ?? ''} aria-label="Producto" className={`${inputClass} min-w-0`}
                   onChange={(event) => change((copy) => {
                     copy[index].productId = event.target.value || null
                     // Add-ons the new product doesn't offer are dropped when only offered ones are allowed.
@@ -84,7 +84,7 @@ export function SaleItemsEditor({ items, onChange, products, extras, onlyOffered
                   )
                 })}
                 {available.length > 0 && (
-                  <select value="" aria-label="Agregar adicional" className="rounded-full border border-dashed border-rosa/50 bg-white px-2.5 py-1 text-xs font-semibold text-rosa-deep"
+                  <select value="" aria-label="Agregar adicional" className="min-w-0 max-w-full rounded-full border border-dashed border-rosa/50 bg-white px-2.5 py-1 text-xs font-semibold text-rosa-deep"
                     onChange={(event) => { const [groupId, optionId] = event.target.value.split('|'); if (groupId) change((copy) => { copy[index].extras.push({ groupId, optionId }); return copy }) }}>
                     <option value="">+ Adicional</option>
                     {available.map((extra) => <option key={`${extra.groupId}|${extra.optionId}`} value={`${extra.groupId}|${extra.optionId}`}>{extra.label === extra.groupLabel ? extra.label : `${extra.groupLabel}: ${extra.label}`} · {formatARS(extra.price)}</option>)}

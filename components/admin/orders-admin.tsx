@@ -1,5 +1,7 @@
 'use client'
 
+import { SaleItemsEditor, useSaleCatalog } from './sale-items'
+import type { SaleItem } from '@/lib/whatsapp-sale'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw, Hourglass } from 'lucide-react'
 import { useHideMoney } from '@/lib/hide-money'
@@ -59,7 +61,7 @@ function openBusinessWhatsapp(event: React.MouseEvent<HTMLAnchorElement>, link: 
   }
 }
 
-/** Fix a WhatsApp sale loaded with a mistake: amount charged, name, phone and payment date. */
+/** Fix or complete a WhatsApp sale: what was bought (e.g. Express added later), amount charged, name, phone and payment date. */
 function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }) {
   const toDay = (value: string | null) => (value ? new Date(new Date(value).getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10) : '')
   const [open, setOpen] = useState(false)
@@ -67,11 +69,30 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
   const [name, setName] = useState(order.customer_name ?? '')
   const [phone, setPhone] = useState(order.customer_phone ?? '')
   const [date, setDate] = useState(toDay(order.paid_at))
+  const initialItems: SaleItem[] = order.order_items.map((item) => ({ productId: item.product_id, extras: item.extras.map((extra) => ({ groupId: extra.group_id, optionId: extra.option_id })) }))
+  const [items, setItems] = useState<SaleItem[]>(initialItems)
+  // The amount follows the prices while it isn't typed by hand.
+  const [totalTouched, setTotalTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
+  const { products, extras, totalOf } = useSaleCatalog()
+  const itemsChanged = JSON.stringify(items) !== JSON.stringify(initialItems)
+
+  function changeItems(next: SaleItem[]) {
+    setItems(next)
+    if (!totalTouched) setTotal(String(totalOf(next)))
+  }
 
   async function save() {
     setBusy(true)
+    if (itemsChanged) {
+      const { error } = await supabase.rpc('admin_update_whatsapp_sale_items', {
+        p_order: order.id,
+        p_items: items.map((item) => ({ product_id: item.productId, extras: item.extras.map((extra) => ({ group_id: extra.groupId, option_id: extra.optionId })) })),
+        p_total: Number(total),
+      })
+      if (error) { setBusy(false); flash.show('error', errorMessage(error)); return }
+    }
     const { error } = await supabase.rpc('admin_update_whatsapp_sale', {
       p_order: order.id, p_total: Number(total), p_name: name, p_phone: phone,
       p_paid_on: date && date !== toDay(order.paid_at) ? date : null,
@@ -85,19 +106,22 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
   if (!open) {
     return <button type="button" onClick={() => setOpen(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-rosa-deep hover:underline"><Pencil className="h-3.5 w-3.5" />Editar venta</button>
   }
-  const lines = order.order_items.reduce((sum, item) => sum + item.line_total, 0)
+  const lines = totalOf(items)
   return (
     <div className="mt-3 rounded-2xl border border-rosa/40 bg-petalo-wash/60 p-4">
       <p className="font-display text-sm font-bold text-ciruela">Editar venta por WhatsApp</p>
-      <div className="mt-2 grid grid-cols-2 gap-3">
+      <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-piedra">Qué compró</p>
+      <SaleItemsEditor items={items} onChange={changeItems} products={products} extras={extras} />
+      <div className="mt-3 grid grid-cols-2 gap-3">
         <label className="col-span-2 text-xs font-semibold uppercase tracking-wider text-piedra sm:col-span-1">Cliente<input value={name} onChange={(event) => setName(event.target.value)} className={inputClass} /></label>
         <label className="col-span-2 text-xs font-semibold uppercase tracking-wider text-piedra sm:col-span-1">WhatsApp<input type="tel" inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className={inputClass} /></label>
         <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Fecha de pago<input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={inputClass} /></label>
-        <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Cobraste<input inputMode="numeric" value={total} onChange={(event) => setTotal(event.target.value.replace(/\D/g, ''))} className={inputClass} /></label>
+        <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Cobraste<input inputMode="numeric" value={total} onChange={(event) => { setTotal(event.target.value.replace(/\D/g, '')); setTotalTouched(true) }} className={inputClass} /></label>
       </div>
-      {lines !== Number(total) && <p className="mt-2 text-xs text-piedra">Según los precios de lo que compró: {formatARS(lines)}.</p>}
+      {lines > 0 && lines !== Number(total) && <p className="mt-2 text-xs text-piedra">Según los precios de lo que compró: {formatARS(lines)}. <button type="button" className="font-semibold text-rosa-deep hover:underline" onClick={() => { setTotal(String(lines)); setTotalTouched(false) }}>usar ese</button></p>}
+      {itemsChanged && items.some((item) => item.extras.some((extra) => extra.groupId === 'express')) && <p className="mt-2 text-xs font-semibold text-ciruela">Con Express, el plazo pasa a 24 hs hábiles desde la fecha de pago.</p>}
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button busy={busy} disabled={!name.trim() || !(Number(total) > 0)} onClick={save}>Guardar cambios</Button>
+        <Button busy={busy} disabled={!name.trim() || !(Number(total) > 0) || !items.length || items.some((item) => !item.productId)} onClick={save}>Guardar cambios</Button>
         <Button variant="secondary" onClick={() => setOpen(false)}>Cancelar</Button>
       </div>
       {flash.node && <div className="mt-3">{flash.node}</div>}
