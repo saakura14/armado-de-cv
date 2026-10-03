@@ -12,7 +12,7 @@ export function BottomNav() {
   const whatsapp = whatsappUrl('¡Hola! Quiero hacer una consulta.')
   const base = pathname.startsWith('/asesorias') ? '/asesorias' : '/'
   // Private pages (admin, checkout) keep the whole screen for their own actions.
-  if (pathname.startsWith('/admin') || pathname.startsWith('/comprar')) return null
+  if (pathname.startsWith('/admin') || pathname.startsWith('/equipo') || pathname.startsWith('/comprar')) return null
   const item = 'flex flex-col items-center gap-0.5 py-2.5 font-display text-[11px] font-semibold'
   return (
     <>

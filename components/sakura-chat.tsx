@@ -80,7 +80,7 @@ export function SakuraChat() {
     setMessages((list) => [...list, { from: 'user', text: question }, { from: 'sakura', text: best.faq.answer, suggestions: others.length ? others : undefined }])
   }
 
-  if (pathname.startsWith('/admin') || pathname.startsWith('/comprar')) return null
+  if (pathname.startsWith('/admin') || pathname.startsWith('/equipo') || pathname.startsWith('/comprar')) return null
 
   return (
     <>

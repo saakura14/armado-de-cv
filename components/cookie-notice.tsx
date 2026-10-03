@@ -9,7 +9,7 @@ import { setConsent, useConsent } from '@/lib/consent'
 export function CookieNotice() {
   const pathname = usePathname()
   const { consent, ready } = useConsent()
-  if (!ready || consent || pathname.startsWith('/admin')) return null
+  if (!ready || consent || pathname.startsWith('/admin') || pathname.startsWith('/equipo')) return null
   // Above the phone's bottom bar (checkout has none); bottom left on desktop, away from WhatsApp and Sakura.
   const position = pathname.startsWith('/comprar') ? 'bottom-[calc(12px+env(safe-area-inset-bottom))]' : 'bottom-[calc(76px+env(safe-area-inset-bottom))]'
   return (
