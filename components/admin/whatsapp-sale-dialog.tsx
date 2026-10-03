@@ -6,10 +6,11 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { parseSales, type ParsedSale } from '@/lib/whatsapp-sale'
+import { ORIGIN_LABEL, type Origin } from '@/lib/dashboard'
 import { SaleItemsEditor, useSaleCatalog } from './sale-items'
 import { Button, inputClass } from './ui'
 
-type Row = ParsedSale & { key: number; total: string; totalEdited: boolean; phone: string; delivered: boolean }
+type Row = ParsedSale & { key: number; total: string; totalEdited: boolean; phone: string; delivered: boolean; origin: Origin | '' }
 
 const EXAMPLE = 'Cecilia Sanchez / Pack premium + pack medium + servicio de linkedin 29/09\nJuan Pérez / Pack Medium + express 27/09'
 const daysAgo = (date: string) => (Date.now() - new Date(`${date}T12:00:00-03:00`).getTime()) / 86400000
@@ -42,6 +43,7 @@ export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { ini
       phone: '',
       // Never assumed: an old sale can still be in progress (corrections, customer delays).
       delivered: false,
+      origin: '',
     })))
   }, [text, products, extras])
 
@@ -70,6 +72,8 @@ export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { ini
         return
       }
       numbers.push(Number(data))
+      // Where this customer came from, for the dashboard ("De dónde vinieron las ventas").
+      if (row.origin) await supabase.rpc('admin_set_order_origin', { p_number: Number(data), p_origin: row.origin })
     }
     setBusy(false)
     setSaved(numbers)
@@ -131,6 +135,12 @@ export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { ini
                       )}
                       <label className={`col-span-2 ${label}`}>WhatsApp (opcional)
                         <input type="tel" inputMode="tel" value={row.phone} onChange={(event) => update(row.key, { phone: event.target.value })} placeholder="11 2345-6789" className={inputClass} />
+                      </label>
+                      <label className={`col-span-2 ${label}`}>¿Cómo te conoció?
+                        <select value={row.origin} onChange={(event) => update(row.key, { origin: event.target.value as Origin | '' })} className={inputClass}>
+                          <option value="">Elegí una opción</option>
+                          {(['anuncio', 'instagram', 'recomendacion', 'google', 'web', 'otro'] as Origin[]).map((origin) => <option key={origin} value={origin}>{ORIGIN_LABEL[origin]}</option>)}
+                        </select>
                       </label>
                     </div>
                     <label className="mt-3 flex items-center gap-2 text-sm text-ink"><input type="checkbox" checked={row.delivered} onChange={(event) => update(row.key, { delivered: event.target.checked })} className="accent-rosa" />Ya lo entregué{daysAgo(row.date) > 7 && !row.delivered && <span className="text-xs text-piedra">(si todavía no, dejalo sin tildar: queda En proceso)</span>}</label>
