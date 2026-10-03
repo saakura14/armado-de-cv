@@ -2,7 +2,7 @@
 
 import { SaleItemsEditor, useSaleCatalog } from './sale-items'
 import type { SaleItem } from '@/lib/whatsapp-sale'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw, Hourglass } from 'lucide-react'
 import { useHideMoney } from '@/lib/hide-money'
 import { HideMoneyButton } from './hide-money-button'
@@ -10,6 +10,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, type Order, type OrderStatus } from '@/lib/orders'
 import { deliveryDeadline, formatDue } from '@/lib/dashboard'
+import { STAGES, kindsOf, moveTo, sortForStage, stageOf, toStage, todayReason, type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
 import { DeadlineChip } from './dashboard-admin'
 import { OrderLinkDialog } from './order-link-dialog'
 
@@ -17,22 +18,10 @@ import { OrderLinkDialog } from './order-link-dialog'
 type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null }
 const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url)`
 import { errorMessage, supabase } from '@/lib/supabase'
-import { Button, cardClass, inputClass, useFlash } from './ui'
+import { Button, inputClass, useFlash } from './ui'
 
-export type Filter = 'activos' | 'gestionar' | 'verificar' | 'whatsapp' | OrderStatus | 'todos'
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: 'activos', label: 'Para atender' },
-  { id: 'gestionar', label: 'A gestionar' },
-  { id: 'verificar', label: 'Verificar transferencia' },
-  { id: 'payment_review', label: 'Revisar pago' },
-  { id: 'pending_payment', label: 'Sin pagar' },
-  { id: 'paid', label: 'Pagados' },
-  { id: 'in_progress', label: 'En proceso' },
-  { id: 'delivered', label: 'Entregados' },
-  { id: 'cancelled', label: 'Cancelados' },
-  { id: 'whatsapp', label: 'De WhatsApp' },
-  { id: 'todos', label: 'Todos' },
-]
+/** Stages of the board, or an older view name (from the home or a notification) that is mapped to one. */
+export type Filter = Stage | LegacyFilter
 
 type Buyer = { id: string; email: string | null; full_name: string | null; phone: string | null }
 
@@ -188,7 +177,9 @@ function CanvaLink({ order }: { order: AdminOrder }) {
 // Same height and width for every action button on the card.
 const action = 'min-h-10 w-full px-3 text-center !text-[13px] leading-tight'
 
-function OrderCard({ order, buyer, fresh, onChanged }: { order: AdminOrder; buyer?: Buyer; fresh: boolean; onChanged: () => void }) {
+const REASON_TONE: Record<Reason['tone'], string> = { rojo: 'bg-rosa-deep text-white', naranja: 'bg-petalo-wash text-rosa-deep', rosa: 'bg-rosa text-white', arena: 'bg-arena text-ciruela' }
+
+function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { order: AdminOrder; buyer?: Buyer; fresh: boolean; reason?: Reason | null; onDragStart?: (event: React.DragEvent<HTMLLIElement>) => void; onChanged: () => void }) {
   const [busy, setBusy] = useState('')
   const [note, setNote] = useState(order.admin_note ?? '')
   const [more, setMore] = useState(false)
@@ -274,10 +265,11 @@ function OrderCard({ order, buyer, fresh, onChanged }: { order: AdminOrder; buye
   }
 
   return (
-    <li className="rounded-3xl bg-white p-4 shadow-[0_18px_40px_-34px_rgba(67,32,44,0.6)]">
+    <li draggable={Boolean(onDragStart)} onDragStart={onDragStart} className={`rounded-3xl bg-white p-4 shadow-[0_18px_40px_-34px_rgba(67,32,44,0.6)] ${onDragStart ? 'md:cursor-grab md:active:cursor-grabbing' : ''}`}>
       {/* Row 1: number, date, origin and status. Row 2: customer and amount, always side by side. */}
       <div className="flex items-start justify-between gap-3">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">
+          {reason && reason.label !== 'Nuevo' && <span className={`rounded-full px-2 py-0.5 tracking-normal ${REASON_TONE[reason.tone]}`}>{reason.label}</span>}
           {fresh && <span className="rounded-full bg-rosa px-2 py-0.5 tracking-normal text-white">Nuevo</span>}
           <span>#{order.number} · {formatDate(order.created_at, true)}</span>
           {order.source === 'whatsapp' && <span className="inline-flex items-center gap-1 rounded-full bg-whatsapp/15 px-2 py-0.5 normal-case tracking-normal text-whatsapp"><WhatsAppIcon className="h-3 w-3" />WhatsApp</span>}
@@ -386,7 +378,7 @@ function OrderCard({ order, buyer, fresh, onChanged }: { order: AdminOrder; buye
   )
 }
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 12
 
 /** Page numbers to show: first, last and the ones around the current page (null = "…"). */
 function pageList(current: number, pages: number): (number | null)[] {
@@ -398,9 +390,27 @@ function pageList(current: number, pages: number): (number | null)[] {
   return list
 }
 
-/** `initialFilter` / `initialSearch` come from the home (a status counter or "Ver" on one order, as "#7"). */
-export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: { initialFilter?: Filter; initialSearch?: string }) {
-  const [filter, setFilter] = useState<Filter>(initialFilter)
+const KINDS: { id: Kind | 'todos'; label: string }[] = [
+  { id: 'todos', label: 'Todos los productos' },
+  { id: 'cv', label: 'CV y LinkedIn' },
+  { id: 'guias', label: 'Guías' },
+  { id: 'asesorias', label: 'Asesorías y sesiones' },
+]
+const CHANNELS: { id: 'todos' | 'web' | 'whatsapp'; label: string }[] = [
+  { id: 'todos', label: 'Web y WhatsApp' },
+  { id: 'web', label: 'Solo web' },
+  { id: 'whatsapp', label: 'Solo WhatsApp' },
+]
+const filterSelect = 'h-10 rounded-full border border-line bg-white px-3 font-display text-xs font-bold text-ciruela outline-none focus:border-rosa'
+
+/**
+ * Orders as a board of work stages. `initialFilter` / `initialSearch` come from the home
+ * (a status counter, or "Ver" on one order as "#7"); older view names are mapped to the stages.
+ */
+export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { initialFilter?: Filter; initialSearch?: string }) {
+  const [stage, setStage] = useState<Stage>(toStage(initialFilter))
+  const [kind, setKind] = useState<Kind | 'todos'>('todos')
+  const [channel, setChannel] = useState<'todos' | 'web' | 'whatsapp'>(initialFilter === 'whatsapp' ? 'whatsapp' : 'todos')
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [buyers, setBuyers] = useState<Record<string, Buyer>>({})
   const [loading, setLoading] = useState(true)
@@ -408,21 +418,18 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
   const [search, setSearch] = useState(initialSearch)
   const [linkOpen, setLinkOpen] = useState(false)
   const [page, setPage] = useState(0)
+  const [dragging, setDragging] = useState<AdminOrder | null>(null)
+  const [over, setOver] = useState<Stage | null>(null)
+  const flash = useFlash()
   // Orders that were new when this visit started keep the "Nuevo" label until the panel is reopened.
   const [fresh, setFresh] = useState<Set<string>>(new Set())
   const top = useRef<HTMLDivElement>(null)
 
+  // Every order is loaded once and sorted into stages here, so switching stages is instant.
   const load = useCallback(async () => {
     setLoading(true)
-    let query = supabase.from('orders').select(ADMIN_ORDER_SELECT).order('created_at', { ascending: false }).limit(500)
-    // New web orders show up here from the start (still unpaid), so none goes unnoticed.
-    if (filter === 'activos') query = query.or('status.in.(pending_payment,payment_review,paid,in_progress),payment_check.eq.pending')
-    else if (filter === 'gestionar') query = query.or('status.in.(payment_review,paid),payment_check.eq.pending')
-    else if (filter === 'verificar') query = query.eq('payment_check', 'pending')
-    else if (filter === 'whatsapp') query = query.eq('source', 'whatsapp')
-    else if (filter !== 'todos') query = query.eq('status', filter)
-    const { data, error: loadError } = await query
-    if (loadError) setError(errorMessage(loadError))
+    const { data, error: loadError } = await supabase.from('orders').select(ADMIN_ORDER_SELECT).order('created_at', { ascending: false }).limit(1000)
+    setError(loadError ? errorMessage(loadError) : '')
     const list = (data as AdminOrder[] | null) ?? []
     setOrders(list)
     const ids = [...new Set(list.flatMap((order) => (order.user_id ? [order.user_id] : [])))]
@@ -431,31 +438,45 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
       setBuyers(Object.fromEntries(((profiles as Buyer[] | null) ?? []).map((profile) => [profile.id, profile])))
     }
     setLoading(false)
-  }, [filter])
+  }, [])
 
   useEffect(() => { load() }, [load])
 
-  // Keep the list live while it is open (new web orders, WhatsApp sales, status changes).
+  // Keep the board live while it is open (new web orders, WhatsApp sales, status changes).
   useEffect(() => {
     let timer: number | undefined
-    const channel = supabase.channel('admin-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { window.clearTimeout(timer); timer = window.setTimeout(load, 700) }).subscribe()
-    return () => { window.clearTimeout(timer); supabase.removeChannel(channel) }
+    const channelSub = supabase.channel('admin-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { window.clearTimeout(timer); timer = window.setTimeout(load, 700) }).subscribe()
+    return () => { window.clearTimeout(timer); supabase.removeChannel(channelSub) }
   }, [load])
 
-  // Search by order number, customer name, email or phone within the current view.
+  const isNew = useCallback((order: AdminOrder) => (!order.seen_at && order.status !== 'cancelled' && order.number < 90000) || fresh.has(order.id), [fresh])
+  const filtered = useMemo(() => orders.filter((order) => (channel === 'todos' || order.source === channel) && (kind === 'todos' || kindsOf(order).includes(kind))), [orders, channel, kind])
+  const reasons = useMemo(() => new Map(filtered.map((order) => [order.id, todayReason(order, isNew(order))])), [filtered, isNew])
+  const byStage = useMemo(() => {
+    const groups = Object.fromEntries(STAGES.map((item) => [item.id, [] as AdminOrder[]])) as Record<Stage, AdminOrder[]>
+    for (const order of filtered) {
+      groups[stageOf(order)].push(order)
+      if (reasons.get(order.id)) groups.hoy.push(order)
+      if (isNew(order)) groups.nuevos.push(order)
+    }
+    return groups
+  }, [filtered, reasons, isNew])
+
+  // Search by order number, customer name, email or phone across every stage; "#7" means exactly order 7.
   const term = search.trim().toLowerCase().replace(/^#/, '')
-  // "#7" means exactly order 7 (what "Ver" on the home sends).
   const exact = /^#\d+$/.test(search.trim())
-  const shown = exact ? orders.filter((order) => String(order.number) === term) : term ? orders.filter((order) => {
+  const searching = Boolean(term)
+  const matches = exact ? orders.filter((order) => String(order.number) === term) : orders.filter((order) => {
     const buyer = order.user_id ? buyers[order.user_id] : undefined
     return [String(order.number), order.customer_name, order.customer_phone, buyer?.email, buyer?.full_name, buyer?.phone].some((value) => value?.toLowerCase().includes(term))
-  }) : orders
+  })
+  const shown = searching ? matches : sortForStage(stage, byStage[stage], reasons) as AdminOrder[]
 
-  // Many orders are split into pages so the list doesn't become endless.
+  // Long stages are split into pages.
   const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE))
   const current = Math.min(page, pages - 1)
   const pageOrders = shown.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE)
-  useEffect(() => { setPage(0) }, [filter, search])
+  useEffect(() => { setPage(0) }, [stage, search, kind, channel])
 
   // Unseen orders on screen count as seen after a moment (the red number on Pedidos goes down).
   const unseenKey = pageOrders.filter((order) => !order.seen_at).map((order) => order.id).join(',')
@@ -464,36 +485,100 @@ export function OrdersAdmin({ initialFilter = 'activos', initialSearch = '' }: {
     if (!unseen.length) return
     const timer = window.setTimeout(() => {
       if (document.visibilityState !== 'visible') return
-      setFresh((current) => new Set([...current, ...unseen]))
+      setFresh((currentSet) => new Set([...currentSet, ...unseen]))
       supabase.rpc('admin_mark_orders_seen', { p_orders: unseen }).then(() => undefined, () => undefined)
     }, 2500)
     return () => window.clearTimeout(timer)
   }, [unseenKey])
+
   function goTo(next: number) {
     setPage(next)
     top.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
+  // A drag that ends outside a stage leaves everything as it was.
+  useEffect(() => {
+    const reset = () => { setDragging(null); setOver(null) }
+    window.addEventListener('dragend', reset)
+    return () => window.removeEventListener('dragend', reset)
+  }, [])
+
+  // Drag a card onto a stage to move it there (only the moves that make sense; the rest from the card).
+  async function drop(target: Stage) {
+    const order = dragging
+    setDragging(null); setOver(null)
+    if (!order) return
+    const move = moveTo(order, target)
+    const label = STAGES.find((item) => item.id === target)?.label ?? ''
+    if (!move) {
+      if (stageOf(order) !== target) flash.show('error', `El pedido #${order.number} no se puede pasar a "${label}" arrastrándolo: hacelo desde su ficha.`)
+      return
+    }
+    if (move.kind === 'status' && move.confirm === 'paid' && !window.confirm(`¿Ya te llegó el pago de ${formatARS(order.total)} del pedido #${order.number}?`)) return
+    const { error: moveError } = move.kind === 'status'
+      ? await supabase.rpc('admin_set_order_status', { p_order: order.id, p_status: move.status, p_note: null })
+      : await supabase.rpc('admin_set_waiting', { p_order: order.id, p_waiting: move.waiting })
+    if (moveError) { flash.show('error', errorMessage(moveError)); return }
+    flash.show('ok', `Pedido #${order.number} pasado a "${label}".`)
+    load()
+  }
+
+  const stageInfo = STAGES.find((item) => item.id === stage)!
+  const visibleStages = STAGES.filter((item) => item.id !== 'nuevos' || byStage.nuevos.length > 0 || stage === 'nuevos')
+
   return (
     <div ref={top} className="scroll-mt-24">
       <div className="flex flex-wrap items-center gap-2">
-        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, # o teléfono" aria-label="Buscar pedidos" className="h-10 min-w-0 basis-full rounded-full border border-line bg-white px-4 text-base outline-none sm:basis-auto sm:flex-1 focus:border-rosa sm:max-w-sm sm:text-sm" />
+        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar en todos: nombre, # o teléfono" aria-label="Buscar pedidos" className="h-10 min-w-0 basis-full rounded-full border border-line bg-white px-4 text-base outline-none sm:basis-auto sm:flex-1 focus:border-rosa sm:max-w-sm sm:text-sm" />
         <HideMoneyButton className="h-10 w-10 justify-center text-sm sm:w-auto sm:px-4" />
         <button type="button" onClick={() => setLinkOpen(true)} className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-ciruela px-4 font-display text-sm font-bold text-white hover:bg-rosa sm:flex-none"><Link2 className="h-4 w-4" />Link de pedido</button>
         <button type="button" onClick={load} className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-1.5 rounded-full border border-line bg-white font-display text-sm font-bold text-piedra hover:text-ciruela sm:w-auto sm:px-4" aria-label="Actualizar"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
       </div>
-      {search.trim() && <button type="button" onClick={() => { setSearch(''); if (exact) setFilter('activos') }} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">{exact ? `Mostrando el pedido ${search.trim()}` : 'Buscando'} · Ver todos los pedidos</button>}
-      {/* One swipeable row on the phone, wrapped on bigger screens */}
-      <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
-        {FILTERS.map((item) => (
-          <button key={item.id} type="button" onClick={() => setFilter(item.id)} className={`shrink-0 rounded-full px-3.5 py-2 font-display text-xs font-bold ${filter === item.id ? 'bg-ciruela text-white' : 'bg-white text-piedra hover:text-ciruela'}`}>{item.label}</button>
-        ))}
-      </div>
+
+      {searching ? (
+        <button type="button" onClick={() => setSearch('')} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">{exact ? `Mostrando el pedido ${search.trim()}` : `${matches.length} ${matches.length === 1 ? 'pedido encontrado' : 'pedidos encontrados'} en todas las etapas`} · Volver al tablero</button>
+      ) : (
+        <>
+          {/* Stages in the order of the work. On the phone it is one swipeable row; cards can be dropped on a stage on a computer. */}
+          <div role="tablist" aria-label="Etapas de los pedidos" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+            {visibleStages.map((item) => {
+              const count = byStage[item.id].length
+              const active = stage === item.id
+              const target = dragging && moveTo(dragging, item.id)
+              return (
+                <button key={item.id} type="button" role="tab" aria-selected={active} onClick={() => setStage(item.id)}
+                  onDragOver={(event) => { if (dragging) { event.preventDefault(); setOver(item.id) } }}
+                  onDragLeave={() => setOver((currentOver) => (currentOver === item.id ? null : currentOver))}
+                  onDrop={(event) => { event.preventDefault(); drop(item.id) }}
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 font-display text-xs font-bold transition-all ${active ? 'bg-ciruela text-white' : 'bg-white text-piedra hover:text-ciruela'} ${dragging && target ? 'ring-2 ring-whatsapp/60' : ''} ${over === item.id && target ? 'scale-105 bg-whatsapp text-white' : ''}`}>
+                  {item.label}
+                  <span className={`min-w-5 rounded-full px-1.5 py-0.5 text-[11px] ${active ? 'bg-white/20' : item.id === 'hoy' && count ? 'bg-rosa text-white' : item.id === 'nuevos' ? 'bg-rosa text-white' : 'bg-papel text-piedra'}`}>{count}</span>
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <select value={kind} onChange={(event) => setKind(event.target.value as Kind | 'todos')} aria-label="Producto" className={filterSelect}>{KINDS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
+            <select value={channel} onChange={(event) => setChannel(event.target.value as 'todos' | 'web' | 'whatsapp')} aria-label="Canal" className={filterSelect}>{CHANNELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
+            {(kind !== 'todos' || channel !== 'todos') && <button type="button" onClick={() => { setKind('todos'); setChannel('todos') }} className="text-xs font-semibold text-rosa-deep hover:underline">Quitar filtros</button>}
+          </div>
+          <p className="mt-3 text-sm text-piedra">{stageInfo.hint}<span className="hidden md:inline"> Para cambiar de etapa, arrastrá la ficha hasta la etapa de arriba.</span></p>
+        </>
+      )}
+
+      {flash.node && <div className="mt-3">{flash.node}</div>}
       {error && <p className="mt-4 text-sm text-rosa-deep">{error}</p>}
       {!loading && shown.length === 0 ? (
-        <p className="mt-8 rounded-3xl bg-white p-8 text-center text-piedra">{term ? 'No encontré pedidos con esa búsqueda en esta vista.' : 'No hay pedidos en esta vista.'}</p>
+        <p className="mt-6 rounded-3xl bg-white p-8 text-center text-piedra">{searching ? 'No encontré pedidos con esa búsqueda.' : stage === 'hoy' ? '¡Nada urgente hoy! Todo al día.' : 'No hay pedidos en esta etapa.'}</p>
       ) : (
-        <ul className="mt-4 grid gap-3 md:grid-cols-2">{pageOrders.map((order) => <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} fresh={!order.seen_at || fresh.has(order.id)} onChanged={load} />)}</ul>
+        <ul className="mt-4 grid gap-3 md:grid-cols-2">
+          {pageOrders.map((order) => (
+            <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} fresh={isNew(order)}
+              reason={stage === 'hoy' || searching ? reasons.get(order.id) ?? todayReason(order, isNew(order)) : null}
+              onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', order.id); setDragging(order) }}
+              onChanged={load} />
+          ))}
+        </ul>
       )}
       {pages > 1 && (
         <nav aria-label="Páginas de pedidos" className="mt-6 flex flex-col items-center gap-2">
