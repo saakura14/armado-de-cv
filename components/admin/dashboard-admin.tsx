@@ -8,7 +8,7 @@ import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, needsCoordination, type Order } from '@/lib/orders'
-import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, isTestOrder, monthKey, monthLabel, monthStats, salesInMonth, shiftMonth, shortMonthLabel, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
+import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, isTestOrder, monthKey, monthLabel, monthStats, salesInMonth, shiftMonth, shortMonthLabel, weeksOfMonth, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass } from './ui'
 
@@ -221,6 +221,8 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
   const history = Array.from({ length: 6 }, (_, index) => monthStats(shiftMonth(month, index - 5), sales, visits))
   const top = bestSellers(salesInMonth(month, sales)).slice(0, 5)
   const topMax = Math.max(...top.map((item) => item.units), 1)
+  const weeks = weeksOfMonth(month, sales)
+  const weekMax = Math.max(...weeks.map((week) => week.revenue), 1)
   const landings = Object.entries(visits.filter((row) => row.day.startsWith(month)).reduce<Record<string, number>>((acc, row) => ({ ...acc, [row.path]: (acc[row.path] ?? 0) + row.visits }), {})).sort((a, b) => b[1] - a[1]).slice(0, 4)
 
   const whatsappSales = salesInMonth(month, sales).filter((sale) => sale.source === 'whatsapp').length
@@ -322,6 +324,34 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
           <Tile label="Conversión" value={stats.conversion === null ? '—' : percent.format(stats.conversion)} delta={stats.conversion !== null && previous.conversion ? change(stats.conversion, previous.conversion) : null} previous={previousName} />
         </div>
         <p className="mt-2 text-xs text-piedra">Ventas: pedidos con pago confirmado, sin cancelados ni pruebas. Visitas: personas que entraron a la web (se cuentan desde el 28/09/2026, sin tus propias visitas). Conversión: ventas sobre visitas.</p>
+      </section>
+
+      <section className={cardClass} aria-labelledby="weeks-title">
+        <h2 id="weeks-title" className="font-display text-lg font-bold text-ciruela">Semana a semana</h2>
+        <p className="text-sm text-piedra">{monthLabel(month)} · lo que cobraste cada semana, de lunes a domingo</p>
+        {weeks.length === 0 ? <p className="mt-6 text-sm text-piedra">Todavía no hay semanas para mostrar.</p> : (
+          <ol className="mt-4 space-y-3">
+            {weeks.map((week, index) => {
+              const before = index > 0 ? weeks[index - 1] : null
+              const delta = before ? change(week.revenue, before.revenue) : null
+              return (
+                <li key={week.key} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 sm:grid-cols-[170px_1fr_190px]">
+                  <span className="col-start-1 row-start-1 text-sm font-semibold text-ink">
+                    {week.label}
+                    {week.current && <span className="ml-2 rounded-full bg-petalo-wash px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-wider text-rosa-deep">En curso</span>}
+                  </span>
+                  <span className="col-span-2 row-start-2 h-2.5 rounded-full bg-papel sm:col-span-1 sm:col-start-2 sm:row-start-1"><span className={`block h-2.5 rounded-full ${week.current ? 'bg-rosa' : 'bg-petalo'}`} style={{ width: `${(week.revenue / weekMax) * 100}%` }} /></span>
+                  <span className="col-start-2 row-start-1 text-right sm:col-start-3">
+                    <span className="font-display text-sm font-bold tabular-nums text-ciruela">{money(week.revenue)}</span>
+                    <span className="ml-1.5 text-xs text-piedra">{week.sales} {week.sales === 1 ? 'venta' : 'ventas'}{week.whatsapp ? ` · ${week.whatsapp} WA` : ''}</span>
+                    {delta !== null && !week.current && <span className={`ml-1.5 text-xs font-semibold ${delta >= 0 ? 'text-whatsapp' : 'text-rosa-deep'}`}>{delta >= 0 ? '▲' : '▼'} {percent.format(Math.abs(delta))}</span>}
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
+        )}
+        <p className="mt-3 text-xs text-piedra">Cuenta las ventas con pago confirmado (web y WhatsApp) por la fecha de pago. La flecha compara con la semana anterior; la semana en curso todavía no se compara. Si una semana cruza de mes, se muestra completa.</p>
       </section>
 
       <section className={cardClass} aria-labelledby="funnel-title">
