@@ -108,21 +108,37 @@ export function TeamRow({ order, tasks, firstName, onChanged }: { order: Order; 
   const close = useCallback(() => setAssigning(null), [])
   const packs = order.order_items.filter((item) => TEAM_PACKS.includes(item.product_id))
   if (!packs.length || order.status === 'cancelled' || order.status === 'pending_payment' || order.status === 'payment_review') return null
+  // A delivered order only shows the packs that went through the team.
+  const rows = packs.filter((item) => order.status !== 'delivered' || tasks.some((row) => row.order_item_id === item.id))
+  if (!rows.length) return null
   return (
-    <div className="mt-3 space-y-1.5">
-      {packs.map((item, index) => {
-        const task = tasks.find((row) => row.order_item_id === item.id)
-        const member = task ? (Array.isArray(task.team_members) ? task.team_members[0] : task.team_members) : null
-        const label = packs.length > 1 ? `${item.product_name} ${index + 1}` : item.product_name
-        return task ? (
-          <p key={item.id} className="flex flex-wrap items-center gap-2 text-xs">
-            <Users className="h-3.5 w-3.5 text-rosa" /><span className="font-semibold text-ink">{label}:</span>{member?.name ?? 'Equipo'}
-            <span className={`rounded-full px-2 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span>
-          </p>
-        ) : (
-          order.status !== 'delivered' && <button key={item.id} type="button" onClick={() => setAssigning(item)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-rosa-deep hover:underline"><Users className="h-3.5 w-3.5" />Asignar al equipo{packs.length > 1 ? `: ${label}` : ''}</button>
-        )
-      })}
+    <div className="mt-3 rounded-2xl border border-line px-3.5 py-2.5">
+      <p className="flex items-center gap-1.5 font-display text-[11px] font-semibold uppercase tracking-wider text-piedra"><Users className="h-3.5 w-3.5 text-rosa" />Equipo</p>
+      {/* One line per CV pack: the pack on the left, who builds it or the button on the right. */}
+      <ul className="mt-1.5 divide-y divide-line">
+        {rows.map((item) => {
+          const task = tasks.find((row) => row.order_item_id === item.id)
+          const member = task ? (Array.isArray(task.team_members) ? task.team_members[0] : task.team_members) : null
+          // Same pack twice: number them so each line is clear.
+          const twins = packs.filter((other) => other.product_name === item.product_name)
+          const label = twins.length > 1 ? `${item.product_name} (${twins.indexOf(item) + 1})` : item.product_name
+          return (
+            <li key={item.id} className="flex min-h-10 flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5 text-sm">
+              <span className="font-semibold text-ink">{label}</span>
+              {task ? (
+                <span className="flex items-center gap-2 text-xs text-piedra">
+                  {member?.name ?? 'Equipo'}
+                  <span className={`rounded-full px-2 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setAssigning(item)} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-rosa/40 px-3 font-display text-xs font-bold text-rosa-deep hover:bg-petalo-wash">
+                  Asignar
+                </button>
+              )}
+            </li>
+          )
+        })}
+      </ul>
       {assigning && <AssignDialog order={order} item={assigning} firstName={firstName} onClose={close} onSaved={onChanged} />}
     </div>
   )
