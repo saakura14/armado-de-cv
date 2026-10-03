@@ -8,7 +8,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS, whatsappUrl, type ExtraGroup, type Product } from '@/lib/catalog'
 import { savePending } from '@/lib/cart'
 import { track } from '@/lib/pixel'
-import { countStep } from '@/components/visit-tracker'
+import { countStep, trackWhatsapp } from '@/components/visit-tracker'
 
 // Short codes read well everywhere (flag emojis render as letters on Windows).
 const LANGUAGE_CODE: Record<string, string> = { ingles: 'EN', italiano: 'IT', portugues: 'PT', frances: 'FR', espanol: 'ES', aleman: 'DE', 'otro-idioma': '+' }
@@ -155,6 +155,8 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
   }
 
   const question = `¡Hola! Tengo una consulta sobre ${product.name}${product.subtitle ? ` (${product.subtitle})` : ''}.`
+  // The same order, written out for WhatsApp: product, chosen e-book, extras and total.
+  const whatsappOrder = `¡Hola Vale! Vengo de la web y quiero: ${product.name}${choiceLabel ? ` (${choiceLabel})` : ''}${lines.length ? ` + ${lines.map((line) => line.text).join(' + ')}` : ''}. Total ${formatARS(total)}. ¿Cómo seguimos?`
 
   return (
     <div className="fixed inset-0 z-50 flex animate-[fade_.2s_ease-out] items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="order-title" onClick={onClose}>
@@ -291,6 +293,9 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
             </button>
           </div>
           <p className="mt-2 text-center text-[11px] text-piedra">Pagás por transferencia, sin recargo. Te muestro los datos en el siguiente paso.</p>
+          <a href={whatsappUrl(whatsappOrder)} onClick={() => trackWhatsapp(total)} target="_blank" rel="noopener noreferrer" className="mt-2 flex items-center justify-center gap-1.5 text-sm font-bold text-[#128c4a] hover:underline">
+            <WhatsAppIcon className="h-4 w-4" />¿Preferís pedirlo por WhatsApp? Te lo mando armado
+          </a>
         </div>
       </div>
     </div>

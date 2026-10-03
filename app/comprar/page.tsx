@@ -11,7 +11,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 import { track } from '@/lib/pixel'
-import { countStep } from '@/components/visit-tracker'
+import { countStep, landingOrigin } from '@/components/visit-tracker'
 import { notifyAdmin } from '@/lib/push'
 
 // E-books and courses need nothing else from the buyer, so they skip the note.
@@ -81,6 +81,8 @@ export default function CheckoutPage() {
     if (news && user) await supabase.from('profiles').update({ marketing_opt_in: true, marketing_opt_in_at: new Date().toISOString() }).eq('id', user.id)
     if (pending.linkToken) await supabase.rpc('claim_order_link', { p_token: pending.linkToken, p_order: data as string })
     notifyAdmin(data as string, 'new_order')
+    // Tags the order with where the visit came from (ad link or the web), for the sales dashboard.
+    await supabase.rpc('set_my_order_origin', { p_order: data, p_origin: landingOrigin() })
     clearPending()
     router.replace(`/cuenta/pedido/${data as string}`)
   }

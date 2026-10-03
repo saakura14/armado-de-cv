@@ -2,7 +2,9 @@
 
 import { useCallback, useState } from 'react'
 import { Check, ShoppingBag } from 'lucide-react'
-import { formatARS, type Product } from '@/lib/catalog'
+import { formatARS, whatsappUrl, type Product } from '@/lib/catalog'
+import { WhatsAppIcon } from './whatsapp-icon'
+import { trackWhatsapp } from './visit-tracker'
 import { OrderDialog } from './order-dialog'
 
 /** Badge for featured products: kits save money, the rest are the ones I recommend (no sales claims without data). */
@@ -45,6 +47,9 @@ export function ProductGrid({ products, tone = 'cv', scroll = false }: { product
             <button type="button" onClick={() => setSelected(product)} className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-ciruela px-5 py-3 font-display text-sm font-bold text-white transition-colors hover:bg-rosa active:scale-[0.98]">
               <ShoppingBag className="h-4 w-4" />Lo quiero
             </button>
+            <a href={whatsappUrl(`¡Hola Vale! Vengo de la web y quiero ${product.name} (${formatARS(product.price)}). ¿Cómo seguimos?`)} onClick={() => trackWhatsapp(product.price)} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-full border-2 border-whatsapp/50 px-5 py-2.5 font-display text-sm font-bold text-[#128c4a] transition-colors hover:bg-whatsapp/10">
+              <WhatsAppIcon className="h-4 w-4" />Pedilo por WhatsApp
+            </a>
           </article>
         ))}
       </div>
