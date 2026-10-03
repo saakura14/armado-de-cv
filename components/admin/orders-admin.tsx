@@ -3,7 +3,7 @@
 import { SaleItemsEditor, useSaleCatalog } from './sale-items'
 import type { SaleItem } from '@/lib/whatsapp-sale'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw, Hourglass } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw, Hourglass } from 'lucide-react'
 import { useHideMoney } from '@/lib/hide-money'
 import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
@@ -264,6 +264,15 @@ function OrderCard({ order, buyer, fresh, onChanged }: { order: AdminOrder; buye
         : null
   const templateLink = template ? waLink(phone, template.text) : null
 
+  async function copyMessage(text: string) {
+    try {
+      await navigator.clipboard.writeText(phone ? `${phone}\n\n${text}` : text)
+      flash.show('ok', phone ? 'Copiados el número y el mensaje: pegalos en WhatsApp Business.' : 'Mensaje copiado: pegalo en WhatsApp Business.')
+    } catch {
+      flash.show('error', 'No se pudo copiar. Mantené apretado el mensaje para copiarlo a mano.')
+    }
+  }
+
   return (
     <li className="rounded-3xl bg-white p-4 shadow-[0_18px_40px_-34px_rgba(67,32,44,0.6)]">
       {/* Row 1: number, date, origin and status. Row 2: customer and amount, always side by side. */}
@@ -365,6 +374,8 @@ function OrderCard({ order, buyer, fresh, onChanged }: { order: AdminOrder; buye
               : <Button variant="secondary" busy={busy === 'waiting'} onClick={() => setWaiting(true)}><Hourglass className="h-4 w-4" />Esperando al cliente</Button>)}
             {order.status === 'delivered' && <Button variant="secondary" busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Volver a En proceso</Button>}
             {template && whatsapp && <a href={whatsapp} onClick={(event) => openBusinessWhatsapp(event, whatsapp)} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 py-2 font-display text-sm font-bold text-ciruela"><WhatsAppIcon className="h-4 w-4" />Escribir sin mensaje</a>}
+            {/* Fallback when the device opens the personal WhatsApp: copy and paste it in WhatsApp Business. */}
+            <Button variant="secondary" onClick={() => copyMessage(template?.text ?? `¡Hola ${firstName}! Te escribo por tu pedido #${order.number} de Armado de CV.`)}><Copy className="h-4 w-4" />Copiar mensaje{phone ? ' y número' : ''}</Button>
             {order.status !== 'cancelled' && order.status !== 'delivered' && <Button variant="danger" busy={busy === 'cancelled'} onClick={() => setStatus('cancelled')}>Cancelar pedido</Button>}
           </div>
           {order.source === 'whatsapp' && <EditSale order={order} onSaved={onChanged} />}
