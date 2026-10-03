@@ -152,6 +152,40 @@ export function monthStats(key: string, sales: Sale[], visits: VisitRow[]): Mont
   }
 }
 
+// ---- Weekly figures (Monday to Sunday, Argentine calendar) ----
+
+const mondayOf = (day: Date) => new Date(day.getTime() - ((day.getUTCDay() + 6) % 7) * DAY)
+
+/** 'YYYY-MM-DD' of the Monday of the week a moment falls in, in Argentina. */
+export function weekKey(value: string | Date) {
+  return mondayOf(arDay(new Date(value)).day).toISOString().slice(0, 10)
+}
+
+export type WeekStats = { key: string; label: string; sales: number; revenue: number; whatsapp: number; current: boolean }
+
+const shortDate = (day: Date) => `${day.getUTCDate()}/${day.getUTCMonth() + 1}`
+
+/** The weeks that touch the month, each with the sales paid in it. A week that crosses into another month is counted whole. */
+export function weeksOfMonth(key: string, sales: Sale[], now = new Date()): WeekStats[] {
+  const end = new Date(`${shiftMonth(key, 1)}-01T00:00:00Z`)
+  const thisWeek = weekKey(now)
+  const weeks: WeekStats[] = []
+  for (let start = mondayOf(new Date(`${key}-01T00:00:00Z`)); start < end; start = new Date(start.getTime() + 7 * DAY)) {
+    const id = start.toISOString().slice(0, 10)
+    if (id > thisWeek) break
+    const inWeek = sales.filter((sale) => weekKey(sale.paid_at) === id)
+    weeks.push({
+      key: id,
+      label: `${shortDate(start)} al ${shortDate(new Date(start.getTime() + 6 * DAY))}`,
+      sales: inWeek.length,
+      revenue: inWeek.reduce((sum, sale) => sum + sale.total, 0),
+      whatsapp: inWeek.filter((sale) => sale.source === 'whatsapp').length,
+      current: id === thisWeek,
+    })
+  }
+  return weeks
+}
+
 export const salesInMonth = (key: string, sales: Sale[]) => sales.filter((sale) => monthKey(sale.paid_at) === key)
 export const salesInYear = (year: string, sales: Sale[]) => sales.filter((sale) => monthKey(sale.paid_at).startsWith(year))
 
