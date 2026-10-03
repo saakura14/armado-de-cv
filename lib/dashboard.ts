@@ -13,13 +13,28 @@ export type Sale = {
   payment_method: Order['payment_method']
   customer_name: string | null
   source: 'web' | 'whatsapp'
+  origin: Origin | null
   order_items: { product_id: string; product_name: string; line_total: number }[]
 }
 
-export const SALE_SELECT = 'id, number, status, total, paid_at, payment_method, customer_name, source, order_items(product_id, product_name, line_total)'
+export const SALE_SELECT = 'id, number, status, total, paid_at, payment_method, customer_name, source, origin, order_items(product_id, product_name, line_total)'
+
+/** Where a sale came from: picked for WhatsApp sales, automatic for web orders (ad link or not). */
+export type Origin = 'anuncio' | 'instagram' | 'recomendacion' | 'google' | 'web' | 'otro'
+export const ORIGIN_LABEL: Record<Origin, string> = { anuncio: 'Anuncio', instagram: 'Instagram (sin anuncio)', recomendacion: 'Recomendación', google: 'Google', web: 'Web', otro: 'Otro' }
+
+/** Sales of a month grouped by origin, biggest first; the ones loaded before tracking show as "Sin dato". */
+export function salesByOrigin(sales: Sale[]) {
+  const counts = sales.reduce<Record<string, { label: string; sales: number; revenue: number }>>((acc, sale) => {
+    const key = sale.origin ?? 'sin-dato'
+    const row = acc[key] ?? { label: sale.origin ? ORIGIN_LABEL[sale.origin] : 'Sin dato', sales: 0, revenue: 0 }
+    return { ...acc, [key]: { ...row, sales: row.sales + 1, revenue: row.revenue + sale.total } }
+  }, {})
+  return Object.values(counts).sort((a, b) => b.sales - a.sales)
+}
 
 export type VisitRow = { day: string; path: string; visits: number; views: number }
-export type EventRow = { day: string; event: 'lo_quiero' | 'checkout'; count: number }
+export type EventRow = { day: string; event: 'lo_quiero' | 'checkout' | 'whatsapp'; count: number }
 
 export type FunnelStep = { label: string; hint: string; value: number }
 

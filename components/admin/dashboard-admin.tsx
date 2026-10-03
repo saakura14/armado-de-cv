@@ -8,7 +8,7 @@ import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, needsCoordination, type Order } from '@/lib/orders'
-import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, isTestOrder, monthKey, monthLabel, monthStats, salesInMonth, shiftMonth, shortMonthLabel, weeksOfMonth, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
+import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, isTestOrder, monthKey, monthLabel, monthStats, salesByOrigin, salesInMonth, shiftMonth, shortMonthLabel, weeksOfMonth, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass } from './ui'
 
@@ -222,13 +222,15 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
   const top = bestSellers(salesInMonth(month, sales)).slice(0, 5)
   const topMax = Math.max(...top.map((item) => item.units), 1)
   const weeks = weeksOfMonth(month, sales)
+  const origins = salesByOrigin(salesInMonth(month, sales))
+  const webToWhatsapp = data.events.filter((row) => row.event === 'whatsapp' && row.day.startsWith(month)).reduce((sum, row) => sum + row.count, 0)
   const weekMax = Math.max(...weeks.map((week) => week.revenue), 1)
   const landings = Object.entries(visits.filter((row) => row.day.startsWith(month)).reduce<Record<string, number>>((acc, row) => ({ ...acc, [row.path]: (acc[row.path] ?? 0) + row.visits }), {})).sort((a, b) => b[1] - a[1]).slice(0, 4)
 
   const whatsappSales = salesInMonth(month, sales).filter((sale) => sale.source === 'whatsapp').length
   const steps = funnel(month, visits, data.events, data.created, sales)
   const webSales = steps[steps.length - 1].value
-  const stepMax = Math.max(...steps.map((step) => step.value), whatsappSales, 1)
+  const stepMax = Math.max(...steps.map((step) => step.value), whatsappSales, webToWhatsapp, 1)
 
   const deliveries = tasks.filter((task) => task.kind === 'entrega')
   const urgent = deliveries.filter((task) => task.deadline && !task.deadline.waiting && task.deadline.remaining <= 1).length
@@ -372,6 +374,11 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
         {/* WhatsApp sales don't go through the web steps: they are shown apart and added to the total. */}
         <div className="mt-4 space-y-3 border-t border-line pt-4">
           <div className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 sm:grid-cols-[250px_1fr_110px]">
+            <span className="col-start-1 row-start-1 text-sm font-semibold text-ink">Fueron de la web al WhatsApp <span className="font-normal text-piedra">· tocaron &quot;Pedilo por WhatsApp&quot;</span></span>
+            <span className="col-span-2 row-start-2 h-2.5 rounded-full bg-papel sm:col-span-1 sm:col-start-2 sm:row-start-1"><span className="block h-2.5 rounded-full bg-whatsapp/50" style={{ width: `${(webToWhatsapp / stepMax) * 100}%` }} /></span>
+            <span className="col-start-2 row-start-1 text-right font-display text-sm font-bold text-ciruela sm:col-start-3">{number.format(webToWhatsapp)}</span>
+          </div>
+          <div className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 sm:grid-cols-[250px_1fr_110px]">
             <span className="col-start-1 row-start-1 text-sm font-semibold text-ink"><WhatsAppIcon className="mr-1.5 inline h-4 w-4 -translate-y-px text-whatsapp" />Vendiste por WhatsApp <span className="font-normal text-piedra">· ventas cargadas</span></span>
             <span className="col-span-2 row-start-2 h-2.5 rounded-full bg-papel sm:col-span-1 sm:col-start-2 sm:row-start-1"><span className="block h-2.5 rounded-full bg-whatsapp" style={{ width: `${(whatsappSales / stepMax) * 100}%` }} /></span>
             <span className="col-start-2 row-start-1 text-right font-display text-sm font-bold text-ciruela sm:col-start-3">{number.format(whatsappSales)}</span>
@@ -406,6 +413,13 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
                 </li>
               ))}
             </ol>
+          )}
+          {origins.length > 0 && (
+            <>
+              <h3 className="mt-6 font-display text-sm font-bold text-ciruela">De dónde vinieron las ventas</h3>
+              <ul className="mt-2 space-y-1 text-sm">{origins.map((row) => <li key={row.label} className="flex justify-between gap-3"><span className={row.label === 'Sin dato' ? 'text-piedra' : 'text-ink'}>{row.label}</span><span className="text-piedra">{row.sales} {row.sales === 1 ? 'venta' : 'ventas'} · {money(row.revenue)}</span></li>)}</ul>
+              <p className="mt-1 text-xs text-piedra">Las ventas de WhatsApp toman el origen que elegís al cargarlas; las de la web se marcan solas.</p>
+            </>
           )}
           {landings.length > 0 && (
             <>
