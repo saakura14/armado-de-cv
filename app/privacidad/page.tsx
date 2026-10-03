@@ -31,6 +31,7 @@ export default function PrivacyPage() {
         </ul>
         <p><b>Novedades por mail:</b> solo si lo marcás al comprar o en Mi cuenta, te escribo con novedades y nuevos e-books para tu búsqueda. Es opcional y podés darte de baja cuando quieras desde Mi cuenta o respondiendo el mail.</p>
         <p><b>No vendo, no alquilo y no cedo tus datos a terceros</b> con fines comerciales. No uso tu CV ni tus respuestas para nada distinto de lo que contrataste.</p>
+        <p>Para armar tu CV puede colaborar una persona de mi equipo, con un compromiso de confidencialidad: solo recibe tu nombre de pila y los textos de tu CV y carta, nunca tu teléfono, tu email ni tus datos de pago, y no puede usarlos para otra cosa.</p>
       </Clause>
 
       <Clause title="4. Dónde se guardan">

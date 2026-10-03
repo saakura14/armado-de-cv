@@ -1,4 +1,5 @@
-// Push notifications to the admin's phone: a new order, or a receipt uploaded by the customer.
+// Push notifications to the admin's phone: a new order, or a receipt uploaded by the customer;
+// and for the team: a CV assigned to a member (to their phone) or finished by them (to the admin).
 // Called from the customer's browser right after the action (only for their own, fresh orders, once per kind),
 // or by the admin with { test: true } to check that notifications arrive.
 // The VAPID keys are read from Vault through public.push_config() (service role only).
@@ -26,15 +27,39 @@ Deno.serve(async (request) => {
   const { data: { user } } = await admin.auth.getUser(token)
   if (!user) return json(401, { error: 'Sesión inválida' })
 
-  const body = await request.json().catch(() => ({})) as { order_id?: string; kind?: 'new_order' | 'receipt'; test?: boolean }
+  const body = await request.json().catch(() => ({})) as { order_id?: string; task_id?: string; kind?: 'new_order' | 'receipt' | 'task_assigned' | 'task_done'; test?: boolean }
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
   const isAdmin = profile?.role === 'admin'
 
   let message: { title: string; body: string; url: string }
   let logged: { order_id: string; kind: string } | null = null
+  // Who gets it: the admins, unless it is a task for a team member.
+  let recipients: string[] | null = null
   if (body.test) {
-    if (!isAdmin) return json(403, { error: 'Solo la administradora' })
-    message = { title: '¡Las notificaciones funcionan! 🌸', body: 'Te voy a avisar acá cuando entre un pedido o te suban un comprobante.', url: '/admin' }
+    if (isAdmin) {
+      message = { title: '¡Las notificaciones funcionan! 🌸', body: 'Te voy a avisar acá cuando entre un pedido o te suban un comprobante.', url: '/admin' }
+    } else {
+      // A team member checks their own phone.
+      const { data: member } = await admin.from('team_members').select('id').eq('user_id', user.id).eq('active', true).maybeSingle()
+      if (!member) return json(403, { error: 'Solo la administradora o el equipo' })
+      recipients = [user.id]
+      message = { title: '¡Las notificaciones funcionan! ✍️', body: 'Te voy a avisar acá cuando tengas un CV nuevo para armar.', url: '/equipo' }
+    }
+  } else if (body.kind === 'task_assigned' || body.kind === 'task_done') {
+    // Team: a CV assigned to a member (from the admin) or finished by the member (to the admin).
+    if (!body.task_id) return json(400, { error: 'Datos incompletos' })
+    const { data: task } = await admin.from('team_tasks').select('id, order_number, client_name, pack_name, team_members(user_id, name)').eq('id', body.task_id).maybeSingle()
+    if (!task) return json(404, { error: 'Tarea no encontrada' })
+    const member = (Array.isArray(task.team_members) ? task.team_members[0] : task.team_members) as { user_id: string | null; name: string } | null
+    if (body.kind === 'task_assigned') {
+      if (!isAdmin) return json(403, { error: 'Solo la administradora' })
+      if (!member?.user_id) return json(200, { sent: 0, skipped: 'todavía no entró' })
+      recipients = [member.user_id]
+      message = { title: `✍️ Nuevo CV para armar · pedido #${task.order_number}`, body: `${task.pack_name} de ${task.client_name}. Los textos ya están en tu panel.`, url: '/equipo' }
+    } else {
+      if (!member || member.user_id !== user.id) return json(403, { error: 'No es tu tarea' })
+      message = { title: `✅ ${member.name} terminó el CV del pedido #${task.order_number}`, body: `${task.pack_name} de ${task.client_name}: listo para que lo revises y lo entregues.`, url: '/admin#equipo' }
+    }
   } else {
     if (!body.order_id || (body.kind !== 'new_order' && body.kind !== 'receipt')) return json(400, { error: 'Datos incompletos' })
     const { data: order } = await admin.from('orders')
@@ -59,8 +84,11 @@ Deno.serve(async (request) => {
   if (!config?.private || !config?.public) return json(500, { error: 'Faltan las claves de notificación' })
   webpush.setVapidDetails('mailto:ayuda.armadodecv@gmail.com', config.public, config.private)
 
-  const { data: admins } = await admin.from('profiles').select('id').eq('role', 'admin')
-  const { data: subscriptions } = await admin.from('push_subscriptions').select('endpoint, p256dh, auth').in('user_id', (admins ?? []).map((row) => row.id))
+  if (!recipients) {
+    const { data: admins } = await admin.from('profiles').select('id').eq('role', 'admin')
+    recipients = (admins ?? []).map((row) => row.id)
+  }
+  const { data: subscriptions } = await admin.from('push_subscriptions').select('endpoint, p256dh, auth').in('user_id', recipients)
   let sent = 0
   const errors: string[] = []
   for (const subscription of subscriptions ?? []) {

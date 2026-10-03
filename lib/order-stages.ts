@@ -73,6 +73,9 @@ export function todayReason(order: Order, unseen: boolean, now = new Date()): Re
     if (deadline && deadline.remaining < 0) return { label: `Atrasado ${-deadline.remaining} ${deadline.remaining === -1 ? 'día' : 'días'}`, tone: 'rojo', rank: 0 }
     if (deadline && deadline.remaining === 0) return { label: 'Vence hoy', tone: 'rojo', rank: 1 }
   }
+  // The team finished the CV: Vale checks it and delivers it.
+  const teamTasks = (order as Order & { team_tasks?: { status: string }[] }).team_tasks ?? []
+  if (order.status !== 'delivered' && teamTasks.length > 0 && teamTasks.some((task) => task.status === 'terminado')) return { label: 'CV del equipo listo', tone: 'naranja', rank: 2 }
   if (order.payment_check === 'pending') return { label: 'Verificar transferencia', tone: 'naranja', rank: 2 }
   if (order.status === 'payment_review') return { label: 'Revisar comprobante', tone: 'naranja', rank: 2 }
   if (unseen) return { label: 'Nuevo', tone: 'rosa', rank: 3 }

@@ -12,7 +12,7 @@ import { track } from '@/lib/pixel'
 export function VisitTracker() {
   const pathname = usePathname()
   useEffect(() => {
-    if (pathname.startsWith('/admin') || pathname.startsWith('/cuenta') || pathname.startsWith('/comprar')) return
+    if (pathname.startsWith('/admin') || pathname.startsWith('/equipo') || pathname.startsWith('/cuenta') || pathname.startsWith('/comprar')) return
     // Remember for the whole visit that it came from an ad, to tag the order if they buy.
     try {
       const params = new URLSearchParams(window.location.search)

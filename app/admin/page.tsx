@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, BookOpen, CreditCard, ExternalLink, Home, Loader2, HelpCircle, LogOut, Menu, PlayCircle, ShoppingBag, Star, Tag, UserRound, Video, X } from 'lucide-react'
+import { ArrowRight, BookOpen, CreditCard, ExternalLink, Home, Loader2, HelpCircle, LogOut, Menu, PlayCircle, ShoppingBag, Star, Tag, UserRound, Users, Video, X } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { Avatar } from '@/components/avatar'
 import { AppSetup } from '@/components/admin/app-setup'
@@ -18,6 +18,7 @@ import { PaymentAdmin } from '@/components/admin/payment-admin'
 import { ProductsAdmin } from '@/components/admin/products-admin'
 import { SessionsAdmin } from '@/components/admin/sessions-admin'
 import { TestimonialsAdmin } from '@/components/admin/testimonials-admin'
+import { TeamAdmin } from '@/components/admin/team-admin'
 import { formatARS } from '@/lib/catalog'
 import { setAppBadge, syncPush } from '@/lib/push'
 import { countSessionsToSchedule } from '@/lib/sessions'
@@ -29,6 +30,7 @@ const TABS = [
   { id: 'inicio', label: 'Inicio', short: 'Inicio', icon: Home },
   { id: 'pedidos', label: 'Pedidos', short: 'Pedidos', icon: ShoppingBag },
   { id: 'sesiones', label: 'Sesiones', short: 'Sesiones', icon: Video },
+  { id: 'equipo', label: 'Equipo', short: 'Equipo', icon: Users },
   { id: 'productos', label: 'Packs y precios', short: 'Precios', icon: Tag },
   { id: 'ebooks', label: 'E-books', short: 'E-books', icon: BookOpen },
   { id: 'cursos', label: 'Cursos', short: 'Cursos', icon: PlayCircle },
@@ -214,6 +216,7 @@ export default function AdminPage() {
           )}
           {tab === 'pedidos' && <OrdersAdmin key={`${ordersView?.filter}-${ordersView?.search}`} initialFilter={ordersView?.filter} initialSearch={ordersView?.search} />}
           {tab === 'sesiones' && <SessionsAdmin />}
+          {tab === 'equipo' && <TeamAdmin />}
           {tab === 'productos' && <ProductsAdmin />}
           {tab === 'ebooks' && <EbooksAdmin />}
           {tab === 'cursos' && <CoursesAdmin />}

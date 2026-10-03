@@ -20,7 +20,7 @@ export function MetaPixel() {
     const fbq = (window as unknown as { fbq?: Fbq }).fbq
     if (fbq && consent !== 'all') fbq('consent', 'revoke')
   }, [consent])
-  if (!META_PIXEL_ID || consent !== 'all' || pathname.startsWith('/admin')) return null
+  if (!META_PIXEL_ID || consent !== 'all' || pathname.startsWith('/admin') || pathname.startsWith('/equipo')) return null
   return (
     <Script id="meta-pixel" strategy="afterInteractive">{`
       !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};

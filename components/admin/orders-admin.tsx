@@ -13,10 +13,11 @@ import { deliveryDeadline, formatDue } from '@/lib/dashboard'
 import { STAGES, kindsOf, moveTo, sortForStage, stageOf, toStage, todayReason, type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
 import { DeadlineChip } from './dashboard-admin'
 import { OrderLinkDialog } from './order-link-dialog'
+import { TeamRow, type OrderTask } from './assign-task'
 
 // The admin also sees every Ualá checkout opened for the order (buyers can't read that table).
-type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null }
-const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url)`
+type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null; team_tasks?: OrderTask[] }
+const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, team_members(name))`
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, inputClass, useFlash } from './ui'
 
@@ -326,6 +327,7 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
         {order.customer_note && <li className="border-t border-line pt-2 text-ink"><b>Nota del cliente:</b> {order.customer_note}</li>}
       </ul>
       {service && order.status !== 'cancelled' && order.status !== 'pending_payment' && <CanvaLink order={order} />}
+      <TeamRow order={order} tasks={order.team_tasks ?? []} firstName={firstName} onChanged={onChanged} />
 
       {/* One main action (the next step), one WhatsApp button (with the message for this step) and the rest under "Más opciones". */}
       {(order.status === 'pending_payment' || order.status === 'payment_review') && !order.receipt_path && <p className="mt-4 text-sm text-piedra">Sin comprobante todavía.</p>}
@@ -445,7 +447,9 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
   // Keep the board live while it is open (new web orders, WhatsApp sales, status changes).
   useEffect(() => {
     let timer: number | undefined
-    const channelSub = supabase.channel('admin-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { window.clearTimeout(timer); timer = window.setTimeout(load, 700) }).subscribe()
+    const soon = () => { window.clearTimeout(timer); timer = window.setTimeout(load, 700) }
+    // Team tasks too: a CV finished by the team shows up in Hoy.
+    const channelSub = supabase.channel('admin-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, soon).subscribe()
     return () => { window.clearTimeout(timer); supabase.removeChannel(channelSub) }
   }, [load])
 
