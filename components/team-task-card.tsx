@@ -34,13 +34,14 @@ function useStored<T>(key: string, initial: T) {
  * Tap a line to copy that line, the button of a paragraph to copy the paragraph, "Copiar siguiente" for the next one not copied yet,
  * or select any part by hand. What was copied stays ticked, and the next paragraph is highlighted.
  */
-function CopyBlock({ storageKey, label, text }: { storageKey: string; label: string; text: string }) {
+function CopyBlock({ storageKey, label, text, whole = false }: { storageKey: string; label: string; text: string; whole?: boolean }) {
   const pieces = useMemo(() => {
-    const paragraphs = splitPieces(text)
+    // The cover letter goes whole (one block); the CVs go paragraph by paragraph.
+    const paragraphs = whole ? [text.trim()] : splitPieces(text)
     // A long text pasted without blank lines: each line is a piece, so "Copiar siguiente" still goes bit by bit.
-    const list = paragraphs.length === 1 && paragraphs[0].split('\n').length > 6 ? paragraphs[0].split('\n').filter((line) => line.trim()) : paragraphs
+    const list = !whole && paragraphs.length === 1 && paragraphs[0].split('\n').length > 6 ? paragraphs[0].split('\n').filter((line) => line.trim()) : paragraphs
     return list.map((piece) => ({ text: piece, lines: piece.split('\n') }))
-  }, [text])
+  }, [text, whole])
   const [open, setOpen] = useStored(`acv-open-${storageKey}`, false)
   const [copied, setCopied] = useStored<string[]>(`acv-copied-${storageKey}`, [])
   const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null)
@@ -113,10 +114,10 @@ function CopyBlock({ storageKey, label, text }: { storageKey: string; label: str
         <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex min-h-10 flex-1 items-center gap-2 text-left">
           <ChevronDown className={`h-4 w-4 shrink-0 text-piedra transition-transform ${open ? 'rotate-180' : ''}`} />
           <span className="font-display text-sm font-bold text-ciruela">{label}</span>
-          <span className={`rounded-full px-2 py-0.5 font-display text-[11px] font-bold ${doneCount === pieces.length ? 'bg-whatsapp/15 text-whatsapp' : 'bg-papel text-piedra'}`}>{doneCount}/{pieces.length}</span>
+          {!whole && <span className={`rounded-full px-2 py-0.5 font-display text-[11px] font-bold ${doneCount === pieces.length ? 'bg-whatsapp/15 text-whatsapp' : 'bg-papel text-piedra'}`}>{doneCount}/{pieces.length}</span>}
         </button>
         <div className="flex gap-2">
-          {next >= 0 && (
+          {!whole && next >= 0 && (
             <button type="button" onClick={copyNext} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-rosa px-3.5 font-display text-xs font-bold text-white hover:bg-rosa-deep">
               <SkipForward className="h-4 w-4" />{doneCount ? 'Copiar siguiente' : 'Copiar el 1°'}
             </button>
@@ -207,7 +208,7 @@ export function TeamTaskCard({ task, actions, children }: { task: TeamTask; acti
         <div className="mt-3 space-y-2">
           <CopyBlock storageKey={`${task.id}-moderno`} label="CV moderno" text={task.cv_modern} />
           <CopyBlock storageKey={`${task.id}-ats`} label="CV ATS" text={task.cv_ats} />
-          {task.has_letter && task.letter && <CopyBlock storageKey={`${task.id}-carta`} label="Carta de presentación" text={task.letter} />}
+          {task.has_letter && task.letter && <CopyBlock storageKey={`${task.id}-carta`} label="Carta de presentación" text={task.letter} whole />}
           {task.has_letter && !task.letter && <p className="px-1 text-xs font-semibold text-rosa-deep">Lleva carta: el texto te lo pasa Vale.</p>}
         </div>
       )}
