@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { CalendarClock, CheckCircle2, ListTodo, Wallet } from 'lucide-react'
 import { TaskWorkspace, TeamTaskCard } from '@/components/team-task-card'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
@@ -24,7 +24,7 @@ export function TeamLogo() {
 }
 
 /** "Empecé" and "Terminé" for one task (the pack counts for the payment when it is finished). In the preview they do nothing. */
-function TaskActions({ task, preview, onChanged, onStarted }: { task: TeamTask; preview?: boolean; onChanged: () => void; onStarted?: () => void }) {
+function TaskActions({ task, preview, onChanged, onStarted, onFinished }: { task: TeamTask; preview?: boolean; onChanged: () => void; onStarted?: () => void; onFinished?: () => void }) {
   const [busy, setBusy] = useState(false)
   const [link, setLink] = useState('')
   const flash = useFlash()
@@ -40,6 +40,7 @@ function TaskActions({ task, preview, onChanged, onStarted }: { task: TeamTask; 
     if (status === 'terminado') supabase.functions.invoke('notify-admin', { body: { task_id: task.id, kind: 'task_done' } }).then(() => undefined, () => undefined)
     onChanged()
     if (status === 'haciendo') onStarted?.()
+    if (status === 'terminado') onFinished?.()
   }
 
   if (task.status === 'terminado') return <p className="text-xs text-whatsapp">✓ Terminado el {formatDate(task.finished_at!, true)} · {task.paid_in ? 'cobrado' : 'a cobrar'}</p>
@@ -79,6 +80,9 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   // The CV open in work mode (full screen, next to Canva).
   const [workingId, setWorkingId] = useState<string | null>(null)
   const closeWork = useCallback(() => setWorkingId(null), [])
+  // "Listo el #12, seguimos con el #13": a short message when the work mode jumps to the next CV.
+  const [notice, setNotice] = useState('')
+  useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 4000); return () => window.clearTimeout(timer) }, [notice])
   const { pending, finished } = sortTasks(tasks)
   const batch = batchStats(member, tasks, payments)
   const months = monthlyStats(tasks, payments)
@@ -90,6 +94,14 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   const list = view === 'pendientes' ? shownPending : finished.slice(0, 30)
   // Closes by itself when the CV is finished (it leaves the pending list).
   const working = workingId ? shownPending.find((task) => task.id === workingId) ?? null : null
+  // A CV finished in work mode: the next pending one (most urgent first) opens by itself.
+  function finishedWorking(done: TeamTask) {
+    const following = pending.find((task) => task.id !== done.id)
+    setWorkingId(following?.id ?? null)
+    setNotice(following
+      ? `✅ Listo el pedido #${done.order_number}. Seguimos con el #${following.order_number}: ${following.pack_name} de ${following.client_name}.`
+      : '✅ ¡Terminaste todos los CVs! Buen trabajo.')
+  }
 
   const stats = [
     { icon: ListTodo, label: 'Para hacer', value: String(pending.length), strong: true },
@@ -176,7 +188,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
         </div>
       </main>
 
-      {working && <TaskWorkspace task={working} onClose={closeWork} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} />} />}
+      {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
+      {notice && <p role="status" className="fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl bg-whatsapp px-4 py-3 text-center text-sm font-bold text-white shadow-lg">{notice}</p>}
     </div>
   )
 }

@@ -246,7 +246,8 @@ export function TaskWorkspace({ task, actions, onClose }: { task: TeamTask; acti
 
   // The phone's back button closes the work mode instead of leaving the screen.
   useEffect(() => {
-    history.pushState({ acv: 'overlay', work: true }, '')
+    // Going straight to the next CV reuses the same history entry.
+    if (!(history.state as { work?: boolean } | null)?.work) history.pushState({ acv: 'overlay', work: true }, '')
     const onPop = () => onClose()
     window.addEventListener('popstate', onPop)
     document.body.style.overflow = 'hidden'
