@@ -78,7 +78,10 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isAdmin || historyReady.current) return
     historyReady.current = true
-    const fromHash = window.location.hash.slice(1)
+    // After Google, the section she was on comes from the login (see AuthPanel).
+    let saved: string | null = null
+    try { saved = sessionStorage.getItem('acv-return-hash'); sessionStorage.removeItem('acv-return-hash') } catch { /* private mode */ }
+    const fromHash = isTab(window.location.hash.slice(1)) ? window.location.hash.slice(1) : saved ?? ''
     const first: TabId = isTab(fromHash) ? fromHash : 'inicio'
     setTab(first)
     history.replaceState({ acv: 'base' }, '', `/admin#${first}`)

@@ -234,7 +234,7 @@ export function TeamAdmin() {
             <div className="rounded-3xl bg-white p-4"><p className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">Terminados (total)</p><p className="mt-1 font-display text-3xl font-extrabold text-ciruela">{finished.length}</p></div>
           </div>
           {batch.count >= batch.size && <p className="rounded-2xl bg-whatsapp/15 px-4 py-3 text-sm font-semibold text-whatsapp">{member.name} completó la tanda de {batch.size} CVs: te toca pagarle {money(batch.owed)}.</p>}
-          <PaymentForm key={member.id} member={member} batch={batch} onSaved={load} />
+          <PaymentForm key={`pay-${member.id}`} member={member} batch={batch} onSaved={load} />
 
           <section>
             <div role="tablist" className="flex gap-2">
@@ -274,7 +274,7 @@ export function TeamAdmin() {
               )}
             </section>
           </div>
-          <MemberSettings key={member.id} member={member} onSaved={load} />
+          <MemberSettings key={`settings-${member.id}`} member={member} onSaved={load} />
         </>
       )}
 

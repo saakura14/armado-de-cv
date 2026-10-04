@@ -6,6 +6,13 @@ export const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 
 
 const isBrowser = typeof window !== 'undefined'
 
+// A Google login started from "/admin#equipo" (before the fix in AuthPanel) came back as "#equipo#access_token=...":
+// keep only the session part so it is read instead of asking to sign in again.
+if (isBrowser) {
+  const tokens = window.location.hash.indexOf('#access_token=', 1)
+  if (tokens > 0) history.replaceState(history.state, '', `${window.location.pathname}${window.location.search}${window.location.hash.slice(tokens)}`)
+}
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: isBrowser, autoRefreshToken: isBrowser, detectSessionInUrl: isBrowser },
 })
