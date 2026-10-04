@@ -84,7 +84,8 @@ function CopyBlock({ storageKey, label, text }: { storageKey: string; label: str
 
   return (
     <div className="rounded-2xl border border-line bg-white">
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+      {/* Stays at the top while scrolling a long text, so "Copiar siguiente" is always at hand. */}
+      <div className={`flex flex-wrap items-center gap-2 rounded-t-2xl bg-white px-3 py-2 ${open ? 'sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 border-b border-line shadow-[0_8px_16px_-14px_rgba(67,32,44,0.5)]' : 'rounded-b-2xl'}`}>
         <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex min-h-10 flex-1 items-center gap-2 text-left">
           <ChevronDown className={`h-4 w-4 shrink-0 text-piedra transition-transform ${open ? 'rotate-180' : ''}`} />
           <span className="font-display text-sm font-bold text-ciruela">{label}</span>
@@ -103,7 +104,7 @@ function CopyBlock({ storageKey, label, text }: { storageKey: string; label: str
       </div>
 
       {open && (
-        <div className="border-t border-line px-2 py-2 sm:px-3">
+        <div className="px-2 py-2 sm:px-3">
           <p className="px-1.5 pb-2 text-[11px] leading-snug text-piedra">Tocá un renglón para copiarlo o el botón del bloque para copiar el párrafo. También podés seleccionar con el dedo solo una parte. Lo copiado queda tildado.</p>
           <div className="space-y-1.5">
             {pieces.map((piece, index) => {
