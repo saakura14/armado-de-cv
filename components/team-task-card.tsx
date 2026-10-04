@@ -35,7 +35,7 @@ export function TeamTaskCard({ task, actions, children }: { task: TeamTask; acti
     <li className="rounded-3xl bg-white p-4 shadow-[0_18px_40px_-34px_rgba(67,32,44,0.6)] sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">Pedido #{task.order_number}</p>
+          <p className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{task.order_number ? `Pedido #${task.order_number}` : 'Ejemplo'}</p>
           <p className="mt-0.5 text-[15px] font-bold text-ink">{task.pack_name} · {task.client_name}</p>
           <p className="text-xs text-piedra">CV moderno + CV ATS{task.has_letter ? ' + carta de presentación' : ''}</p>
         </div>
