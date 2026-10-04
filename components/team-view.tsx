@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { CalendarClock, CheckCircle2, ListTodo, Wallet } from 'lucide-react'
-import { TeamTaskCard } from '@/components/team-task-card'
+import { TaskWorkspace, TeamTaskCard } from '@/components/team-task-card'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
 import { formatARS } from '@/lib/catalog'
 import { monthKey } from '@/lib/dashboard'
@@ -24,7 +24,7 @@ export function TeamLogo() {
 }
 
 /** "Empecé" and "Terminé" for one task (the pack counts for the payment when it is finished). In the preview they do nothing. */
-function TaskActions({ task, preview, onChanged }: { task: TeamTask; preview?: boolean; onChanged: () => void }) {
+function TaskActions({ task, preview, onChanged, onStarted }: { task: TeamTask; preview?: boolean; onChanged: () => void; onStarted?: () => void }) {
   const [busy, setBusy] = useState(false)
   const [link, setLink] = useState('')
   const flash = useFlash()
@@ -39,6 +39,7 @@ function TaskActions({ task, preview, onChanged }: { task: TeamTask; preview?: b
     // Vale gets a notification when a CV is finished.
     if (status === 'terminado') supabase.functions.invoke('notify-admin', { body: { task_id: task.id, kind: 'task_done' } }).then(() => undefined, () => undefined)
     onChanged()
+    if (status === 'haciendo') onStarted?.()
   }
 
   if (task.status === 'terminado') return <p className="text-xs text-whatsapp">✓ Terminado el {formatDate(task.finished_at!, true)} · {task.paid_in ? 'cobrado' : 'a cobrar'}</p>
@@ -75,6 +76,9 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   headerRight?: React.ReactNode; setup?: React.ReactNode; onChanged: () => void
 }) {
   const [view, setView] = useState<'pendientes' | 'terminados'>('pendientes')
+  // The CV open in work mode (full screen, next to Canva).
+  const [workingId, setWorkingId] = useState<string | null>(null)
+  const closeWork = useCallback(() => setWorkingId(null), [])
   const { pending, finished } = sortTasks(tasks)
   const batch = batchStats(member, tasks, payments)
   const months = monthlyStats(tasks, payments)
@@ -84,6 +88,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   // In the preview, an example card shows how a new CV arrives.
   const shownPending = preview && pending.length === 0 ? [EXAMPLE_TASK] : pending
   const list = view === 'pendientes' ? shownPending : finished.slice(0, 30)
+  // Closes by itself when the CV is finished (it leaves the pending list).
+  const working = workingId ? shownPending.find((task) => task.id === workingId) ?? null : null
 
   const stats = [
     { icon: ListTodo, label: 'Para hacer', value: String(pending.length), strong: true },
@@ -131,7 +137,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
             {preview && view === 'pendientes' && pending.length === 0 && <p className="mt-3 text-xs font-semibold text-rosa-deep">Ejemplo: así le llega un CV cuando se lo asignás (no es un pedido real).</p>}
             {list.length === 0
               ? <p className="mt-3 rounded-3xl bg-white p-8 text-center text-piedra">{view === 'pendientes' ? 'No tenés CVs para armar. Cuando Vale te pase uno, te aparece acá y te llega un aviso.' : 'Todavía no terminaste ningún CV.'}</p>
-              : <ul className="mt-3 grid gap-3 @6xl:grid-cols-2">{list.map((task) => <TeamTaskCard key={task.id} task={task} actions={<TaskActions task={task} preview={preview} onChanged={onChanged} />} />)}</ul>}
+              : <ul className="mt-3 grid gap-3 @6xl:grid-cols-2">{list.map((task) => <TeamTaskCard key={task.id} task={task} onOpen={task.status === 'terminado' ? undefined : () => setWorkingId(task.id)} actions={<TaskActions task={task} preview={preview} onChanged={onChanged} onStarted={() => setWorkingId(task.id)} />} />)}</ul>}
           </section>
 
           {/* Money and history: beside the CVs on a tablet, under them on a phone. */}
@@ -169,6 +175,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
           </aside>
         </div>
       </main>
+
+      {working && <TaskWorkspace task={working} onClose={closeWork} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} />} />}
     </div>
   )
 }
