@@ -1,8 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { RefreshCw, Trash2, UserPlus } from 'lucide-react'
+import { Eye, Loader2, RefreshCw, Trash2, UserPlus, X } from 'lucide-react'
 import { TeamTaskCard } from '@/components/team-task-card'
+import { TeamView } from '@/components/team-view'
+import { monthKey } from '@/lib/dashboard'
 import { formatARS } from '@/lib/catalog'
 import { useHideMoney } from '@/lib/hide-money'
 import { formatDate } from '@/lib/orders'
@@ -88,17 +90,17 @@ function PaymentForm({ member, batch, onSaved }: { member: TeamMember; batch: Re
   return (
     <div>
       {!kind ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Button variant="success" disabled={batch.count === 0} onClick={() => open('pago')}>Le pagué</Button>
-          <Button variant="secondary" onClick={() => open('adelanto')}>Le di un adelanto</Button>
+          <Button variant="secondary" onClick={() => open('adelanto')}>Adelanto</Button>
         </div>
       ) : (
-        <div className="space-y-3 rounded-2xl bg-papel p-4">
+        <div className="space-y-3 rounded-2xl bg-papel p-3.5">
           <p className="font-display text-sm font-bold text-ciruela">{kind === 'pago' ? 'Registrar pago' : 'Registrar adelanto'}</p>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3">
             {kind === 'pago' && <Field label={`CVs que pagás (de ${batch.count})`}><input inputMode="numeric" value={packs} onChange={(event) => changePacks(event.target.value)} className={inputClass} /></Field>}
             <Field label="Monto"><input inputMode="numeric" value={amount} onChange={(event) => { setAmount(event.target.value.replace(/\D/g, '')); setAmountTouched(true) }} className={inputClass} /></Field>
-            <Field label="Nota (opcional)"><input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Ej: transferencia" className={inputClass} /></Field>
+            <div className={kind === 'pago' ? 'col-span-2' : ''}><Field label="Nota (opcional)"><input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Ej: transferencia" className={inputClass} /></Field></div>
           </div>
           {kind === 'pago' && <p className="text-xs text-piedra">Quedan pagos los {packs} CVs terminados más viejos{batch.advances ? ` y se descuentan los ${formatARS(batch.advances)} de adelanto` : ''}. Los que terminó después siguen sumando para el próximo cobro. Lo mensual no se borra.</p>}
           <div className="flex gap-2">
@@ -167,12 +169,50 @@ function TaskTools({ task, onChanged }: { task: TeamTask; onChanged: () => void 
   )
 }
 
+const DEVICES = [
+  { id: 'celu', label: 'Celu', width: 390 },
+  { id: 'tablet', label: 'Tablet', width: 820 },
+  { id: 'horizontal', label: 'Tablet acostada', width: 1180 },
+] as const
+
+/** "Ver como él": the team member's real screen with their data, at phone or tablet width. Buttons don't save anything. */
+function TeamPreview({ member, tasks, payments, onClose }: { member: TeamMember; tasks: TeamTask[]; payments: TeamPayment[]; onClose: () => void }) {
+  const [device, setDevice] = useState<(typeof DEVICES)[number]['id']>('tablet')
+  const width = DEVICES.find((item) => item.id === device)!.width
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+  }, [onClose])
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-ciruela/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="preview-title">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-3 text-white">
+        <p id="preview-title" className="flex items-center gap-2 font-display text-sm font-bold"><Eye className="h-4 w-4" />Así lo ve {member.name.split(' ')[0]}</p>
+        <div className="hidden gap-1 rounded-full bg-white/15 p-1 sm:flex">
+          {DEVICES.map((item) => (
+            <button key={item.id} type="button" onClick={() => setDevice(item.id)} className={`rounded-full px-3 py-1 font-display text-xs font-bold ${device === item.id ? 'bg-white text-ciruela' : 'text-white/85 hover:text-white'}`}>{item.label}</button>
+          ))}
+        </div>
+        <button type="button" onClick={onClose} className="ml-auto rounded-full bg-white/15 p-2 hover:bg-white/25" aria-label="Cerrar"><X className="h-5 w-5" /></button>
+      </div>
+      <div className="min-h-0 flex-1 px-2 pb-2 sm:px-4 sm:pb-4">
+        <div className="mx-auto h-full overflow-y-auto overscroll-contain rounded-[28px] bg-blanco shadow-2xl transition-[max-width] duration-300" style={{ maxWidth: width }}>
+          <TeamView member={member} tasks={tasks} payments={payments} preview onChanged={() => undefined}
+            headerRight={<span className="rounded-full bg-petalo-wash px-3 py-1 font-display text-[11px] font-bold text-rosa-deep">Vista previa</span>} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function TeamAdmin() {
   const [members, setMembers] = useState<TeamMember[]>([])
   const [tasks, setTasks] = useState<TeamTask[]>([])
   const [payments, setPayments] = useState<TeamPayment[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [view, setView] = useState<'pendientes' | 'terminados'>('pendientes')
+  const [previewing, setPreviewing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const { money } = useHideMoney()
@@ -186,9 +226,12 @@ export function TeamAdmin() {
     ])
     const failed = m.error ?? t.error ?? p.error
     setError(failed ? errorMessage(failed) : '')
-    setMembers((m.data as TeamMember[]) ?? [])
-    setTasks((t.data as TeamTask[]) ?? [])
-    setPayments((p.data as TeamPayment[]) ?? [])
+    // A failed refresh keeps what was on screen instead of emptying it.
+    if (!failed) {
+      setMembers((m.data as TeamMember[]) ?? [])
+      setTasks((t.data as TeamTask[]) ?? [])
+      setPayments((p.data as TeamPayment[]) ?? [])
+    }
     setLoading(false)
   }, [])
 
@@ -196,9 +239,13 @@ export function TeamAdmin() {
   useEffect(() => {
     let timer: number | undefined
     const soon = () => { window.clearTimeout(timer); timer = window.setTimeout(load, 600) }
-    const channel = supabase.channel('admin-team').on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, soon).subscribe()
+    const channel = supabase.channel('admin-team')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, soon)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_payments' }, soon)
+      .subscribe()
     return () => { window.clearTimeout(timer); supabase.removeChannel(channel) }
   }, [load])
+  const closePreview = useCallback(() => setPreviewing(false), [])
 
   const member = members.find((item) => item.id === selected) ?? members.find((item) => item.active) ?? members[0]
   const own = member ? tasks.filter((task) => task.member_id === member.id) : []
@@ -206,79 +253,109 @@ export function TeamAdmin() {
   const { pending, finished } = sortTasks(own)
   const batch = member ? batchStats(member, own, ownPayments) : null
   const months = monthlyStats(own, ownPayments)
+  const thisMonth = months.find((row) => row.key === monthKey(new Date()))
+  const list = view === 'pendientes' ? pending : finished.slice(0, 40)
+
+  if (loading && !members.length && !error) return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-rosa" /></div>
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         {members.map((item) => (
           <button key={item.id} type="button" onClick={() => setSelected(item.id)} className={`rounded-full px-4 py-2 font-display text-sm font-bold ${member?.id === item.id ? 'bg-ciruela text-white' : 'bg-white text-piedra hover:text-ciruela'} ${item.active ? '' : 'opacity-60'}`}>{item.name}{item.active ? '' : ' (sin acceso)'}</button>
         ))}
-        <button type="button" onClick={load} className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-full border border-line bg-white px-4 font-display text-sm font-bold text-piedra hover:text-ciruela"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Actualizar</button>
+        {member && <button type="button" onClick={() => setPreviewing(true)} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-rosa/40 bg-white px-4 font-display text-sm font-bold text-rosa-deep hover:bg-petalo-wash"><Eye className="h-4 w-4" />Ver como {member.name.split(' ')[0]}</button>}
+        <button type="button" onClick={load} aria-label="Actualizar" className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-full border border-line bg-white px-3 font-display text-sm font-bold text-piedra hover:text-ciruela sm:px-4"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
       </div>
-      {error && <p className="text-sm text-rosa-deep">{error}</p>}
+      {error && <p role="alert" className="rounded-2xl bg-petalo-wash px-4 py-3 text-sm font-semibold text-rosa-deep">{error}</p>}
 
       {member && batch && (
-        <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <div className="rounded-3xl bg-rosa p-4 text-white"><p className="font-display text-[11px] font-semibold uppercase tracking-wider text-white/85">Pendientes</p><p className="mt-1 font-display text-3xl font-extrabold">{pending.length}</p></div>
-            <div className="rounded-3xl bg-white p-4">
-              <p className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">Tanda actual</p>
-              <p className="mt-1 font-display text-3xl font-extrabold text-ciruela">{batch.count}<span className="text-base text-piedra"> de {batch.size}</span></p>
-              <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${batch.count >= batch.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(batch.count / batch.size, 1) * 100}%` }} /></div>
-            </div>
-            <div className="rounded-3xl bg-white p-4">
-              <p className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">Le debés</p>
-              <p className="mt-1 font-display text-3xl font-extrabold text-ciruela">{money(batch.owed)}</p>
-              <p className="mt-1 text-[11px] text-piedra">{batch.advances ? `Ya le adelantaste ${money(batch.advances)}` : batch.lastPayment ? `Último pago: ${formatDate(`${batch.lastPayment.paid_on}T12:00:00-03:00`)}` : 'Todavía no le pagaste'}</p>
-            </div>
-            <div className="rounded-3xl bg-white p-4"><p className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">Terminados (total)</p><p className="mt-1 font-display text-3xl font-extrabold text-ciruela">{finished.length}</p></div>
-          </div>
-          {batch.count >= batch.size && <p className="rounded-2xl bg-whatsapp/15 px-4 py-3 text-sm font-semibold text-whatsapp">{member.name} completó la tanda de {batch.size} CVs: te toca pagarle {money(batch.owed)}.</p>}
-          <PaymentForm key={`pay-${member.id}`} member={member} batch={batch} onSaved={load} />
-
-          <section>
-            <div role="tablist" className="flex gap-2">
-              {(['pendientes', 'terminados'] as const).map((id) => (
-                <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`rounded-full px-4 py-2 font-display text-sm font-bold ${view === id ? 'bg-ciruela text-white' : 'bg-white text-piedra hover:text-ciruela'}`}>
-                  {id === 'pendientes' ? `Para hacer (${pending.length})` : `Terminados (${finished.length})`}
-                </button>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+          <div className="min-w-0 space-y-4">
+            {/* The numbers in one compact strip: two per row on the phone, four in a row from a tablet. */}
+            <div className="grid grid-cols-2 overflow-hidden rounded-3xl bg-white shadow-[0_18px_40px_-34px_rgba(67,32,44,0.6)] sm:grid-cols-4">
+              {[
+                { label: 'Para hacer', value: pending.length, strong: true },
+                { label: 'Haciéndolos', value: pending.filter((task) => task.status === 'haciendo').length },
+                { label: 'Este mes', value: thisMonth?.packs ?? 0 },
+                { label: 'Total hechos', value: finished.length },
+              ].map(({ label, value, strong }, index) => (
+                <div key={label} className={`px-4 py-3 ${strong ? 'bg-rosa text-white' : ''} ${index % 2 ? 'border-l border-line' : ''} ${index > 1 ? 'border-t border-line sm:border-t-0' : ''} ${index === 2 ? 'sm:border-l' : ''}`}>
+                  <p className={`font-display text-[11px] font-semibold uppercase tracking-wider ${strong ? 'text-white/85' : 'text-piedra'}`}>{label}</p>
+                  <p className={`mt-0.5 font-display text-2xl font-extrabold ${strong ? '' : 'text-ciruela'}`}>{value}</p>
+                </div>
               ))}
             </div>
-            <p className="mt-2 text-xs text-piedra">Para asignarle un CV, entrá al pedido en Pedidos y tocá &quot;Asignar al equipo&quot;.</p>
-            {(view === 'pendientes' ? pending : finished.slice(0, 40)).length === 0
-              ? <p className="mt-4 rounded-3xl bg-white p-8 text-center text-piedra">{view === 'pendientes' ? 'No tiene CVs pendientes.' : 'Todavía no terminó ningún CV.'}</p>
-              : <ul className="mt-4 grid gap-3 lg:grid-cols-2">{(view === 'pendientes' ? pending : finished.slice(0, 40)).map((task) => <TeamTaskCard key={task.id} task={task} actions={<TaskTools task={task} onChanged={load} />} />)}</ul>}
-          </section>
 
-          <div className="grid gap-5 lg:grid-cols-2">
-            <section className={cardClass}>
-              <h2 className="font-display text-lg font-bold text-ciruela">Mes a mes</h2>
-              {months.length === 0 ? <p className="mt-2 text-sm text-piedra">Todavía no hay CVs terminados ni pagos.</p> : (
-                <table className="mt-3 w-full text-sm">
-                  <thead><tr className="text-left text-xs uppercase tracking-wider text-piedra"><th className="pb-2 font-semibold">Mes</th><th className="pb-2 text-right font-semibold">CVs</th><th className="pb-2 text-right font-semibold">Generó</th><th className="pb-2 text-right font-semibold">Le pagaste</th></tr></thead>
-                  <tbody>{months.map((row) => <tr key={row.key} className="border-t border-line"><td className="py-2 font-semibold text-ink">{row.label}</td><td className="py-2 text-right">{row.packs}</td><td className="py-2 text-right">{money(row.earned)}</td><td className="py-2 text-right">{money(row.paid)}</td></tr>)}</tbody>
+            <section>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div role="tablist" className="inline-flex rounded-full bg-white p-1 shadow-sm">
+                  {(['pendientes', 'terminados'] as const).map((id) => (
+                    <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`rounded-full px-4 py-1.5 font-display text-sm font-bold transition-colors ${view === id ? 'bg-ciruela text-white' : 'text-piedra hover:text-ciruela'}`}>
+                      {id === 'pendientes' ? `Para hacer (${pending.length})` : `Terminados (${finished.length})`}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-piedra">Se asignan desde <b>Pedidos</b>, en la ficha, con &quot;Asignar&quot;.</p>
+              </div>
+              {list.length === 0
+                ? <p className="mt-3 rounded-3xl bg-white px-6 py-8 text-center text-sm text-piedra">{view === 'pendientes' ? `${member.name.split(' ')[0]} no tiene CVs pendientes.` : 'Todavía no terminó ningún CV.'}</p>
+                : <ul className="mt-3 grid gap-3 2xl:grid-cols-2">{list.map((task) => <TeamTaskCard key={task.id} task={task} actions={<TaskTools task={task} onChanged={load} />} />)}</ul>}
+            </section>
+          </div>
+
+          {/* Money, history and settings: beside the CVs on the computer, under them on the phone. */}
+          <aside className="space-y-4 lg:sticky lg:top-4">
+            <section className={cardClass} aria-labelledby="owed-title">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 id="owed-title" className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">Le debés</h2>
+                  <p className="font-display text-3xl font-extrabold text-ciruela">{money(batch.owed)}</p>
+                </div>
+                <p className="text-right font-display text-sm font-bold text-ciruela">{batch.count}<span className="font-normal text-piedra"> de {batch.size} CVs</span></p>
+              </div>
+              <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${batch.count >= batch.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(batch.count / batch.size, 1) * 100}%` }} /></div>
+              <p className="mt-2 text-xs text-piedra">{batch.count >= batch.size ? <b className="text-whatsapp">Completó la tanda: te toca pagarle.</b> : batch.advances ? `Ya le adelantaste ${money(batch.advances)}.` : batch.lastPayment ? `Último pago: ${formatDate(`${batch.lastPayment.paid_on}T12:00:00-03:00`)}.` : 'Todavía no le pagaste.'}</p>
+              <div className="mt-3"><PaymentForm key={`pay-${member.id}`} member={member} batch={batch} onSaved={load} /></div>
+            </section>
+
+            <section className={cardClass} aria-labelledby="months-title">
+              <h2 id="months-title" className="font-display text-base font-bold text-ciruela">Mes a mes</h2>
+              {months.length === 0 ? <p className="mt-1 text-sm text-piedra">Todavía no hay CVs terminados ni pagos.</p> : (
+                <table className="mt-2 w-full text-sm">
+                  <thead><tr className="text-left text-[11px] uppercase tracking-wider text-piedra"><th className="pb-1.5 font-semibold">Mes</th><th className="pb-1.5 text-right font-semibold">CVs</th><th className="pb-1.5 text-right font-semibold">Generó</th><th className="pb-1.5 text-right font-semibold">Pagado</th></tr></thead>
+                  <tbody>{months.map((row) => <tr key={row.key} className="border-t border-line"><td className="py-1.5 font-semibold text-ink">{row.label}</td><td className="py-1.5 text-right">{row.packs}</td><td className="py-1.5 text-right">{money(row.earned)}</td><td className="py-1.5 text-right">{money(row.paid)}</td></tr>)}</tbody>
                 </table>
               )}
             </section>
-            <section className={cardClass}>
-              <h2 className="font-display text-lg font-bold text-ciruela">Pagos y adelantos</h2>
-              {ownPayments.length === 0 ? <p className="mt-2 text-sm text-piedra">Todavía no registraste pagos.</p> : (
-                <ul className="mt-3 space-y-2 text-sm">
+
+            {ownPayments.length > 0 && (
+              <section className={cardClass} aria-labelledby="payments-title">
+                <h2 id="payments-title" className="font-display text-base font-bold text-ciruela">Pagos y adelantos</h2>
+                <ul className="mt-2 space-y-2 text-sm">
                   {ownPayments.map((payment) => (
                     <li key={payment.id} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-line pt-2 first:border-0 first:pt-0">
-                      <span><b className="text-ink">{payment.kind === 'pago' ? 'Pago' : 'Adelanto'}</b> · {formatDate(`${payment.paid_on}T12:00:00-03:00`)}{payment.note ? <span className="text-piedra"> · {payment.note}</span> : null}</span>
+                      <span><b className="text-ink">{payment.kind === 'pago' ? `Pago${payment.packs ? ` · ${payment.packs} CVs` : ''}` : 'Adelanto'}</b> · {formatDate(`${payment.paid_on}T12:00:00-03:00`)}{payment.note ? <span className="text-piedra"> · {payment.note}</span> : null}</span>
                       <span className="font-display font-bold text-ciruela">{money(payment.amount)}</span>
                     </li>
                   ))}
                 </ul>
-              )}
-            </section>
-          </div>
-          <MemberSettings key={`settings-${member.id}`} member={member} onSaved={load} />
-        </>
+              </section>
+            )}
+
+            <MemberSettings key={`settings-${member.id}`} member={member} onSaved={load} />
+          </aside>
+        </div>
       )}
 
-      <AddMember onSaved={load} />
+      {members.length === 0 ? <AddMember onSaved={load} /> : (
+        <details className="rounded-2xl bg-white/60 p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-piedra">Sumar a alguien más al equipo</summary>
+          <div className="mt-3"><AddMember onSaved={load} /></div>
+        </details>
+      )}
+
+      {previewing && member && <TeamPreview member={member} tasks={own} payments={ownPayments} onClose={closePreview} />}
     </div>
   )
 }

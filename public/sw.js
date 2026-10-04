@@ -1,4 +1,4 @@
-// Service worker of the admin app: shows push notifications (new orders, receipts) and opens the panel when tapped.
+// Service worker of the installed apps (Vale's panel and the team's screen): shows push notifications and opens the right screen when tapped.
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
 
@@ -18,10 +18,12 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = new URL(event.notification.data?.url || '/admin', self.location.origin).href
+  const url = new URL(event.notification.data?.url || '/admin', self.location.origin)
+  // Open it in the app it belongs to: Vale's panel (/admin) or the team's screen (/equipo).
+  const section = url.pathname.split('/')[1]
   event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
-    const open = windows.find((client) => client.url.includes('/admin'))
-    if (open) return open.navigate(url).then((client) => (client || open).focus())
-    return self.clients.openWindow(url)
+    const open = windows.find((client) => new URL(client.url).pathname.split('/')[1] === section)
+    if (open) return open.navigate(url.href).then((client) => (client || open).focus())
+    return self.clients.openWindow(url.href)
   }))
 })
