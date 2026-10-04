@@ -45,7 +45,7 @@ function TaskActions({ task, onChanged }: { task: TeamTask; onChanged: () => voi
     onChanged()
   }
 
-  if (task.status === 'terminado') return <p className="text-xs text-whatsapp">✓ Terminado el {formatDate(task.finished_at!, true)}</p>
+  if (task.status === 'terminado') return <p className="text-xs text-whatsapp">✓ Terminado el {formatDate(task.finished_at!, true)} · {task.paid_in ? 'cobrado' : 'a cobrar'}</p>
   return (
     <div className="space-y-2">
       {task.status === 'haciendo' && (
@@ -129,7 +129,8 @@ export default function TeamPage() {
   }, [user, load])
 
   async function signOut() {
-    await supabase.auth.signOut()
+    // Only this device: signing out elsewhere (phone app, computer) stays as it is.
+    await supabase.auth.signOut({ scope: 'local' })
     window.location.replace('/equipo')
   }
 
