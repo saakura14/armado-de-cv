@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Bell, BellOff, BellRing, Smartphone } from 'lucide-react'
+import { Bell, BellOff, BellRing, Smartphone, Tablet } from 'lucide-react'
 import { errorMessage } from '@/lib/supabase'
 import { disablePush, enablePush, pushState, sendTestPush, type PushState } from '@/lib/push'
 import { Button, cardClass } from './ui'
@@ -14,17 +14,35 @@ if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (event) => { event.preventDefault(); savedPrompt = event as InstallPrompt })
 }
 
-/** "Your panel on the phone": install the admin app and turn on order notifications. */
-export function AppSetup({ userId }: { userId: string }) {
+/** iPhone and iPad (iPads report themselves as a Mac with a touch screen): there is no install button, it is Share → Add to Home Screen. */
+const isApple = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (/macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+
+// Texts of each app: Vale's panel or the team's screen.
+const APPS = {
+  admin: {
+    title: 'Tu panel en el celu', icon: Smartphone, name: 'Armado de CV - Admin', device: 'celu',
+    push: 'Te llega una notificación cuando entra un pedido o te suben un comprobante.',
+  },
+  equipo: {
+    title: 'La app en tu tablet o celu', icon: Tablet, name: 'Armado de CV - Equipo', device: 'tablet o celu',
+    push: 'Te llega una notificación cuando Vale te pasa un CV nuevo, y cada mañana un resumen de lo pendiente.',
+  },
+}
+
+/** Install the app on the phone or tablet and turn on its notifications. */
+export function AppSetup({ userId, app = 'admin' }: { userId: string; app?: keyof typeof APPS }) {
+  const texts = APPS[app]
   const [installed, setInstalled] = useState(false)
   const [canInstall, setCanInstall] = useState(false)
+  const [apple, setApple] = useState(false)
   const [push, setPush] = useState<PushState | null>(null)
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
-    setInstalled(window.matchMedia('(display-mode: standalone)').matches)
+    setInstalled(window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true)
     setCanInstall(Boolean(savedPrompt))
+    setApple(isApple())
     const onPrompt = () => setCanInstall(true)
     window.addEventListener('beforeinstallprompt', onPrompt)
     pushState().then(setPush)
@@ -37,7 +55,7 @@ export function AppSetup({ userId }: { userId: string }) {
     const { outcome } = await savedPrompt.userChoice
     savedPrompt = null
     setCanInstall(false)
-    if (outcome === 'accepted') setMessage({ tone: 'ok', text: 'Listo: vas a encontrar "Armado de CV - Admin" entre tus apps.' })
+    if (outcome === 'accepted') setMessage({ tone: 'ok', text: `Listo: vas a encontrar "${texts.name}" entre tus apps.` })
   }
 
   async function run(action: string, work: () => Promise<string>) {
@@ -61,36 +79,39 @@ export function AppSetup({ userId }: { userId: string }) {
     )
   }
 
+  const Icon = texts.icon
   return (
     <section className={cardClass} aria-labelledby="app-title">
-      <h2 id="app-title" className="flex items-center gap-2 font-display text-lg font-bold text-ciruela"><Smartphone className="h-5 w-5 text-rosa" />Tu panel en el celu</h2>
-      <div className="mt-3 grid gap-4 md:grid-cols-2">
+      <h2 id="app-title" className="flex items-center gap-2 font-display text-lg font-bold text-ciruela"><Icon className="h-5 w-5 text-rosa" />{texts.title}</h2>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl bg-papel p-4">
           <p className="font-display text-sm font-bold text-ciruela">1. Instalá la app</p>
           {installed ? (
             <p className="mt-1 text-sm text-ink">¡Ya la estás usando como app! ✅</p>
           ) : canInstall ? (
             <>
-              <p className="mt-1 text-sm text-ink">Queda como &quot;Armado de CV - Admin&quot; entre tus apps y abre directo acá.</p>
-              <Button className="mt-3" onClick={install}>Instalar el panel</Button>
+              <p className="mt-1 text-sm text-ink">Queda como &quot;{texts.name}&quot; entre tus apps y abre directo acá.</p>
+              <Button className="mt-3" onClick={install}>Instalar la app</Button>
             </>
+          ) : apple ? (
+            <p className="mt-1 text-sm leading-relaxed text-ink">Abrí esta página en <b>Safari</b>, tocá <b>Compartir</b> (el cuadrado con la flecha) y elegí <b>&quot;Agregar a inicio&quot;</b>. Después abrí &quot;{texts.name}&quot; desde el ícono y entrá de nuevo con tu cuenta.</p>
           ) : (
-            <p className="mt-1 text-sm leading-relaxed text-ink">Abrí esta página en <b>Chrome</b> desde tu celu, tocá el menú <b>⋮</b> y elegí <b>&quot;Instalar app&quot;</b> o <b>&quot;Agregar a la pantalla principal&quot;</b>. Después abrí &quot;Armado de CV - Admin&quot; desde el ícono.</p>
+            <p className="mt-1 text-sm leading-relaxed text-ink">Abrí esta página en <b>Chrome</b> desde tu {texts.device}, tocá el menú <b>⋮</b> y elegí <b>&quot;Instalar app&quot;</b> o <b>&quot;Agregar a la pantalla principal&quot;</b>. Después abrí &quot;{texts.name}&quot; desde el ícono.</p>
           )}
         </div>
         <div className="rounded-2xl bg-papel p-4">
           <p className="font-display text-sm font-bold text-ciruela">2. Activá los avisos</p>
-          <p className="mt-1 text-sm text-ink">Te llega una notificación cuando entra un pedido o te suben un comprobante.</p>
+          <p className="mt-1 text-sm text-ink">{texts.push}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {push === 'on' ? (
               <>
-                <Button variant="success" busy={busy === 'test'} onClick={() => run('test', async () => { const sent = await sendTestPush(); return sent ? 'Te mandé una notificación de prueba.' : 'No encontré tu celu: desactivá y volvé a activar.' })}><BellRing className="h-4 w-4" />Probar</Button>
+                <Button variant="success" busy={busy === 'test'} onClick={() => run('test', async () => { const sent = await sendTestPush(); return sent ? 'Te mandé una notificación de prueba.' : 'No encontré este dispositivo: desactivá y volvé a activar.' })}><BellRing className="h-4 w-4" />Probar</Button>
                 <Button variant="secondary" busy={busy === 'off'} onClick={() => run('off', async () => { await disablePush(); return 'Avisos desactivados en este dispositivo.' })}><BellOff className="h-4 w-4" />Desactivar</Button>
               </>
             ) : push === 'denied' ? (
-              <p className="text-sm text-rosa-deep">Las notificaciones están bloqueadas. Habilitalas en Ajustes → Apps → Armado de CV - Admin (o Chrome) → Notificaciones.</p>
+              <p className="text-sm text-rosa-deep">Las notificaciones están bloqueadas. Habilitalas en Ajustes → Apps → {texts.name} (o Chrome) → Notificaciones.</p>
             ) : push === 'unsupported' ? (
-              <p className="text-sm text-piedra">Este navegador no permite avisos. Instalá el panel y abrilo desde el ícono.</p>
+              <p className="text-sm text-piedra">{apple ? 'En iPhone y iPad los avisos funcionan una vez instalada la app: hacé el paso 1 y activalos desde el ícono.' : 'Este navegador no permite avisos. Instalá la app y abrila desde el ícono.'}</p>
             ) : (
               <Button busy={busy === 'on'} onClick={() => run('on', async () => { await enablePush(userId); await sendTestPush().catch(() => 0); return '¡Listo! Te mandé una notificación de prueba.' })}><Bell className="h-4 w-4" />Activar avisos</Button>
             )}
