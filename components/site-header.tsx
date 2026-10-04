@@ -1,5 +1,6 @@
 'use client'
 
+import { ThemeToggle } from '@/components/theme-toggle'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserRound } from 'lucide-react'
@@ -56,10 +57,13 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 md:h-[72px]">
         <Link href={asesorias ? '/asesorias' : '/'} aria-label={asesorias ? 'Armado de CV Asesorías — inicio' : 'Armado de CV — inicio'} className="shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={asesorias ? '/brand/asesorias-horizontal.svg' : '/brand/logo-horizontal.svg'} alt="" className="h-11 w-auto sm:h-12" />
+          <img src={asesorias ? '/brand/asesorias-horizontal.svg' : '/brand/logo-horizontal.svg'} alt="" className="only-light h-11 w-auto sm:h-12" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={asesorias ? '/brand/asesorias-horizontal-blanco.svg' : '/brand/logo-horizontal-blanco.svg'} alt="" className="only-dark h-11 w-auto sm:h-12" />
         </Link>
         <div className="hidden h-full md:block"><SectionTabs variant="desktop" /></div>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Link href={isAdmin ? '/admin' : '/cuenta'} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-3 py-2 font-display text-sm font-semibold text-ciruela transition-colors hover:border-ciruela sm:px-4" aria-label={isAdmin ? 'Panel' : user ? 'Mi cuenta' : 'Ingresar'}>
             {user && avatarUrl ? <Avatar src={avatarUrl} size="h-6 w-6" className="-ml-1" /> : <UserRound className="h-4 w-4" />}<span className="hidden sm:inline">{isAdmin ? 'Panel' : user ? 'Mi cuenta' : 'Ingresar'}</span>
           </Link>

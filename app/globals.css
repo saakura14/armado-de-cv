@@ -6,22 +6,80 @@
   --font-display: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
   --font-script: var(--font-cookie), 'Brush Script MT', cursive;
 
-  --color-rosa: #c9506d;          /* Rosa CV: brand voice, primary buttons */
-  --color-rosa-deep: #a8435e;     /* Rosa profundo: small pink text on light */
-  --color-petalo: #e8959b;        /* Pétalo: accents, flower */
-  --color-petalo-wash: #fbeaec;
-  --color-ciruela: #43202c;       /* Ciruela: headings, dark surfaces */
-  --color-papel: #f5efd9;         /* Papel: cards, covers */
-  --color-arena: #eae1d3;         /* Arena: Asesorías background, price rings */
-  --color-blanco: #fcfaf7;        /* Page background */
-  --color-piedra: #6f6a62;        /* Secondary text */
-  --color-ink: #3a2a30;           /* Body text */
-  --color-line: #e7ddd2;
-  --color-whatsapp: #1fa855;
+  /* Each color reads a variable, so the dark theme only swaps the variables (see :root[data-theme='dark']). */
+  --color-rosa: var(--acv-rosa);
+  --color-rosa-deep: var(--acv-rosa-deep);
+  --color-petalo: var(--acv-petalo);
+  --color-petalo-wash: var(--acv-petalo-wash);
+  --color-ciruela: var(--acv-ciruela);
+  --color-papel: var(--acv-papel);
+  --color-arena: var(--acv-arena);
+  --color-blanco: var(--acv-blanco);
+  --color-piedra: var(--acv-piedra);
+  --color-ink: var(--acv-ink);
+  --color-line: var(--acv-line);
+  --color-whatsapp: var(--acv-whatsapp);
 }
 
 :root {
   color-scheme: light;
+  --acv-rosa: #c9506d;          /* Rosa CV: brand voice, primary buttons */
+  --acv-rosa-deep: #a8435e;     /* Rosa profundo: small pink text on light */
+  --acv-petalo: #e8959b;        /* Pétalo: accents, flower */
+  --acv-petalo-wash: #fbeaec;
+  --acv-ciruela: #43202c;       /* Ciruela: headings, dark surfaces */
+  --acv-papel: #f5efd9;         /* Papel: cards, covers */
+  --acv-arena: #eae1d3;         /* Arena: Asesorías background, price rings */
+  --acv-blanco: #fcfaf7;        /* Page background */
+  --acv-piedra: #6f6a62;        /* Secondary text */
+  --acv-ink: #3a2a30;           /* Body text */
+  --acv-line: #e7ddd2;
+  --acv-whatsapp: #1fa855;
+  /* Cards ("bg-white") and the plum used as text: in light they are white and Ciruela. */
+  --acv-card: #ffffff;
+  --acv-heading: #43202c;
+}
+
+/* Dark theme: the page, cards and lines go plum-dark; headings and text go light. Set by the script in <head>. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --acv-rosa: #d65c7b;
+  --acv-rosa-deep: #b84d68;
+  --acv-petalo: #e8959b;
+  --acv-petalo-wash: #3a2129;
+  --acv-ciruela: #6e3347;        /* buttons and dark bands: lighter than the page so they still stand out */
+  --acv-papel: #2b2125;
+  --acv-arena: #251c20;
+  --acv-blanco: #161013;
+  --acv-piedra: #b7aaae;
+  --acv-ink: #efe5e8;
+  --acv-line: #3b2d33;
+  --acv-whatsapp: #22b45d;
+  --acv-card: #211a1d;
+  --acv-heading: #f4d9e0;
+}
+
+/*
+ * Some colors play two parts: Ciruela is a dark surface (bg) and also the color of headings (text); white is the
+ * text on buttons and also the card background. In dark they split: text-ciruela and the pink texts get light,
+ * bg-white becomes the card color. :where() keeps the specificity of the utility, so hover states still win.
+ */
+@layer utilities {
+  :where(:root[data-theme='dark']) .text-ciruela,
+  :where(:root[data-theme='dark']) .hover\:text-ciruela:hover { color: var(--acv-heading); }
+  :where(:root[data-theme='dark']) .text-ciruela\/80 { color: color-mix(in oklab, var(--acv-heading) 80%, transparent); }
+  :where(:root[data-theme='dark']) .border-ciruela,
+  :where(:root[data-theme='dark']) .hover\:border-ciruela:hover { border-color: #b98597; }
+  :where(:root[data-theme='dark']) .border-ciruela\/15 { border-color: rgb(185 133 151 / 0.25); }
+  :where(:root[data-theme='dark']) .text-rosa { color: #ee8aa4; }
+  :where(:root[data-theme='dark']) .text-rosa-deep,
+  :where(:root[data-theme='dark']) .hover\:text-rosa-deep:hover { color: #f29cb2; }
+  :where(:root[data-theme='dark']) .text-whatsapp,
+  :where(:root[data-theme='dark']) .hover\:text-whatsapp:hover { color: #4fd487; }
+  :where(:root[data-theme='dark']) .bg-white,
+  :where(:root[data-theme='dark']) .hover\:bg-white:hover { background-color: var(--acv-card); }
+  :where(:root[data-theme='dark']) .bg-white\/60 { background-color: color-mix(in oklab, var(--acv-card) 60%, transparent); }
+  :where(:root[data-theme='dark']) .ring-blanco { --tw-ring-color: var(--acv-blanco); }
 }
 
 html {
@@ -66,3 +124,8 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Images with a light and a dark version (the logo): only the one for the current theme shows. */
+.only-dark { display: none; }
+:root[data-theme='dark'] .only-dark { display: block; }
+:root[data-theme='dark'] .only-light { display: none; }
