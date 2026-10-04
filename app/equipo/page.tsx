@@ -5,6 +5,7 @@ import { Loader2, LogOut, RefreshCw } from 'lucide-react'
 import { AuthPanel } from '@/components/auth-panel'
 import { AppSetup } from '@/components/admin/app-setup'
 import { TeamLogo, TeamView } from '@/components/team-view'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { setAppBadge, syncPush } from '@/lib/push'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { TASK_SELECT, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
@@ -87,6 +88,7 @@ export default function TeamPage() {
         setup={<AppSetup userId={user.id} app="equipo" />}
         headerRight={(
           <>
+            <ThemeToggle />
             <button type="button" onClick={load} aria-label="Actualizar" className="rounded-full p-2 text-piedra hover:bg-papel hover:text-ciruela"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /></button>
             <button type="button" onClick={signOut} className="inline-flex items-center gap-1.5 text-sm font-semibold text-piedra hover:text-ciruela"><LogOut className="h-4 w-4" />Salir</button>
           </>

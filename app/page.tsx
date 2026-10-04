@@ -142,7 +142,9 @@ export default async function Home() {
       <section className="px-4 sm:px-6">
         <Link href="/asesorias" className="group mx-auto flex max-w-6xl flex-col items-center gap-6 rounded-[32px] bg-arena p-6 sm:flex-row sm:p-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/asesorias-vertical.svg" alt="" className="w-40 shrink-0" />
+          <img src="/brand/asesorias-vertical.svg" alt="" className="only-light w-40 shrink-0" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/asesorias-vertical-blanco.svg" alt="" className="only-dark w-40 shrink-0" />
           <div className="flex-1 text-center sm:text-left">
             <p className="font-script text-4xl leading-none text-rosa">¿Tenés una entrevista o un psicotécnico?</p>
             <p className="mt-2 text-piedra">E-books de preparación, sesiones 1 a 1 por Google Meet y test vocacional en la sección Asesorías.</p>

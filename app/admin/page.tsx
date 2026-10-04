@@ -6,6 +6,7 @@ import { ArrowRight, BookOpen, CreditCard, ExternalLink, Home, Loader2, HelpCirc
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { Avatar } from '@/components/avatar'
 import { AppSetup } from '@/components/admin/app-setup'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { WhatsappSaleDialog } from '@/components/admin/whatsapp-sale-dialog'
 import { UpdateBanner } from '@/components/admin/update-banner'
 import { AuthPanel } from '@/components/auth-panel'
@@ -189,6 +190,7 @@ export default function AdminPage() {
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:h-16">
           <AdminLogo />
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <button type="button" onClick={() => openOverlay(() => setAccount(true))} aria-label="Tu cuenta" className="rounded-full ring-2 ring-transparent transition hover:ring-rosa/40">
               <Avatar src={avatarUrl} size="h-9 w-9" />
             </button>

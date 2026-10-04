@@ -9,6 +9,7 @@ import { SiteChrome } from '@/components/site-chrome'
 import { CookieNotice } from '@/components/cookie-notice'
 import { MetaPixel } from '@/components/meta-pixel'
 import { VisitTracker } from '@/components/visit-tracker'
+import { THEME_SCRIPT } from '@/lib/theme'
 import './globals.css'
 
 const cookie = Cookie({ subsets: ['latin'], variable: '--font-cookie', display: 'swap', weight: '400' })
@@ -27,13 +28,15 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#fcfaf7',
+  themeColor: [{ media: '(prefers-color-scheme: light)', color: '#fcfaf7' }, { media: '(prefers-color-scheme: dark)', color: '#161013' }],
   viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es-AR" className={`${cookie.variable} ${montserrat.variable} ${nunito.variable}`}>
+    // The theme script sets data-theme before React loads, so the attribute is expected to differ from the server HTML.
+    <html lang="es-AR" className={`${cookie.variable} ${montserrat.variable} ${nunito.variable}`} suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
       <body className="font-sans antialiased">
         <SiteChrome><SiteHeader /></SiteChrome>
         <main className="pb-24 lg:pb-0">{children}</main>
