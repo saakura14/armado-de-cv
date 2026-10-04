@@ -47,6 +47,30 @@ function CopyBlock({ storageKey, label, text }: { storageKey: string; label: str
   const timer = useRef<number | undefined>(undefined)
   const refs = useRef<(HTMLDivElement | null)[]>([])
   useEffect(() => () => window.clearTimeout(timer.current), [])
+  const textRef = useRef<HTMLDivElement>(null)
+  // "Marcar" mode: tapping the text doesn't copy, so placing the finger and dragging the handles is easy.
+  const [mode, setMode] = useStored<'tocar' | 'marcar'>('acv-copy-mode', 'tocar')
+  // The part marked by hand inside this text, for the "Copiar lo marcado" button.
+  const [marked, setMarked] = useState('')
+  useEffect(() => {
+    let clear: number | undefined
+    function onSelection() {
+      const selection = window.getSelection()
+      const value = selection && !selection.isCollapsed ? selection.toString() : ''
+      window.clearTimeout(clear)
+      if (value.trim() && textRef.current?.contains(selection!.anchorNode)) { setMarked(value); return }
+      // On a tablet the selection goes away as the button is touched: keep it a moment so the tap still copies it.
+      clear = window.setTimeout(() => setMarked(''), 700)
+    }
+    document.addEventListener('selectionchange', onSelection)
+    return () => { document.removeEventListener('selectionchange', onSelection); window.clearTimeout(clear) }
+  }, [])
+  async function copyMarked() {
+    const value = marked
+    setMarked('')
+    window.getSelection()?.removeAllRanges()
+    await copy(value, [])
+  }
 
   // A paragraph is done when it was copied whole, or line by line.
   const pieceDone = (index: number) => copied.includes(`p${index}`) || pieces[index].lines.every((line, lineIndex) => !line.trim() || copied.includes(`p${index}l${lineIndex}`))
@@ -105,19 +129,29 @@ function CopyBlock({ storageKey, label, text }: { storageKey: string; label: str
 
       {open && (
         <div className="px-2 py-2 sm:px-3">
-          <p className="px-1.5 pb-2 text-[11px] leading-snug text-piedra">Tocá un renglón para copiarlo o el botón del bloque para copiar el párrafo. También podés seleccionar con el dedo solo una parte. Lo copiado queda tildado.</p>
-          <div className="space-y-1.5">
+          {/* How tapping the text works: copy the line, or mark by hand just the part needed. */}
+          <div className="flex flex-wrap items-center gap-2 px-1.5 pb-2">
+            <div role="radiogroup" aria-label="Al tocar el texto" className="inline-flex rounded-full bg-papel p-0.5">
+              {([['tocar', 'Tocar copia el renglón'], ['marcar', 'Marcar con el dedo']] as const).map(([id, text]) => (
+                <button key={id} type="button" role="radio" aria-checked={mode === id} onClick={() => setMode(id)} className={`rounded-full px-3 py-1 font-display text-[11px] font-bold ${mode === id ? 'bg-ciruela text-white' : 'text-piedra'}`}>{text}</button>
+              ))}
+            </div>
+            <p className="text-[11px] leading-snug text-piedra">{mode === 'tocar' ? 'O el botón del bloque para el párrafo entero.' : 'Mantené apretado, marcá lo que necesites y tocá "Copiar lo marcado".'}</p>
+          </div>
+          <div ref={textRef} className="space-y-1.5">
             {pieces.map((piece, index) => {
               const done = pieceDone(index)
               return (
                 <div key={index} ref={(element) => { refs.current[index] = element }} className={`flex scroll-mt-20 items-start gap-2 rounded-xl border p-1.5 transition-colors ${index === next ? 'border-rosa bg-petalo-wash/40' : done ? 'border-transparent bg-whatsapp/5' : 'border-transparent bg-papel/50'}`}>
                   <div className="min-w-0 flex-1 select-text font-sans text-[15px] leading-relaxed text-ink">
-                    {piece.lines.map((line, lineIndex) => line.trim() ? (
+                    {piece.lines.map((line, lineIndex) => !line.trim() ? <span key={lineIndex} className="block h-2" /> : mode === 'marcar' ? (
+                      <span key={lineIndex} className={`block cursor-text whitespace-pre-wrap break-words px-1.5 py-0.5 ${!done && copied.includes(`p${index}l${lineIndex}`) ? 'text-whatsapp' : ''}`}>{line}</span>
+                    ) : (
                       <span key={lineIndex} role="button" tabIndex={0}
                         onClick={(event) => copy(line.trim(), [`p${index}l${lineIndex}`], event.currentTarget, true)}
                         onKeyDown={(event) => { if (event.key === 'Enter') copy(line.trim(), [`p${index}l${lineIndex}`], event.currentTarget, true) }}
                         className={`block cursor-pointer whitespace-pre-wrap break-words rounded-lg px-1.5 py-0.5 hover:bg-white active:bg-rosa/10 ${!done && copied.includes(`p${index}l${lineIndex}`) ? 'text-whatsapp' : ''}`}>{line}</span>
-                    ) : <span key={lineIndex} className="block h-2" />)}
+                    ))}
                   </div>
                   <button type="button" onClick={(event) => copy(piece.text, [`p${index}`], event.currentTarget.previousElementSibling as HTMLElement | null)} aria-label={`Copiar el bloque ${index + 1}`}
                     className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${done ? 'bg-whatsapp text-white' : index === next ? 'bg-rosa text-white' : 'bg-white text-ciruela hover:bg-ciruela hover:text-white'}`}>
@@ -134,6 +168,13 @@ function CopyBlock({ storageKey, label, text }: { storageKey: string; label: str
         </div>
       )}
 
+      {marked && !toast && (
+        // pointerdown is cancelled so a click with the mouse doesn't erase the selection before copying it.
+        <button type="button" onPointerDown={(event) => event.preventDefault()} onClick={copyMarked}
+          className="fixed inset-x-4 bottom-[calc(1.25rem+env(safe-area-inset-bottom))] z-[60] mx-auto flex max-w-md items-center justify-center gap-2 rounded-full bg-rosa px-4 py-3 font-display text-sm font-bold text-white shadow-lg">
+          <Copy className="h-4 w-4 shrink-0" /><span className="truncate">Copiar lo marcado: «{marked.replace(/\s+/g, ' ').trim().slice(0, 30)}{marked.trim().length > 30 ? '…' : ''}»</span>
+        </button>
+      )}
       {toast && (
         <p role="status" className={`pointer-events-none fixed inset-x-4 bottom-[calc(1.25rem+env(safe-area-inset-bottom))] z-[60] mx-auto max-w-md rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white shadow-lg ${toast.ok ? 'bg-ciruela' : 'bg-rosa-deep'}`}>{toast.text}</p>
       )}
