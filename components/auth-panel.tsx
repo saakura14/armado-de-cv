@@ -57,7 +57,12 @@ export function AuthPanel({ title = 'Ingresá para continuar', text, initialMode
 
   async function google() {
     setError('')
-    const { error: authError } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } })
+    // Google comes back with the session in the hash ("#access_token=..."): a hash already in the address ("/admin#equipo")
+    // ended up as "#equipo#access_token=...", the session was never read and the login page came back in a loop.
+    // The section is kept aside and the panel reopens it after signing in.
+    const { hash, origin, pathname, search } = window.location
+    try { if (hash) sessionStorage.setItem('acv-return-hash', hash.slice(1)) } catch { /* private mode: opens in Inicio */ }
+    const { error: authError } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${origin}${pathname}${search}` } })
     if (authError) setError(errorMessage(authError))
   }
 
