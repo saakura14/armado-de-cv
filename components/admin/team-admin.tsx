@@ -118,14 +118,18 @@ function PaymentForm({ member, batch, onSaved }: { member: TeamMember; batch: Re
 function MemberSettings({ member, onSaved }: { member: TeamMember; onSaved: () => void }) {
   const [rate, setRate] = useState(String(member.rate))
   const [size, setSize] = useState(String(member.batch_size))
+  const [email, setEmail] = useState(member.email)
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
   async function save(active = member.active) {
     if (!active && !window.confirm(`¿Quitarle el acceso a ${member.name}? No va a poder entrar a /equipo. Sus CVs y pagos quedan guardados.`)) return
     setBusy(true)
-    const { error } = await supabase.from('team_members').update({ rate: Number(rate), batch_size: Number(size), active }).eq('id', member.id)
+    const newEmail = email.trim().toLowerCase()
+    // A new Gmail unlinks the old account: the next sign-in with the new one links it again.
+    const changes = newEmail !== member.email ? { email: newEmail, user_id: null } : {}
+    const { error } = await supabase.from('team_members').update({ rate: Number(rate), batch_size: Number(size), active, ...changes }).eq('id', member.id)
     setBusy(false)
-    if (error) { flash.show('error', errorMessage(error)); return }
+    if (error) { flash.show('error', /duplicate|unique/i.test(error.message) ? 'Ese Gmail ya está en el equipo.' : errorMessage(error)); return }
     flash.show('ok', 'Guardado.')
     onSaved()
   }
@@ -133,12 +137,13 @@ function MemberSettings({ member, onSaved }: { member: TeamMember; onSaved: () =
     <details className="rounded-2xl bg-papel/60 p-3">
       <summary className="cursor-pointer text-sm font-semibold text-piedra">Configuración de {member.name}</summary>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2"><Field label="Gmail con el que entra"><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} /></Field></div>
         <Field label="Pago por pack de CV"><input inputMode="numeric" value={rate} onChange={(event) => setRate(event.target.value.replace(/\D/g, ''))} className={inputClass} /></Field>
         <Field label="Packs por cobro"><input inputMode="numeric" value={size} onChange={(event) => setSize(event.target.value.replace(/\D/g, ''))} className={inputClass} /></Field>
       </div>
-      <p className="mt-2 text-xs text-piedra">Gmail: {member.email}{member.user_id ? ' · ya entró' : ' · todavía no entró'}. Un cambio de precio cuenta para los CVs que asignes de ahora en más.</p>
+      <p className="mt-2 text-xs text-piedra">{member.user_id ? 'Ya entró con este Gmail.' : 'Todavía no entró con este Gmail.'} Un cambio de precio cuenta para los CVs que asignes de ahora en más.</p>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button variant="secondary" busy={busy} disabled={!(Number(size) > 0)} onClick={() => save()}>Guardar</Button>
+        <Button variant="secondary" busy={busy} disabled={!(Number(size) > 0) || !/^\S+@\S+\.\S+$/.test(email.trim())} onClick={() => save()}>Guardar</Button>
         {member.active ? <Button variant="danger" onClick={() => save(false)}>Quitar acceso</Button> : <Button onClick={() => save(true)}>Volver a dar acceso</Button>}
       </div>
       {flash.node && <div className="mt-2">{flash.node}</div>}
