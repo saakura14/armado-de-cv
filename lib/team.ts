@@ -24,12 +24,14 @@ export type TeamTask = {
   started_at: string | null
   finished_at: string | null
   design_url: string | null
+  /** The payment that covered this CV (null = still to be paid). */
+  paid_in: string | null
 }
 
 /** "pago" closes the batch (the counter starts again); "adelanto" is money ahead, discounted from the current batch. */
-export type TeamPayment = { id: string; member_id: string; kind: 'pago' | 'adelanto'; amount: number; paid_on: string; note: string | null; created_at: string }
+export type TeamPayment = { id: string; member_id: string; kind: 'pago' | 'adelanto'; amount: number; paid_on: string; note: string | null; created_at: string; packs: number | null; settled_in: string | null }
 
-export const TASK_SELECT = 'id, member_id, order_id, order_item_id, order_number, client_name, pack_name, cv_modern, cv_ats, has_letter, letter, notes, due_on, status, rate, assigned_at, started_at, finished_at, design_url'
+export const TASK_SELECT = 'id, member_id, order_id, order_item_id, order_number, client_name, pack_name, cv_modern, cv_ats, has_letter, letter, notes, due_on, status, rate, assigned_at, started_at, finished_at, design_url, paid_in'
 
 /** Only the CV packs are made by the team (LinkedIn, platforms, sessions and corrections stay with Vale). */
 export const TEAM_PACKS = ['cv-simple', 'cv-medium', 'cv-premium']
@@ -44,14 +46,13 @@ export const TASK_STATUS: Record<TaskStatus, { label: string; tone: string }> = 
 
 const time = (value: string | null) => (value ? new Date(value).getTime() : 0)
 
-/** The batch in course: packs finished since the last payment, what they add up to, and what is still owed after advances. */
+/** The batch in course: finished CVs not covered by a payment yet, what they add up to, and what is owed after unsettled advances. */
 export function batchStats(member: Pick<TeamMember, 'batch_size'>, tasks: TeamTask[], payments: TeamPayment[]) {
+  const unpaid = tasks.filter((task) => task.status === 'terminado' && !task.paid_in).sort((a, b) => time(a.finished_at) - time(b.finished_at))
+  const earned = unpaid.reduce((sum, task) => sum + task.rate, 0)
+  const advances = payments.filter((payment) => payment.kind === 'adelanto' && !payment.settled_in).reduce((sum, payment) => sum + payment.amount, 0)
   const lastPayment = payments.filter((payment) => payment.kind === 'pago').sort((a, b) => time(b.created_at) - time(a.created_at))[0]
-  const since = lastPayment ? time(lastPayment.created_at) : 0
-  const done = tasks.filter((task) => task.status === 'terminado' && time(task.finished_at) > since)
-  const earned = done.reduce((sum, task) => sum + task.rate, 0)
-  const advances = payments.filter((payment) => payment.kind === 'adelanto' && time(payment.created_at) > since).reduce((sum, payment) => sum + payment.amount, 0)
-  return { count: done.length, size: member.batch_size, earned, advances, owed: Math.max(earned - advances, 0), lastPayment: lastPayment ?? null }
+  return { count: unpaid.length, size: member.batch_size, unpaid, earned, advances, owed: Math.max(earned - advances, 0), lastPayment: lastPayment ?? null }
 }
 
 export type MonthRow = { key: string; label: string; packs: number; earned: number; paid: number }

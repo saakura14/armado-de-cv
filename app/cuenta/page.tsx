@@ -96,7 +96,7 @@ export default function AccountPage() {
           </div>
           <div className="flex gap-2">
             {isAdmin && <Link href="/admin" className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ciruela px-4 py-2 font-display text-sm font-bold text-white"><Settings className="h-4 w-4" />Panel de administración</Link>}
-            <button type="button" onClick={() => supabase.auth.signOut()} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 py-2 font-display text-sm font-semibold text-ciruela"><LogOut className="h-4 w-4" />Salir</button>
+            <button type="button" onClick={async () => { await supabase.auth.signOut({ scope: 'local' }); window.location.replace('/') }} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 py-2 font-display text-sm font-semibold text-ciruela"><LogOut className="h-4 w-4" />Salir</button>
           </div>
         </div>
 

@@ -40,42 +40,69 @@ function AddMember({ onSaved }: { onSaved: () => void }) {
   )
 }
 
-/** Register a payment (closes the batch: the counter starts again) or an advance (discounted from the current batch). */
-function PaymentForm({ member, owed, onSaved }: { member: TeamMember; owed: number; onSaved: () => void }) {
+/**
+ * Register a payment or an advance. A payment covers the oldest finished CVs not paid yet (Vale picks how many,
+ * 10 by default) and settles the advances; an advance is money ahead, discounted from what is owed.
+ */
+function PaymentForm({ member, batch, onSaved }: { member: TeamMember; batch: ReturnType<typeof batchStats>; onSaved: () => void }) {
   const [kind, setKind] = useState<'pago' | 'adelanto' | null>(null)
+  const [packs, setPacks] = useState('')
   const [amount, setAmount] = useState('')
+  const [amountTouched, setAmountTouched] = useState(false)
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
-  function open(next: 'pago' | 'adelanto') { setKind(next); setAmount(next === 'pago' ? String(owed) : ''); setNote('') }
+  // What N packs add up to (each with the rate of the day it was assigned), minus the advances.
+  const amountFor = (count: number) => Math.max(batch.unpaid.slice(0, count).reduce((sum, task) => sum + task.rate, 0) - batch.advances, 0)
+
+  function open(next: 'pago' | 'adelanto') {
+    setKind(next); setNote(''); setAmountTouched(false)
+    const count = batch.count >= batch.size ? batch.size : batch.count
+    setPacks(String(count))
+    setAmount(next === 'pago' ? String(amountFor(count)) : '')
+  }
+  function changePacks(value: string) {
+    const count = Math.min(Number(value.replace(/\D/g, '')) || 0, batch.count)
+    setPacks(String(count))
+    if (!amountTouched) setAmount(String(amountFor(count)))
+  }
   async function save() {
     if (!kind) return
-    if (kind === 'pago' && !window.confirm(`¿Registrar el pago de ${formatARS(Number(amount))} a ${member.name}? El contador de CVs vuelve a 0.`)) return
-    setBusy(true)
-    const { error } = await supabase.from('team_payments').insert({ member_id: member.id, kind, amount: Number(amount), note: note.trim() || null })
-    setBusy(false)
-    if (error) { flash.show('error', errorMessage(error)); return }
+    if (kind === 'pago') {
+      if (!window.confirm(`¿Registrar el pago de ${formatARS(Number(amount))} a ${member.name} por ${packs} ${packs === '1' ? 'CV' : 'CVs'}?${batch.advances ? ` Se descuentan los ${formatARS(batch.advances)} de adelanto.` : ''}`)) return
+      setBusy(true)
+      const { error } = await supabase.rpc('admin_team_pay', { p_member: member.id, p_packs: Number(packs), p_amount: Number(amount), p_note: note.trim() || null })
+      setBusy(false)
+      if (error) { flash.show('error', errorMessage(error)); return }
+    } else {
+      setBusy(true)
+      const { error } = await supabase.from('team_payments').insert({ member_id: member.id, kind, amount: Number(amount), note: note.trim() || null })
+      setBusy(false)
+      if (error) { flash.show('error', errorMessage(error)); return }
+    }
     setKind(null)
-    flash.show('ok', kind === 'pago' ? 'Pago registrado: el contador volvió a 0.' : 'Adelanto registrado: se descuenta de lo que le debés.')
+    flash.show('ok', kind === 'pago' ? `Pago registrado: ${packs} ${packs === '1' ? 'CV quedó pago' : 'CVs quedaron pagos'}.` : 'Adelanto registrado: se descuenta de lo que le debés.')
     onSaved()
   }
+
   return (
     <div>
       {!kind ? (
         <div className="flex flex-wrap gap-2">
-          <Button variant="success" onClick={() => open('pago')}>Le pagué (reinicia el contador)</Button>
+          <Button variant="success" disabled={batch.count === 0} onClick={() => open('pago')}>Le pagué</Button>
           <Button variant="secondary" onClick={() => open('adelanto')}>Le di un adelanto</Button>
         </div>
       ) : (
         <div className="space-y-3 rounded-2xl bg-papel p-4">
           <p className="font-display text-sm font-bold text-ciruela">{kind === 'pago' ? 'Registrar pago' : 'Registrar adelanto'}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Monto"><input inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value.replace(/\D/g, ''))} className={inputClass} /></Field>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {kind === 'pago' && <Field label={`CVs que pagás (de ${batch.count})`}><input inputMode="numeric" value={packs} onChange={(event) => changePacks(event.target.value)} className={inputClass} /></Field>}
+            <Field label="Monto"><input inputMode="numeric" value={amount} onChange={(event) => { setAmount(event.target.value.replace(/\D/g, '')); setAmountTouched(true) }} className={inputClass} /></Field>
             <Field label="Nota (opcional)"><input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Ej: transferencia" className={inputClass} /></Field>
           </div>
-          {kind === 'pago' && <p className="text-xs text-piedra">Cierra la tanda: los CVs terminados hasta hoy quedan pagos y el contador de {member.batch_size} arranca de nuevo. Lo mensual no se borra.</p>}
+          {kind === 'pago' && <p className="text-xs text-piedra">Quedan pagos los {packs} CVs terminados más viejos{batch.advances ? ` y se descuentan los ${formatARS(batch.advances)} de adelanto` : ''}. Los que terminó después siguen sumando para el próximo cobro. Lo mensual no se borra.</p>}
           <div className="flex gap-2">
-            <Button busy={busy} disabled={!(Number(amount) > 0)} onClick={save}>Guardar</Button>
+            <Button busy={busy} disabled={!(Number(amount) > 0) || (kind === 'pago' && !(Number(packs) > 0))} onClick={save}>Guardar</Button>
             <Button variant="secondary" onClick={() => setKind(null)}>Cancelar</Button>
           </div>
         </div>
@@ -133,7 +160,7 @@ function TaskTools({ task, onChanged }: { task: TeamTask; onChanged: () => void 
   return (
     <div className="flex flex-wrap items-center gap-3 text-xs">
       {task.status === 'terminado'
-        ? <><span className="text-whatsapp">✓ Terminado el {formatDate(task.finished_at!, true)}</span><button type="button" onClick={reopen} className="font-semibold text-piedra hover:text-ciruela">Volver a pendiente</button></>
+        ? <><span className="text-whatsapp">✓ Terminado el {formatDate(task.finished_at!, true)}{task.paid_in ? ' · pagado' : ' · a pagar'}</span>{!task.paid_in && <button type="button" onClick={reopen} className="font-semibold text-piedra hover:text-ciruela">Volver a pendiente</button>}</>
         : <button type="button" onClick={unassign} className="inline-flex items-center gap-1 font-semibold text-rosa-deep hover:underline"><Trash2 className="h-3.5 w-3.5" />Sacar la asignación</button>}
       {flash.node}
     </div>
@@ -207,7 +234,7 @@ export function TeamAdmin() {
             <div className="rounded-3xl bg-white p-4"><p className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">Terminados (total)</p><p className="mt-1 font-display text-3xl font-extrabold text-ciruela">{finished.length}</p></div>
           </div>
           {batch.count >= batch.size && <p className="rounded-2xl bg-whatsapp/15 px-4 py-3 text-sm font-semibold text-whatsapp">{member.name} completó la tanda de {batch.size} CVs: te toca pagarle {money(batch.owed)}.</p>}
-          <PaymentForm member={member} owed={batch.owed} onSaved={load} />
+          <PaymentForm key={member.id} member={member} batch={batch} onSaved={load} />
 
           <section>
             <div role="tablist" className="flex gap-2">

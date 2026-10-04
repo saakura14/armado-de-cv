@@ -165,7 +165,8 @@ export default function AdminPage() {
   }
 
   async function signOut() {
-    await supabase.auth.signOut()
+    // Only this device: signing out elsewhere (phone app, computer) stays as it is.
+    await supabase.auth.signOut({ scope: 'local' })
     window.location.replace('/')
   }
 

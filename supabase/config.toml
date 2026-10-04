@@ -18,3 +18,7 @@ verify_jwt = true
 # only used as a hint (the status is always read back from Ualá). Secrets: UALA_USERNAME,
 # UALA_CLIENT_ID, UALA_CLIENT_SECRET, UALA_ENV.
 verify_jwt = false
+
+[functions.daily-digest]
+# Called only by pg_cron with the private key from Vault (x-cron-key), no session.
+verify_jwt = false
