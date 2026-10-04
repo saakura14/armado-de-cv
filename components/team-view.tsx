@@ -60,9 +60,9 @@ function TaskActions({ task, preview, onChanged }: { task: TeamTask; preview?: b
 /** What a CV looks like before there is a real one (only in Vale's preview). */
 export const EXAMPLE_TASK: TeamTask = {
   id: 'ejemplo', member_id: '', order_id: '', order_item_id: '', order_number: 0, client_name: 'Martina', pack_name: 'Pack CV Premium',
-  cv_modern: 'MARTINA LÓPEZ\nAnalista de Recursos Humanos\n\nPERFIL\n(acá va el texto del CV moderno que le pasás, tal cual)',
-  cv_ats: 'MARTINA LÓPEZ\nAnalista de Recursos Humanos\n\n(acá va el texto del CV ATS)',
-  has_letter: true, letter: 'Estimado equipo de selección:\n(acá va la carta)', notes: 'Diseño en tonos verdes, con foto.',
+  cv_modern: 'MARTINA LÓPEZ\nAnalista de Recursos Humanos\nCABA · martina@ejemplo.com · linkedin.com/in/martina\n\nPERFIL PROFESIONAL\nAnalista de RR. HH. con 4 años de experiencia en selección, onboarding y clima laboral. Orientada a datos y a la mejora de procesos.\n\nEXPERIENCIA\nAnalista de Selección · Empresa Ejemplo S.A. · 2022 - actualidad\n• Gestión de búsquedas IT y comerciales de punta a punta.\n• Reducción del tiempo de cobertura de 45 a 30 días.\n\nAsistente de RR. HH. · Otra Empresa · 2020 - 2022\n• Liquidación de novedades y legajos.\n• Organización de capacitaciones internas.\n\nEDUCACIÓN\nLic. en Relaciones del Trabajo · UBA · 2021\n\nHABILIDADES\nEntrevistas por competencias · Excel avanzado · Power BI · Inglés intermedio',
+  cv_ats: 'MARTINA LÓPEZ\nAnalista de Recursos Humanos\n\nRESUMEN\nAnalista de Recursos Humanos con 4 años de experiencia en reclutamiento y selección.\n\nEXPERIENCIA LABORAL\nAnalista de Selección, Empresa Ejemplo S.A. (2022 - actualidad)\n- Búsquedas IT y comerciales.\n- Tiempo de cobertura reducido un 33%.\n\nEDUCACIÓN\nLicenciatura en Relaciones del Trabajo, UBA (2021)',
+  has_letter: true, letter: 'Estimado equipo de selección:\n\nMe pongo en contacto para postularme a la posición de Analista de Recursos Humanos.\n\nEn mi rol actual lideré procesos de selección de punta a punta y reduje los tiempos de cobertura.\n\nQuedo a disposición para conversar.\nSaludos cordiales,\nMartina López', notes: 'Diseño en tonos verdes, con foto.',
   due_on: null, status: 'asignado', rate: 7000, assigned_at: new Date().toISOString(), started_at: null, finished_at: null, design_url: null, paid_in: null,
 }
 
