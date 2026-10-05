@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Eye, Loader2, RefreshCw, Trash2, UserPlus, X } from 'lucide-react'
+import { Eye, Loader2, MessageCircle, RefreshCw, Trash2, UserPlus, X } from 'lucide-react'
 import { TaskRow, TaskTexts } from '@/components/team-task-card'
+import { TeamChat, TeamChatPanel, useTeamUnread } from '@/components/team-chat'
 import { TeamView } from '@/components/team-view'
 import { monthKey } from '@/lib/dashboard'
 import { formatARS } from '@/lib/catalog'
@@ -251,8 +252,12 @@ export function TeamAdmin() {
     return () => { window.clearTimeout(timer); supabase.removeChannel(channel) }
   }, [load])
   const closePreview = useCallback(() => setPreviewing(false), [])
+  // Chat with the selected member, with the unread count on its button.
+  const [chatOpen, setChatOpen] = useState(false)
+  const closeChat = useCallback(() => setChatOpen(false), [])
 
   const member = members.find((item) => item.id === selected) ?? members.find((item) => item.active) ?? members[0]
+  const unread = useTeamUnread(member?.id, 'admin')
   const own = member ? tasks.filter((task) => task.member_id === member.id) : []
   const ownPayments = member ? payments.filter((payment) => payment.member_id === member.id) : []
   const { pending, finished } = sortTasks(own)
@@ -270,6 +275,12 @@ export function TeamAdmin() {
           <button key={item.id} type="button" onClick={() => setSelected(item.id)} className={`rounded-full px-4 py-2 font-display text-sm font-bold ${member?.id === item.id ? 'bg-ciruela text-white' : 'bg-white text-piedra hover:text-ciruela'} ${item.active ? '' : 'opacity-60'}`}>{item.name}{item.active ? '' : ' (sin acceso)'}</button>
         ))}
         {member && <button type="button" onClick={() => setPreviewing(true)} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-rosa/40 bg-white px-4 font-display text-sm font-bold text-rosa-deep hover:bg-petalo-wash"><Eye className="h-4 w-4" />Ver como {member.name.split(' ')[0]}</button>}
+        {member && (
+          <button type="button" onClick={() => setChatOpen(true)} className="relative inline-flex h-10 items-center gap-1.5 rounded-full bg-ciruela px-4 font-display text-sm font-bold text-white hover:bg-rosa">
+            <MessageCircle className="h-4 w-4" />Mensajes
+            {unread > 0 && <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-rosa px-1 text-center text-[11px] font-bold leading-5 text-white ring-2 ring-blanco">{unread}</span>}
+          </button>
+        )}
         <button type="button" onClick={load} aria-label="Actualizar" className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-full border border-line bg-white px-3 font-display text-sm font-bold text-piedra hover:text-ciruela sm:px-4"><RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Actualizar</span></button>
       </div>
       {error && <p role="alert" className="rounded-2xl bg-petalo-wash px-4 py-3 text-sm font-semibold text-rosa-deep">{error}</p>}
@@ -373,6 +384,11 @@ export function TeamAdmin() {
       )}
 
       {previewing && member && <TeamPreview member={member} tasks={own} payments={ownPayments} onClose={closePreview} />}
+      {chatOpen && member && (
+        <TeamChatPanel title={`Chat con ${member.name.split(' ')[0]}`} onClose={closeChat}>
+          <TeamChat memberId={member.id} side="admin" otherName={member.name.split(' ')[0]} tasks={own.map(({ id, order_number, client_name, pack_name }) => ({ id, order_number, client_name, pack_name }))} />
+        </TeamChatPanel>
+      )}
     </div>
   )
 }

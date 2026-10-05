@@ -50,7 +50,7 @@ export default function AdminPage() {
   const { user, profile, ready, isAdmin, avatarUrl } = useSession()
   const [tab, setTab] = useState<TabId>('inicio')
   // pedidos: new orders not seen yet + payments to check; sessions: to schedule.
-  const [counts, setCounts] = useState<{ orders: number; sessions: number }>({ orders: 0, sessions: 0 })
+  const [counts, setCounts] = useState<{ orders: number; sessions: number; team: number }>({ orders: 0, sessions: 0, team: 0 })
   // A web order that came in while the panel is open.
   const [incoming, setIncoming] = useState<{ number: number; name: string; total: number } | null>(null)
   // WhatsApp sale form: opened by the button, the app shortcut (?venta=1) or by sharing a WhatsApp note to the app (?text=...).
@@ -108,7 +108,9 @@ export default function AdminPage() {
       supabase.from('orders').select('id', { count: 'exact', head: true })
         .or('seen_at.is.null,status.eq.payment_review,payment_check.eq.pending').neq('status', 'cancelled').lt('number', 90000),
       countSessionsToSchedule(),
-    ]).then(([orders, sessions]) => setCounts({ orders: orders.count ?? 0, sessions }))
+      // Team chat messages not read yet (badge on Equipo).
+      supabase.from('team_messages').select('id', { count: 'exact', head: true }).eq('sender', 'member').is('read_at', null),
+    ]).then(([orders, sessions, team]) => setCounts({ orders: orders.count ?? 0, sessions, team: team.count ?? 0 }))
   }, [])
 
   useEffect(() => { if (isAdmin) recount() }, [isAdmin, tab, refresh, recount])
@@ -127,6 +129,7 @@ export default function AdminPage() {
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => { window.clearTimeout(timer); timer = window.setTimeout(recount, 800) })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages' }, () => { window.clearTimeout(timer); timer = window.setTimeout(recount, 800) })
       .subscribe()
     return () => { window.clearTimeout(timer); supabase.removeChannel(channel) }
   }, [isAdmin, recount])
@@ -137,7 +140,7 @@ export default function AdminPage() {
   // Pending count on the browser tab and on the app icon.
   useEffect(() => {
     if (!isAdmin) return
-    const pending = counts.orders + counts.sessions
+    const pending = counts.orders + counts.sessions + counts.team
     document.title = counts.orders ? `(${counts.orders}) Administración · Armado de CV` : 'Administración · Armado de CV'
     setAppBadge(pending)
   }, [isAdmin, counts])
@@ -178,7 +181,7 @@ export default function AdminPage() {
   if (!user) return <section className="min-h-[80vh] bg-arena/40 px-4 py-16"><AdminLogo className="mb-8 justify-center" /><AuthPanel title="Administración" text="Área privada." /></section>
   if (!isAdmin) return <section className="mx-auto max-w-md px-4 py-20 text-center"><p className="font-script text-5xl text-rosa">Sin acceso</p><p className="mt-3 text-piedra">Esta sección es solo para administración.</p><Link href="/cuenta" className="mt-6 inline-block font-semibold text-rosa-deep underline">Ir a Mi cuenta</Link></section>
 
-  const badge = (id: TabId) => (id === 'pedidos' ? counts.orders : id === 'sesiones' ? counts.sessions : 0)
+  const badge = (id: TabId) => (id === 'pedidos' ? counts.orders : id === 'sesiones' ? counts.sessions : id === 'equipo' ? counts.team : 0)
   const current = TABS.find((item) => item.id === tab)!
   const moreBadge = TABS.filter((item) => !BAR.includes(item.id)).reduce((sum, item) => sum + badge(item.id), 0)
   const name = profile?.full_name?.trim() || user.email || ''
