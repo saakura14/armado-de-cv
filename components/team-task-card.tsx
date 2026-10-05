@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Columns2, Copy, ExternalLink, RotateCcw, SkipForward, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Columns2, Copy, ExternalLink, MessageCircle, RotateCcw, SkipForward, X } from 'lucide-react'
+import { whatsappUrl } from '@/lib/catalog'
 import { dueLabel, type TeamTask } from '@/lib/team'
 
 /** Paragraphs (separated by a blank line), each with its lines: the pieces that get pasted one by one in Canva. */
@@ -323,6 +324,11 @@ export function TaskWorkspace({ task, actions, onClose }: { task: TeamTask; acti
           })}
 
           {actions && <div ref={actionsRef} className="rounded-2xl bg-white p-3">{actions}</div>}
+          {/* A doubt goes to Vale's WhatsApp with the order already written, so she knows which CV it is. */}
+          <a href={whatsappUrl(`Hola Vale, tengo una duda con el CV del pedido #${task.order_number} (${task.pack_name} de ${task.client_name}): `)} target="_blank" rel="noreferrer"
+            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-line bg-white px-4 font-display text-sm font-bold text-ciruela hover:border-ciruela">
+            <MessageCircle className="h-4 w-4 text-whatsapp" />¿Una duda con este CV? Escribile a Vale
+          </a>
         </div>
       </div>
     </div>

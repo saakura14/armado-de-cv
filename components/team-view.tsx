@@ -1,10 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, Wallet } from 'lucide-react'
+import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Wallet, X } from 'lucide-react'
 import { TaskRow, TaskWorkspace } from '@/components/team-task-card'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
-import { formatARS } from '@/lib/catalog'
+import { formatARS, whatsappUrl } from '@/lib/catalog'
 import { monthKey } from '@/lib/dashboard'
 import { formatDate } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
@@ -79,6 +79,11 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   // The CV open in work mode (full screen, next to Canva).
   const [workingId, setWorkingId] = useState<string | null>(null)
   const closeWork = useCallback(() => setWorkingId(null), [])
+  // The step-by-step video, and whether it was already offered on this device.
+  const [tutorial, setTutorial] = useState(false)
+  const [tutorialSeen, setTutorialSeen] = useState<boolean | null>(null)
+  useEffect(() => { try { setTutorialSeen(localStorage.getItem('acv-tutorial-seen') === '1') } catch { setTutorialSeen(true) } }, [])
+  function markTutorialSeen() { setTutorialSeen(true); try { localStorage.setItem('acv-tutorial-seen', '1') } catch { /* private mode */ } }
   // "Listo el #12, seguimos con el #13": a short message when the work mode jumps to the next CV.
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 4000); return () => window.clearTimeout(timer) }, [notice])
@@ -143,6 +148,15 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
           ))}
         </div>
 
+        {/* The first time, the tutorial is offered at the top (then it stays under "¿Cómo se usa?"). */}
+        {!preview && tutorialSeen === false && (
+          <div className="flex items-center gap-3 rounded-2xl bg-petalo-wash/70 p-3">
+            <PlayCircle className="h-6 w-6 shrink-0 text-rosa" />
+            <p className="flex-1 text-sm text-ink"><b>¿Primera vez?</b> Mirá el tutorial: en 1 minuto te muestra cómo armar un CV acá.</p>
+            <button type="button" onClick={() => { setTutorial(true); markTutorialSeen() }} className="shrink-0 rounded-full bg-ciruela px-3.5 py-2 font-display text-xs font-bold text-white hover:bg-rosa">Ver</button>
+            <button type="button" onClick={markTutorialSeen} aria-label="Ya lo vi" className="shrink-0 rounded-full p-1 text-piedra hover:text-ciruela"><X className="h-4 w-4" /></button>
+          </div>
+        )}
         {setup}
 
         <div className="grid gap-4 @3xl:grid-cols-[minmax(0,1fr)_300px] @3xl:items-start">
@@ -214,12 +228,28 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
                 </ul>
               </section>
             )}
+            {/* Help: the step-by-step video and a direct line to Vale. */}
+            <section className={cardClass} aria-labelledby="help-title">
+              <h2 id="help-title" className="font-display text-base font-bold text-ciruela">¿Cómo se usa?</h2>
+              <div className="mt-2 grid gap-2">
+                <button type="button" onClick={() => setTutorial(true)} className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-ciruela px-4 font-display text-sm font-bold text-white hover:bg-rosa"><PlayCircle className="h-4 w-4" />Ver el tutorial</button>
+                <a href={whatsappUrl('Hola Vale, tengo una consulta con el panel: ')} target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-line px-4 font-display text-sm font-bold text-ciruela hover:border-ciruela"><MessageCircle className="h-4 w-4 text-whatsapp" />Escribile a Vale</a>
+              </div>
+            </section>
           </aside>
         </div>
       </main>
 
       {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
       {notice && <p role="status" className={`fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl px-4 py-3 text-center text-sm font-bold text-white shadow-lg ${notice.ok ? 'bg-whatsapp' : 'bg-rosa-deep'}`}>{notice.text}</p>}
+      {tutorial && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ciruela/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Tutorial del panel" onClick={() => setTutorial(false)}>
+          <div className="relative w-full max-w-sm" onClick={(event) => event.stopPropagation()}>
+            <button type="button" onClick={() => setTutorial(false)} aria-label="Cerrar" className="absolute -top-12 right-0 rounded-full bg-white/15 p-2 text-white hover:bg-white/25"><X className="h-5 w-5" /></button>
+            <video src="/tutorial-equipo.mp4" controls autoPlay playsInline className="aspect-[9/16] max-h-[82dvh] w-full rounded-3xl bg-black shadow-2xl" />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -12,7 +12,12 @@ self.addEventListener('push', (event) => {
     icon: '/icons/icon-192.png',
     badge: '/icons/badge-96.png',
     data: { url: data.url },
-    tag: data.title,
+    // Each item its own notification (two packs of one order show twice), with sound and vibration so it pops up.
+    tag: data.tag || data.title,
+    renotify: true,
+    vibrate: [200, 100, 200],
+    // A new CV stays on screen until it is tapped or dismissed.
+    requireInteraction: Boolean(data.sticky),
   }))
 })
 
