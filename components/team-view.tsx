@@ -180,7 +180,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
                 ].filter((group) => group.items.length).map((group) => (
                   <div key={group.title}>
                     <p className="mb-1.5 px-1 font-display text-[11px] font-bold uppercase tracking-wider text-piedra">{group.title} · {group.items.length}</p>
-                    <ul className="grid gap-2 @5xl:grid-cols-2">
+                    <ul className="grid items-start gap-2 @5xl:grid-cols-2">
                       {group.items.map((task) => (
                         <TaskRow key={task.id} task={task} onOpen={() => openTask(task)}
                           action={<button type="button" onClick={() => openTask(task)} className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3.5 font-display text-xs font-bold text-white ${task.status === 'haciendo' ? 'bg-rosa hover:bg-rosa-deep' : 'bg-ciruela hover:bg-rosa'}`}>{task.status === 'haciendo' ? 'Seguir' : 'Empezar'}<ChevronRight className="h-4 w-4" /></button>} />
@@ -190,7 +190,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
                 ))}
               </div>
             ) : (
-              <ul className="mt-3 grid gap-2 @5xl:grid-cols-2">
+              <ul className="mt-3 grid items-start gap-2 @5xl:grid-cols-2">
                 {list.map((task) => <TaskRow key={task.id} task={task} action={<span className="shrink-0 text-right text-[11px] leading-tight text-piedra">{formatDate(task.finished_at!, true)}<br /><b className={task.paid_in ? 'text-whatsapp' : 'text-ciruela'}>{task.paid_in ? 'cobrado' : 'a cobrar'}</b></span>} />)}
               </ul>
             )}

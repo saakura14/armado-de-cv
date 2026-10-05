@@ -307,7 +307,7 @@ export function TeamAdmin() {
                 ? <p className="mt-3 rounded-3xl bg-white px-6 py-8 text-center text-sm text-piedra">{view === 'pendientes' ? `${member.name.split(' ')[0]} no tiene CVs pendientes.` : 'Todavía no terminó ningún CV.'}</p>
                 : (
                   // One line per CV with its state; tapping it unfolds the texts and the tools.
-                  <ul className="mt-3 grid gap-2 2xl:grid-cols-2">
+                  <ul className="mt-3 grid items-start gap-2 2xl:grid-cols-2">
                     {list.map((task) => (
                       <TaskRow key={task.id} task={task} action={<span className={`shrink-0 rounded-full px-2.5 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span>}>
                         <div className="space-y-3">
