@@ -25,6 +25,16 @@ export function VisitTracker() {
     } catch { /* private mode: count the page view only */ }
     supabase.rpc('track_visit', { p_path: pathname, p_new_visit: newVisit }).then(() => undefined, () => undefined)
   }, [pathname])
+  // Every WhatsApp link of the public site (header, bottom bar, hero, Sakura, footer...) counts as the "whatsapp" funnel step.
+  useEffect(() => {
+    if (pathname.startsWith('/admin') || pathname.startsWith('/equipo')) return
+    const onClick = (event: MouseEvent) => {
+      const link = (event.target as Element | null)?.closest?.('a[href^="https://wa.me/"]')
+      if (link) countStep('whatsapp')
+    }
+    document.addEventListener('click', onClick, true)
+    return () => document.removeEventListener('click', onClick, true)
+  }, [pathname])
   return null
 }
 

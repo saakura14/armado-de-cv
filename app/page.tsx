@@ -32,10 +32,16 @@ const steps = [
   { title: 'Recibí', text: 'Pack de CV: me escribís por WhatsApp con tu número de pedido y arranco. Guía: la descargás desde "Mi cuenta" apenas confirmo tu pago, sin escribirme.' },
 ]
 
+// "Ver packs · desde $X" quotes the cheapest CV work (packs and LinkedIn), not the 1 a 1 sessions listed in the same section.
+function packFrom(products: Awaited<ReturnType<typeof getProducts>>) {
+  const prices = products.filter((product) => product.delivery === 'service').map((product) => product.price)
+  return prices.length > 0 ? Math.min(...prices) : null
+}
+
 export default async function Home() {
   const [cvProducts, guides, faqs] = await Promise.all([getProducts(['cv']), getProducts(['guias']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
   const extraPrice = (id: string) => cvProducts.flatMap((product) => product.extras).find((group) => group.id === id)?.unitPrice ?? 15000
-  const price = { language: extraPrice('idiomas'), express: extraPrice('express'), from: cvProducts.length > 0 ? Math.min(...cvProducts.map((product) => product.price)) : null }
+  const price = { language: extraPrice('idiomas'), express: extraPrice('express'), from: packFrom(cvProducts) }
   return (
     <>
       {/* Hero */}

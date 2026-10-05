@@ -1,6 +1,6 @@
 # Armado de CV — Documentación funcional y técnica
 
-Estado al **26 de septiembre de 2026**. Sitio en producción: **https://www.armadodecv.com**
+Estado al **5 de octubre de 2026**. Sitio en producción: **https://www.armadodecv.com**
 
 Dueña del proyecto: Valeria Yanina Gil · Instagram @armadodecv.ok · WhatsApp 11 5106-0953 · ayuda.armadodecv@gmail.com
 
@@ -8,16 +8,21 @@ Dueña del proyecto: Valeria Yanina Gil · Instagram @armadodecv.ok · WhatsApp 
 
 ## Índice
 
+0. [Resumen: lo que logramos](#0-resumen-lo-que-logramos)
 1. [Qué es el sitio](#1-qué-es-el-sitio)
 2. [Documentación funcional](#2-documentación-funcional)
-   - 2.1 Páginas públicas
+   - 2.1 Páginas
    - 2.2 Catálogo y precios
-   - 2.3 Cómo compra un cliente
-   - 2.4 Estados de un pedido
+   - 2.3 Cómo compra un cliente (web, link de pedido y WhatsApp)
+   - 2.4 Estados y etapas de un pedido
    - 2.5 Mi cuenta (cliente)
    - 2.6 Panel de administración
-   - 2.7 Sakura (asistente de preguntas frecuentes)
-   - 2.8 Reglas comerciales y legales
+   - 2.7 Equipo: quien arma los CV en Canva
+   - 2.8 Chat entre Vale y el equipo
+   - 2.9 Notificaciones y resumen diario
+   - 2.10 Modo oscuro
+   - 2.11 Sakura (asistente de preguntas frecuentes)
+   - 2.12 Reglas comerciales y legales
 3. [Documentación técnica](#3-documentación-técnica)
    - 3.1 Arquitectura y servicios
    - 3.2 Estructura del código
@@ -26,13 +31,32 @@ Dueña del proyecto: Valeria Yanina Gil · Instagram @armadodecv.ok · WhatsApp 
    - 3.5 Funciones del servidor (Edge Functions)
    - 3.6 Almacenamiento de archivos
    - 3.7 Inicio de sesión
-   - 3.8 Dominio, despliegue y entornos
-   - 3.9 Medición (píxel de Meta)
+   - 3.8 Apps instalables y notificaciones push
+   - 3.9 Dominio, despliegue y entornos
+   - 3.10 Medición (visitas, embudo y píxel de Meta)
 4. [Operación del día a día](#4-operación-del-día-a-día)
 5. [Marketing e integraciones externas](#5-marketing-e-integraciones-externas)
 6. [Qué vive fuera de este repositorio](#6-qué-vive-fuera-de-este-repositorio)
-7. [Pendientes y próximos pasos](#7-pendientes-y-próximos-pasos)
-8. [Historial de cambios](#8-historial-de-cambios)
+7. [Diagnóstico de ventas por la web y mejoras](#7-diagnóstico-de-ventas-por-la-web-y-mejoras)
+8. [Pendientes y próximos pasos](#8-pendientes-y-próximos-pasos)
+9. [Historial de cambios](#9-historial-de-cambios)
+
+---
+
+## 0. Resumen: lo que logramos
+
+En menos de dos semanas (24/09 → 05/10/2026), Armado de CV pasó de una página estática a un sistema completo de venta y producción:
+
+| Área | Qué quedó funcionando |
+|---|---|
+| **Tienda web** | Catálogo editable (packs de CV, LinkedIn, asesorías, test vocacional, 7 guías), ventana "Lo quiero" con extras y total en vivo, compra con cuenta (Google o email), pago por transferencia con subida de comprobante, "Pedilo por WhatsApp" en cada producto, checklist gratis en `/gratis`, SEO, legales y botón de arrepentimiento. |
+| **Entrega digital** | E-books y guías con el email del comprador estampado en cada página, descarga desde Mi cuenta apenas se aprueba el pago. |
+| **Panel de administración** | App instalable en el celu con avisos push: pedidos por etapas (Hoy, Nuevos, Por cobrar, Para arrancar, En proceso, Esperando al cliente, Entregados, Archivo), plazos de entrega en días hábiles, mensajes de WhatsApp listos, ventas por WhatsApp pegando la nota, links de pedido con precio especial, sesiones 1 a 1, métricas, embudo, origen de las ventas y reporte Excel. |
+| **Equipo** | App propia para la tablet de quien arma los CV en Canva: recibe cada pack con los textos listos para copiar por sección o por selección, modo trabajo a pantalla completa, "Terminé este CV" que abre el siguiente, video tutorial, marcas y racha personales, lo que cobró y lo que falta. Vale controla lo que le debe, los pagos cada 10 packs y los tiempos por CV. |
+| **Comunicación** | Chat interno Vale ↔ equipo (burbuja con ventanita, mensajes sobre un CV puntual, no leídos y avisos push), aviso push por cada pack asignado y resumen diario a las 9. |
+| **Experiencia** | Web, panel y equipo fluidos en celu, tablet y compu, con modo oscuro automático o elegido. |
+| **Marketing** | Píxel de Meta con consentimiento, contador de visitas y embudo propios, contenido de Instagram programado con Metricool (historias y carruseles "Cómo y dónde"), anuncios solo en Instagram con tope de US$ 23 por día. |
+| **Seguridad** | RLS en las 30 tablas, una sola administradora, precios calculados en el servidor, repositorio público sin secretos, chequeo semanal automático (`docs/SEGURIDAD.md`). |
 
 ---
 
@@ -40,164 +64,185 @@ Dueña del proyecto: Valeria Yanina Gil · Instagram @armadodecv.ok · WhatsApp 
 
 Tienda online de **Armado de CV**, el emprendimiento de Valeria Gil (RRHH – Relaciones Laborales). Vende:
 
-- **Packs de CV** (CV moderno + CV optimizado para filtros ATS, carta de presentación, LinkedIn), con extras (express, idiomas, carga en portales).
-- **Asesorías** para entrevistas y psicotécnicos: e-books y una sesión 1 a 1 por Google Meet.
+- **Packs de CV** (CV moderno + CV optimizado para filtros ATS, carta de presentación, LinkedIn), con extras (express, idiomas, carga en portales, sección Servicios de LinkedIn).
+- **Asesorías** para entrevistas y psicotécnicos: e-books y sesiones 1 a 1 por Google Meet.
 - **Test de orientación vocacional**.
 - **Guías digitales** para la búsqueda laboral (e-books en PDF con la marca).
 - **Cursos pregrabados** (la estructura está lista; todavía no hay cursos cargados).
 
-El cliente arma su pedido en la web, crea una cuenta, paga por **transferencia bancaria** y sube el comprobante. Valeria aprueba el pago desde el panel de administración, y eso libera automáticamente los e-books y los cursos y crea las sesiones 1 a 1 para coordinar.
+Hay tres formas de comprar: en la web (cuenta + transferencia + comprobante), con un **link de pedido** que arma Vale, o directamente por **WhatsApp** (Vale carga la venta en el panel). Los CV los arma en Canva el **equipo** a partir de los textos que prepara Vale.
 
 ---
 
 ## 2. Documentación funcional
 
-### 2.1 Páginas públicas
+### 2.1 Páginas
 
 | Ruta | Qué muestra |
 |---|---|
-| `/` | Inicio: portada "Hola, soy Valeria", catálogo de **packs de CV y LinkedIn**, **guías** para la búsqueda laboral, "Sobre mí", testimonios, cómo comprar, preguntas frecuentes (con Sakura) y comunidad (QR de Instagram y canal de WhatsApp). |
-| `/asesorias` | Asesorías para entrevistas y psicotécnicos (e-books, Pack Plus, Pack Premium con Meet) y test vocacional. |
+| `/` | Inicio: "Hola, soy Valeria", botón "Ver packs · desde $X" (toma el pack más barato), presentación corta, promesas, **packs de CV y LinkedIn**, bloque "¿Lo necesitás urgente?", banner al checklist gratis, **guías** en carrusel, "Sobre mí", testimonios, cómo comprar, preguntas frecuentes (con Sakura) y comunidad. |
+| `/asesorias` | Asesorías para entrevistas y psicotécnicos (e-books, Pack Plus, Pack Premium con Meet, Asesoría para entrevistas) y test vocacional. |
 | `/cursos` | Cursos pregrabados publicados (hoy vacío). |
-| `/comprar` | Resumen del pedido, datos de contacto, aceptación de términos y confirmación. Muestra los datos de transferencia **solo después** de confirmar. |
-| `/cuenta` | Mi cuenta (ver 2.5). |
-| `/cuenta/nueva-clave` | Crear o cambiar la contraseña (desde el mail de recuperación o desde Mi cuenta). |
-| `/terminos` | Términos y condiciones, condiciones de los packs de CV, devoluciones. |
-| `/privacidad` | Política de privacidad. |
-| `/arrepentimiento` | Botón de arrepentimiento (Ley 24.240): formulario que arma un mensaje de WhatsApp. |
-| `/admin` | Panel de administración (solo cuentas admin). |
+| `/gratis` | Checklist "Revisá tu CV en 10 minutos": descarga sin registro (evento Lead del píxel), para la palabra clave CHECKLIST de Instagram. |
+| `/comprar` | Resumen del pedido, datos de contacto, aceptación de términos y confirmación. Muestra los datos de transferencia **solo después** de confirmar. Opción "Pedilo por WhatsApp". |
+| `/pedido/<token>` | Link de pedido armado por Vale: detalle, total (o precio especial) y compra normal. |
+| `/cuenta` | Mi cuenta (ver 2.5). `/cuenta/pedido/<id>`, `/cuenta/curso/<id>`, `/cuenta/nueva-clave`. |
+| `/terminos` · `/privacidad` · `/arrepentimiento` | Legales y botón de arrepentimiento (Ley 24.240). |
+| `/admin` | Panel de administración (solo la cuenta admin). App "Armado de CV - Admin". |
+| `/equipo` | Panel del equipo (solo integrantes cargados en Equipo). App "Armado de CV - Equipo". |
 
-Elementos presentes en todo el sitio:
-- **Encabezado** con pestañas "Armado de CV" / "Asesorías" y acceso a Mi cuenta.
-- **Barra inferior en el celular**: Precios, Cómo comprar, Mi cuenta, WhatsApp.
-- **Sakura**: burbuja flotante de ayuda.
-- **Pie** con links legales y botón de arrepentimiento.
-- Instalable como app en el celular (manifest e íconos).
+En todo el sitio público: encabezado con pestañas "Armado de CV" / "Asesorías", botón de modo claro/oscuro y Mi cuenta; barra inferior en el celu (Precios, Cómo comprar, Mi cuenta, WhatsApp); Sakura; pie con legales; aviso de cookies.
 
 ### 2.2 Catálogo y precios
 
-Todo el catálogo se edita desde **Panel → Packs y precios**. Precios vigentes al 26/09/2026 (ARS):
+Todo el catálogo se edita desde **Panel → Packs y precios**. Precios vigentes al 05/10/2026 (ARS):
 
 | Categoría | Producto | Precio | Entrega |
 |---|---|---|---|
-| CV | Pack Simple (2 CV: moderno + ATS) | $30.000 | Servicio |
-| CV | Pack Medium (2 CV + carta) | $32.000 | Servicio |
-| CV | **Pack Premium** (2 CV + carta + LinkedIn) — *más elegido* | $60.000 | Servicio |
+| CV | Pack Simple (2 CV: moderno + ATS) | $35.000 | Servicio |
+| CV | Pack Medium (2 CV + carta) | $37.000 | Servicio |
+| CV | **Pack Premium** (2 CV + carta + LinkedIn) — *Recomendado* | $65.000 | Servicio |
 | CV | Perfil de LinkedIn (sin CV) | $40.000 | Servicio |
 | CV | Asesoría de LinkedIn (sesión 1 a 1 de 60 min por Meet) | $30.000 | Sesión |
 | Asesorías | E-book individual (a elección entre 3) | $18.000 | Digital |
-| Asesorías | Pack Plus (2 e-books) — *más elegido* | $35.000 | Digital |
-| Asesorías | Asesoría para entrevistas (sesión 1 a 1 de 90 min, sin e-books) | $50.000 | Sesión |
+| Asesorías | Pack Plus (2 e-books) | $35.000 | Digital |
+| Asesorías | Asesoría para entrevistas (sesión 1 a 1 de 90 min) | $50.000 | Sesión |
 | Asesorías | Pack Premium (Pack Plus + sesión 1 a 1 de 90 min) | $60.000 | Sesión |
 | Vocacional | Test de orientación vocacional (CHASIDE + TV-A) | $30.000 | Servicio |
-| Guías | Portales de empleo | $16.000 | Digital |
-| Guías | LinkedIn para conseguir trabajo | $16.000 | Digital |
-| Guías | CV a prueba de filtros ATS | $16.000 | Digital |
-| Guías | Búsqueda organizada | $16.000 | Digital |
-| Guías | **Kit Búsqueda Laboral** (las 4 guías) — *más elegido* | $45.000 | Digital |
+| Guías | Portales de empleo · Búsqueda organizada | $12.000 c/u | Digital |
+| Guías | LinkedIn para conseguir trabajo · CV a prueba de filtros ATS | $16.000 c/u | Digital |
+| Guías | Cuánto pedir de sueldo · Trabajo remoto desde Latinoamérica | $19.000 c/u | Digital |
+| Guías | **Kit Búsqueda Laboral** (Portales + LinkedIn + ATS + Búsqueda) — *Mejor precio* | $45.000 | Digital |
 
-**Extras** (se suman al producto):
-
-| Extra | Precio | Aplica a |
-|---|---|---|
-| Entrega express (24 hs hábiles) | $15.000 | Packs de CV y LinkedIn |
-| Versión en otro idioma (por idioma) | $15.000 | Packs de CV |
-| Carga del perfil en plataformas de empleo (por plataforma) | $15.000 | Packs de CV |
-| Devolución personalizada 1 a 1 por Meet (60 min) | $30.000 | Test vocacional |
-
-**E-books cargados** (todos con PDF subido): Asesoría integral para entrevistas laborales · Entrevistas virtuales · Tests laborales y psicotécnicos · Portales de empleo 2026 · LinkedIn para conseguir trabajo · CV a prueba de filtros ATS · Búsqueda organizada en 30 días.
+**Extras:** Entrega express 24 hs hábiles ($15.000) · Versión en otro idioma ($15.000 por idioma) · Carga en plataformas de empleo ($15.000 por plataforma) · Sección Servicios de LinkedIn ($20.000, en Premium y Perfil de LinkedIn) · Devolución 1 a 1 del test vocacional ($30.000).
 
 Tipos de entrega (`delivery`):
-- **service**: trabajo de Valeria. Después del pago se coordina por WhatsApp.
-- **digital**: e-books y guías. Se descargan apenas Valeria aprueba el pago, y el pedido pasa solo a "Entregado".
-
-> **Entrega al instante (desactivada).** El sistema está preparado para entregar e-books al instante: la función `verify-receipt` lee el comprobante con IA y controla destinatario, monto exacto, fecha, señales de edición y un número de operación no repetido. Hoy está **apagada** a pedido de Valeria, porque no está cargada la clave `ANTHROPIC_API_KEY` (tiene costo por comprobante). Sin esa clave, todo pedido espera su aprobación. Para activarla alcanza con cargar la clave en Supabase → Edge Functions → Secrets y volver a poner en la web los textos de entrega inmediata.
-- **session**: incluye una sesión 1 a 1 por Meet que se agenda.
+- **service**: trabajo de Vale y el equipo. Después del pago se coordina por WhatsApp.
+- **digital**: e-books y guías. Se descargan apenas se aprueba el pago y el pedido pasa solo a "Entregado".
+- **session**: incluye una sesión 1 a 1 por Meet que se agenda (si viene con un pack de CV, queda "Después del CV").
 - **course**: curso pregrabado, disponible 12 meses.
+
+> **Entrega al instante (apagada).** La función `verify-receipt` puede leer el comprobante con IA y entregar e-books sin esperar. Está apagada a pedido de Vale (no está cargada `ANTHROPIC_API_KEY`). Todo pago se aprueba a mano.
+
+> **Pago con tarjeta (apagado en la web).** La integración con Ualá Bis está hecha (función `uala`), pero la casilla está apagada: casi todas las ventas son por transferencia y, si alguien pide tarjeta, Vale manda un link de pago de Ualá a mano.
 
 ### 2.3 Cómo compra un cliente
 
-1. Toca **"Lo quiero"** en un producto y se abre la ventana de selección: elige el e-book si corresponde, suma extras con interruptores (idiomas y plataformas como chips, con opción "Otro" para escribir cuál) y ve el total animado.
-2. Pasa a `/comprar`: completa nombre y WhatsApp, puede dejar una nota y **acepta los términos** (obligatorio).
-3. Si no tiene cuenta, la crea ahí mismo con Google o con email y contraseña.
-4. Al confirmar, el servidor **recalcula todos los precios** (el navegador no decide el total) y crea el pedido.
-5. Ve primero la **transferencia**, destacada como "Recomendado · Sin recargo": alias `armado.cv`, CBU y titular con botones de copiar. Transfiere y **sube el comprobante** (imagen o PDF). Si el pago con tarjeta está activado y todavía no subió comprobante, debajo aparece "Otra opción: tarjeta de débito o crédito" con el total más el costo de Ualá; al pagar vuelve a su pedido y se confirma solo.
-6. Valeria revisa el comprobante en el panel, controla su banco y **aprueba el pago** (todos los pedidos, incluidos los de e-books). En ese momento:
-   - se habilitan los **e-books** en Mi cuenta,
-   - se habilitan los **cursos** (por 12 meses),
-   - se crean las **sesiones 1 a 1** "a agendar",
-   - si el pedido es solo digital, pasa directo a **Entregado**.
+**En la web**
+1. Toca **"Lo quiero"**: elige e-book si corresponde, suma extras (idiomas y plataformas como chips, con "Otro") y ve el total animado. También puede tocar **"Pedilo por WhatsApp"** y escribe con el producto y precio ya cargados.
+2. En `/comprar` completa nombre y WhatsApp, deja una nota y **acepta los términos**.
+3. Si no tiene cuenta, la crea ahí con Google o con email. Dentro del navegador de Instagram/Facebook/TikTok no se muestra Google (Google lo bloquea) y arranca en "Crear cuenta".
+4. El servidor **recalcula todos los precios** y crea el pedido. Se guarda el **origen** (`anuncio` si llegó desde un anuncio, `web` si no).
+5. Ve la **transferencia** (alias, CBU y titular con botones de copiar), transfiere y **sube el comprobante**.
+6. Vale revisa y **aprueba el pago**: se habilitan e-books y cursos, se crean las sesiones y, si es solo digital, pasa a Entregado.
 
-### 2.4 Estados de un pedido
+**Con link de pedido:** Vale arma el pedido en el panel (productos, adicionales, cliente, precio especial opcional) y manda `armadodecv.com/pedido/<token>`. El cliente sigue el mismo camino desde el paso 2. Vence a los 30 días.
+
+**Por WhatsApp:** Vale pega la nota en "Venta por WhatsApp" (o la comparte desde WhatsApp en Android) y queda un pedido pagado con `source = 'whatsapp'`, sin cuenta de cliente.
+
+### 2.4 Estados y etapas de un pedido
 
 | Estado | Qué ve el cliente |
 |---|---|
 | Esperando pago | "Transferí el total y subí el comprobante." |
-| Revisando pago | "Recibí tu comprobante. Lo confirmo a la brevedad." (se pasa solo al subir el comprobante) |
+| Revisando pago | "Recibí tu comprobante. Lo confirmo a la brevedad." |
 | Pago confirmado | "Tu pago está confirmado. Coordinamos por WhatsApp." |
-| En proceso | "Estoy trabajando en tu pedido." |
+| En proceso | "Estoy trabajando en tu pedido." (también se pasa solo al **asignar el CV al equipo**) |
 | Entregado | "¡Listo! Tu pedido está entregado." |
-| Cancelado | Solo lo puede cancelar la administración: el cliente **no** puede cancelar un pedido hecho. |
+| Cancelado | Solo lo cancela la administración. |
+
+Además, "**Esperando al cliente**" pausa el plazo de entrega y al retomar suma los días hábiles esperados.
+
+En el panel, los pedidos se ordenan por **etapas** (`lib/order-stages.ts`): **Hoy** (lo que necesita atención: nuevos, pagos a revisar, recordatorios, entregas que vencen, CV del equipo listo), **Nuevos**, **Por cobrar**, **Para arrancar**, **En proceso**, **Esperando al cliente**, **Entregados** (últimos 7 días) y **Archivo**. Cada pedido muestra el motivo ("Atrasado 2 días", "Vence hoy", "CV del equipo listo", "Revisar comprobante", "Recordar el pago"…).
+
+Plazo: 4 días hábiles desde el pago (Express 1). Después de las 17 hs o en fin de semana arranca el día hábil siguiente. No descuenta feriados.
 
 ### 2.5 Mi cuenta (cliente)
 
-- Ingreso con **Google** o con **email y contraseña**. La contraseña se puede **mostrar u ocultar** con el ícono del ojo.
-- **¿Olvidaste tu contraseña?**: pide el email y manda un enlace. El enlace abre `/cuenta/nueva-clave` para crear una contraseña nueva, que hay que escribir dos veces.
-- **Cambiar contraseña** estando logueado: link en "Mis datos".
+- Ingreso con **Google** o con **email y contraseña** (mostrar/ocultar, recuperar y cambiar contraseña).
 - **Mis pedidos**: estado, detalle, subida del comprobante y datos de transferencia.
-- **Mis e-books**: descarga en PDF. Cada descarga lleva al pie de cada página una línea discreta con el email del comprador y el número de pedido (ver 3.5).
-- **Mis cursos**: acceso por 12 meses, con videos y archivos por lección.
-- **Mis sesiones**: estado, fecha y link de Google Meet cuando está agendada.
-- **Mis datos**: nombre y WhatsApp.
+- **Mis e-books**: descarga en PDF con una línea al pie con su email y número de pedido.
+- **Mis cursos** (12 meses) · **Mis sesiones** (fecha y link de Meet) · **Mis datos** (nombre, WhatsApp y permiso para novedades por mail).
 
 ### 2.6 Panel de administración (`/admin`)
 
-**La única administradora es valeeria.gil@gmail.com.** Toda cuenta nueva es cliente, sin excepciones. Sumar otra administradora es un cambio manual y deliberado en la base (`update profiles set role = 'admin' ...`).
+**La única administradora es valeeria.gil@gmail.com.** Toda cuenta nueva es cliente.
 
-Al ingresar, la administradora va directo al panel (Mi cuenta la redirige a `/admin`; con `/cuenta?cliente` se ve como cliente, y el panel tiene el link "Ver mi cuenta como cliente").
-
-**App del panel en el celu.** En el celu el panel tiene encabezado propio (logo, foto de perfil con Ver la web / Ver mi cuenta como cliente / Cerrar sesión) y un menú abajo: Inicio, Pedidos, **Venta** (WhatsApp), Sesiones y Más (el resto de las secciones). El botón Atrás del celu vuelve a la sección anterior o cierra la ventana abierta; en la app instalada nunca sale del panel (antes volvía a las páginas de login de Google). El panel tiene su propio manifest (`public/admin.webmanifest`): desde Chrome en Android se instala como **"Armado de CV - Admin"** y abre directo en `/admin`. Accesos directos: "Venta por WhatsApp" y "Pedidos". En Inicio está la tarjeta "Tu panel en el celu" para instalarla y activar los avisos.
-
-**Notificaciones push.** Al activarlas, el celu se guarda en `push_subscriptions` y el service worker (`public/sw.js`) muestra los avisos. El navegador del cliente llama a la función `notify-admin` al confirmar un pedido y al subir el comprobante (una vez por pedido y tipo, solo pedidos de hace menos de 15 minutos). Botón "Probar" para un aviso de prueba. Las claves VAPID están en Supabase Vault (`vapid_private_key`, `vapid_public_key`); la pública también en `lib/push.ts`.
-
-**Ventas por WhatsApp.** Botón verde "Venta por WhatsApp" (arriba del panel): se pega la nota tal cual ("Nombre / Pack + fecha", una o varias por renglón, incluso mensajes copiados de WhatsApp) y `lib/whatsapp-sale.ts` reconoce cliente, fecha y **uno o varios productos con sus adicionales** separados por "+" (express, idiomas, plataformas, sección Servicios de LinkedIn, devolución). Cada adicional se asigna al producto que lo ofrece. El total sale de los precios del catálogo y se puede editar si hubo descuento. Se revisa, se corrige y se guarda con `admin_record_sale`: queda como pedido pagado (o entregado) con `source = 'whatsapp'`, sin cuenta de cliente, con el número correlativo de siempre. En Android también se puede **compartir** la nota desde WhatsApp a "Armado de CV - Admin" y el formulario se abre completo. Estas ventas cuentan en métricas, lo más vendido y el Excel (columna "Origen"), pero no en el embudo de la web. Filtro "De WhatsApp" en Pedidos.
-
-**Link de pedido.** En Pedidos, "Link de pedido" arma un pedido (productos y adicionales que ofrece cada pack, cliente, mensaje) y da un link `armadodecv.com/pedido/<token>` para mandar por WhatsApp. El cliente lo abre, ve el detalle y el total, y sigue la compra normal (cuenta, términos, pago). El pedido queda con la etiqueta "Por link" y el link muestra "Pedido #N". Los links vencen a los 30 días y se pueden borrar mientras estén pendientes. Se puede poner un **precio final** (precio especial): el cliente lo ve y paga ese monto, y solo se aplica si el pedido tiene exactamente los productos del link. Cada venta de WhatsApp tiene **"Editar venta"** para corregir el monto cobrado, el nombre, el teléfono o la fecha de pago.
+- **App en el celu** ("Armado de CV - Admin", `public/admin.webmanifest`): encabezado propio, menú inferior (Inicio, Pedidos, Venta, Sesiones, Más), botón Atrás que navega dentro del panel, número de pendientes en el ícono, aviso de versión nueva.
+- **Ocultar montos**: tapa facturación y montos (para mostrar el panel sin exponer números).
+- **Burbuja de chat con el equipo** en todas las secciones, al lado del botón de WhatsApp Business.
 
 | Pestaña | Para qué sirve |
 |---|---|
-| **Inicio** | Saludo aleatorio; **Tus pedidos**: tres números en vivo (A gestionar, En proceso, Entregados este mes) que abren Pedidos con ese filtro, y "Lo más urgente" con las 3 entregas más próximas ("Ver" abre ese pedido puntual). Los números se actualizan solos (Realtime sobre `orders`). Antes: **Para gestionar**: pagos a revisar, sesiones a agendar y packs a entregar con el plazo restante (4 días hábiles desde el pago, Express 1; después de las 17 hs o en fin de semana arranca el siguiente día hábil; no descuenta feriados). **Cómo viene el mes**: ventas, facturado, ticket promedio, visitas y conversión con la variación contra el mes anterior, facturación de los últimos 6 meses, lo más vendido y por qué página entraron. **Del clic a la venta**: embudo del mes (entraron, tocaron "Lo quiero", llegaron a comprar, confirmaron el pedido, pagaron) con el porcentaje de cada paso. **Reporte en Excel** del año con logo y colores de la marca (resumen mensual, más vendidos, detalle de ventas y visitas por día). Las ventas son pedidos con pago confirmado, sin cancelados ni pedidos de prueba (#90000 en adelante). |
-| **Pedidos** | Ver todos los pedidos, abrir el comprobante, cambiar el estado (aprobar el pago libera todo automáticamente) y dejar notas. Los packs pagos muestran el plazo de entrega, y hay un botón de WhatsApp con el mensaje listo para el paso siguiente: recordar el pago, pedir los datos o pedir un testimonio. |
-| **Sesiones** | Agendar las sesiones 1 a 1: fecha, link de Meet y estado (a agendar, agendada, hecha, cancelada). Si la persona falta sin avisar con 24 hs, la sesión cuenta como hecha. |
-| **Packs y precios** | Crear y editar productos: nombre, precio, características, notas, destacado ("Recomendado", o "Mejor precio" en los kits), activo/inactivo, extras, e-books incluidos o a elección. |
-| **E-books** | Alta de e-books y subida del archivo (PDF). |
-| **Cursos** | Crear cursos y lecciones: video de YouTube o Vimeo no listado, archivo adjunto, vista previa gratuita y publicado/borrador. |
-| **Sakura (preguntas)** | Preguntas frecuentes que responde Sakura y que se muestran en la web. Admiten `{{precio:id}}` y `{{extra:id}}` para que el precio se actualice solo. |
-| **Testimonios** | Testimonios de clientes con su @ de Instagram (se muestra con link). |
-| **Datos de pago** | Alias, CBU, titular y banco de la transferencia, y la casilla para ofrecer el pago con tarjeta (Ualá). |
+| **Inicio** | Saludo, contadores en vivo (A gestionar, En proceso, Entregados del mes), lo más urgente, **Cómo viene el mes** (ventas, facturado, ticket, visitas, conversión, facturación semana a semana y de 6 meses, lo más vendido), **de dónde vienen las ventas** (web, anuncio, WhatsApp, link), embudo **Del clic a la venta** (entraron → Lo quiero → llegaron a comprar → confirmaron → pagaron, más los que pasaron de la web a WhatsApp y las ventas por WhatsApp), reporte Excel anual con la marca y tarjeta para instalar la app y activar los avisos. |
+| **Pedidos** | Pedidos por etapas con buscador. Ficha simple con una acción principal, botón de WhatsApp con el mensaje del paso (y "Copiar mensaje y número" para WhatsApp Business), comprobante, link privado de Canva, notas, "Editar venta" en las de WhatsApp, "Link de pedido" y **bloque Equipo**: un renglón por pack con su botón **Asignar** (manda los textos del CV al equipo). |
+| **Sesiones** | Agendar las sesiones 1 a 1: fecha, link de Meet y estado. |
+| **Equipo** | Ver 2.7. |
+| **Packs y precios** | Productos, precios, características, destacados, activo/inactivo, extras y e-books. |
+| **E-books** · **Cursos** · **Sakura** · **Testimonios** · **Datos de pago** | Alta y edición de cada cosa sin tocar código. |
 
-### 2.7 Sakura (asistente de preguntas frecuentes)
+**Venta por WhatsApp.** Se pega la nota ("Nombre / Pack premium + express", una o varias por renglón) y `lib/whatsapp-sale.ts` reconoce cliente, fecha, productos y adicionales. El total sale del catálogo y se puede editar. Las sesiones vendidas así crean la sesión a coordinar.
 
-Sakura es la versión anime de Valeria (`public/brand/sakura.jpg`). Aparece como burbuja flotante ("Soy Sakura") y dentro de la sección de preguntas frecuentes ("¿No encontrás tu duda? Preguntale a Sakura").
+### 2.7 Equipo: quien arma los CV en Canva
 
-- **No usa inteligencia artificial.** Busca la respuesta entre las preguntas cargadas en el panel, comparando palabras clave (`lib/faq.ts`). Ignora las palabras vacías y las palabras genéricas pesan menos.
-- Si no encuentra nada, ofrece escribir por WhatsApp.
-- Los precios en las respuestas salen del catálogo en vivo.
+Desde el 03/10/2026, los CV en Canva los arma un integrante del equipo a partir de los textos de Vale. **El equipo nunca ve precios ni datos de contacto de los clientes**: solo nombre, pack y textos.
 
-### 2.8 Reglas comerciales y legales
+**Flujo:**
+1. Vale arma los textos del cliente con su Master Prompt.
+2. En Pedidos → ficha → bloque Equipo toca **Asignar**: elige al integrante y pega el CV moderno, el CV ATS y la carta (si el pack la incluye), con notas y fecha.
+3. El pedido pago pasa solo a **En proceso** (trigger de la base) y al integrante le llega un **aviso push** "Nuevo CV asignado".
+4. El integrante abre el CV en su app, lo arma en Canva copiando los textos y toca **Terminé este CV** (con el link de Canva). A Vale le llega el aviso y el pedido aparece como "CV del equipo listo".
+5. Vale revisa, entrega al cliente y paga cada 10 packs (puede adelantar).
 
-- **Pago:** transferencia bancaria. El trabajo empieza con el total abonado.
-- **Sin cancelaciones ni devoluciones** una vez hecho el pedido.
-- El **botón de arrepentimiento** queda disponible por ley.
-- **Condiciones de los packs de CV:**
-  - 1 pack por persona y por rubro.
-  - 3 a 4 días hábiles desde que se tiene toda la información; no se trabaja fines de semana.
-  - Si se contrata después de las 17 hs, se empieza al día siguiente.
-  - Se entrega un boceto y hay 24 hs para pedir cambios sin costo; después, $5.000 por cambio.
-- **Sesiones 1 a 1:** si la persona falta sin avisar con 24 hs, cuenta como hecha y hay que volver a abonarla.
-- **Cursos:** disponibles 12 meses desde la aprobación del pago.
-- **Test vocacional:** herramienta de orientación, no diagnóstico.
-- Las guías de "Cómo y dónde postularme" aclaran que la información es orientativa.
+**Pantalla del equipo (`/equipo`, app "Armado de CV - Equipo")** — `components/team-view.tsx`:
+- Resumen compacto: CVs pendientes, terminados, lo que tiene a cobrar y el próximo cobro.
+- Lista en renglones agrupada en **"Para hoy o atrasados"** y **"Próximos"**, con Empezar/Seguir y cuánto copió.
+- **Modo trabajo**: un CV a pantalla completa para usar al lado de Canva. Los textos se separan por **sección** (título y contenido en la misma burbuja; la carta va en un solo bloque). Dos modos: **"Tocar copia el renglón"** y **"Seleccionar texto"** + "Copiar lo seleccionado". Lo copiado queda tildado y el texto no desaparece. Copiar marca el CV como "Haciéndolo".
+- **Terminé este CV**: confirmación en la misma pantalla, limpia el link de Canva y abre solo el siguiente.
+- **Tus marcas 🏆**: racha de días con CVs terminados (los fines de semana no la cortan), tiempo de hoy y mejor tiempo por pack; al terminar avisa si fue una **nueva marca**.
+- Mes a mes, cobros recibidos, **video tutorial** (`public/tutorial-equipo.mp4`) y chat con Vale.
+
+**Pestaña Equipo del panel (solo Vale)** — `components/admin/team-admin.tsx`:
+- Lo que se le debe ("Le debés") y **registrar pago o adelanto**: el pago cubre los packs impagos más viejos (`admin_team_pay`).
+- **Tiempos**: por pack, cantidad, promedio y mejor tiempo; total de hoy; "⏱ N min" en cada renglón. Los CV de menos de 8 minutos no cuentan (se marcaron sin haberlos hecho en el panel).
+- Mes a mes, historial de pagos, CVs asignados con "Marcar como terminado" y "Sacar la asignación".
+- Configuración del integrante (nombre, Gmail con el que entra, tarifa por pack, cada cuántos packs se paga), alta de integrantes y **"Ver como él"** en tamaño celu, tablet o compu.
+- Botón para instalar la app del equipo (Android e iPhone/iPad).
+
+### 2.8 Chat entre Vale y el equipo
+
+- Burbuja en la esquina con ventanita (pantalla completa en el celu). La de Vale está en todo el panel; la del equipo en su pantalla (`#chat` la abre).
+- Mensajes sueltos o **sobre un CV puntual** (desde el CV se abre el chat con la referencia).
+- Contador de no leídos en la burbuja y en la app, actualización en vivo (Realtime) y **aviso push** al otro lado de la conversación.
+- Reemplaza a WhatsApp para las consultas de trabajo.
+
+### 2.9 Notificaciones y resumen diario
+
+| Aviso | A quién | Cuándo |
+|---|---|---|
+| Pedido nuevo · Comprobante subido | Vale | Al confirmar un pedido o subir el comprobante (una vez por pedido y tipo) |
+| Nuevo CV asignado | Integrante | Cada pack asignado (vibra y queda fijo hasta tocarlo) |
+| CV terminado | Vale | Cuando el equipo toca "Terminé este CV" |
+| Mensaje nuevo | Vale o integrante | Cada mensaje del chat |
+| **Resumen del día** | Vale y cada integrante | Lunes a sábado 9 hs: a Vale lo que necesita atención; al equipo sus CVs pendientes. Si no hay nada, no se manda. |
+
+Para recibirlos, cada dispositivo tiene que **activar las notificaciones** desde su panel (botón "Activar avisos").
+
+### 2.10 Modo oscuro
+
+Web, panel y equipo tienen modo claro y oscuro: automático según el dispositivo o elegido con el botón del encabezado (se recuerda en el dispositivo). El logo cambia a su versión blanca en oscuro.
+
+### 2.11 Sakura (asistente de preguntas frecuentes)
+
+Versión anime de Vale (`public/brand/sakura.jpg`), en burbuja flotante y en la sección de preguntas. **No usa IA**: busca entre las preguntas cargadas en el panel por palabras clave (`lib/faq.ts`); si no encuentra, ofrece WhatsApp. Los precios en las respuestas salen del catálogo en vivo (`{{precio:id}}`, `{{extra:id}}`).
+
+### 2.12 Reglas comerciales y legales
+
+- **Pago:** transferencia bancaria (tarjeta solo con link de Ualá a mano). El trabajo empieza con el total abonado.
+- **Sin cancelaciones ni devoluciones** una vez hecho el pedido; el **botón de arrepentimiento** queda por ley.
+- **Packs de CV:** 1 pack por persona y rubro; 3 a 4 días hábiles desde que se tiene toda la información; después de las 17 hs empieza al día siguiente; boceto con 24 hs para cambios sin costo, después $5.000 por cambio. Express en 24 hs hábiles; horario puntual a cotizar.
+- **Sesiones 1 a 1:** si la persona falta sin avisar con 24 hs, cuenta como hecha.
+- **Cursos:** 12 meses desde la aprobación del pago. **Test vocacional:** orientación, no diagnóstico.
 
 ---
 
@@ -206,201 +251,194 @@ Sakura es la versión anime de Valeria (`public/brand/sakura.jpg`). Aparece como
 ### 3.1 Arquitectura y servicios
 
 ```
-Navegador ──► Vercel (Next.js, www.armadodecv.com)
+Navegador / apps instaladas (web, Admin, Equipo)
+   │
+   ├──► Vercel (Next.js 16, www.armadodecv.com)  ── /api/version (aviso de versión nueva)
    │
    └──► Supabase (proyecto wdcijkjmdfypltbafdol)
           ├─ Auth (email + contraseña, Google)
-          ├─ Postgres (tablas con RLS + funciones RPC)
-          ├─ Storage (comprobantes, e-books, archivos de cursos, avatares, redes)
-          └─ Edge Functions (descarga de e-books con sello, subidas de administración)
+          ├─ Postgres (30 tablas con RLS, funciones RPC, triggers, Realtime, pg_cron)
+          ├─ Storage (comprobantes, e-books, cursos, avatares, redes)
+          ├─ Vault (claves VAPID, clave del cron)
+          └─ Edge Functions (e-books con sello, avisos push, resumen diario, subidas, Ualá, comprobantes)
 ```
 
-| Servicio | Uso | Cuenta |
-|---|---|---|
-| **GitHub** | Código: `saakura14/armado-de-cv` (repositorio **público**) | saakura14 |
-| **Vercel** | Hosting, despliegue automático y **Web Analytics** (visitas, plan gratuito, sin cookies); proyecto "armadodecv" | — |
-| **Supabase** | Base de datos, login, archivos y funciones | proyecto `wdcijkjmdfypltbafdol` |
-| **GoDaddy** | Dominio armadodecv.com y DNS | — |
-| **Google Cloud** | Login con Google; proyecto "Armado de CV" (`armado-de-cv-509716`), marca verificada | valeeria.gil@gmail.com |
-| **Google Search Console** | Propiedad de dominio armadodecv.com verificada (registro TXT en GoDaddy) | valeeria.gil@gmail.com |
+| Servicio | Uso |
+|---|---|
+| **GitHub** | Código: `saakura14/armado-de-cv` (repositorio **público**) |
+| **Vercel** | Hosting, despliegue automático desde `main`, Web Analytics |
+| **Supabase** | Base de datos, login, archivos, funciones y tareas programadas |
+| **GoDaddy** | Dominio armadodecv.com y DNS |
+| **Google Cloud** | Login con Google (proyecto "Armado de CV", marca verificada) y Search Console |
+| **Meta** | Píxel "Armado de CV - Web" y anuncios en Instagram |
+| **Metricool** | Programación de publicaciones e historias de Instagram |
+| **Canva** | Diseño de los CV y del contenido |
 
-**Stack:**
-- Next.js 16.3 (App Router) con React 19 y TypeScript 5.7.
-- Tailwind CSS 4.
-- `@supabase/supabase-js` 2.57.
-- Íconos: lucide-react.
-- Tipografías: Montserrat, Nunito Sans y Cookie (script), desde Google Fonts.
+**Stack:** Next.js 16.3 (App Router) · React 19 · TypeScript 5.7 · Tailwind CSS 4 (con container queries) · `@supabase/supabase-js` 2.57 · lucide-react · exceljs · Vercel Analytics. Tipografías: Montserrat, Nunito Sans y Cookie.
 
 ### 3.2 Estructura del código
 
 ```
-app/                      Páginas (App Router)
+app/
   page.tsx                Inicio (server component, revalidate 60 s)
-  asesorias/ cursos/      Catálogos por categoría
-  comprar/                Checkout
+  asesorias/ cursos/ gratis/
+  comprar/ pedido/[token]/
   cuenta/                 Mi cuenta · pedido/[id] · curso/[id] · nueva-clave
   admin/                  Panel de administración
+  equipo/                 Panel del equipo
+  api/version/            Versión desplegada (aviso de actualización)
   terminos/ privacidad/ arrepentimiento/
-  layout.tsx globals.css manifest.ts
+  layout.tsx globals.css manifest.ts robots.ts sitemap.ts
 components/
   auth-panel.tsx          Login / registro / recuperar contraseña
-  password-input.tsx      Campo de contraseña con mostrar/ocultar
   order-dialog.tsx        Ventana "Lo quiero": e-book, extras, total
-  product-grid.tsx        Tarjetas de productos
-  sakura.tsx sakura-chat.tsx   Asistente de preguntas frecuentes
-  sections.tsx            Cómo comprar + preguntas frecuentes
-  testimonials.tsx site-header.tsx bottom-nav.tsx site-footer.tsx
-  meta-pixel.tsx legal.tsx copy-field.tsx whatsapp-icon.tsx
-  admin/*                 Una pestaña del panel por archivo
+  product-grid.tsx        Tarjetas de productos (Lo quiero / Pedilo por WhatsApp)
+  visit-tracker.tsx       Visitas, pasos del embudo y origen (anuncio/web)
+  team-view.tsx           Pantalla del equipo (también "Ver como él")
+  team-task-card.tsx      CV del equipo: textos por sección, copiar, modo trabajo
+  team-chat.tsx           Chat Vale ↔ equipo (burbuja, ventana, no leídos)
+  theme-toggle.tsx        Botón de modo claro/oscuro
+  sakura*.tsx sections.tsx testimonials.tsx site-*.tsx bottom-nav.tsx …
+  admin/                  Una pestaña del panel por archivo (orders, team, dashboard…)
 lib/
-  supabase.ts             Cliente y traducción de errores al español
-  catalog.ts              Tipos, lectura del catálogo, formato de precios, WhatsApp
-  cart.ts                 Pedido pendiente en localStorage (antes de loguearse)
-  orders.ts               Tipos y estados de pedidos
-  use-session.ts          Sesión, perfil y si es admin
-  faq.ts                  Búsqueda de respuestas de Sakura y reemplazo de precios
-  pixel.ts                Píxel de Meta (ID del conjunto de datos; vacío = desactivado)
-  video.ts                Links de YouTube/Vimeo a formato embebido
-public/                   Marca (SVG), imágenes, íconos de la app, Sakura
-brand-src/                Fuentes del logo y manual de marca
+  supabase.ts             Cliente, reparación del hash del login y errores en español
+  catalog.ts cart.ts orders.ts order-stages.ts
+  dashboard.ts            Métricas, plazos y embudo
+  team.ts                 Tiempos, marcas, racha y pagos del equipo
+  whatsapp-sale.ts        Lectura de notas de venta por WhatsApp
+  push.ts theme.ts pixel.ts consent.ts seo.ts faq.ts sessions.ts export-excel.ts …
+public/
+  sw.js                   Service worker de los avisos push
+  admin.webmanifest equipo.webmanifest
+  brand/ img/ icons/ social/ tutorial-equipo.mp4
 supabase/
-  migrations/             Historial completo de la base de datos (SQL)
-  functions/              Código de las Edge Functions
-  config.toml             Configuración de las funciones
-docs/DOCUMENTACION.md     Este documento
+  migrations/             Historial completo de la base (SQL)
+  functions/              Edge Functions
+docs/                     Esta documentación y controles de seguridad
 ```
 
-Detalles:
-- Las páginas de catálogo son **server components** que leen Supabase con `revalidate = 60`: un cambio de precio en el panel se ve en la web en 1 minuto como máximo.
-- Todo lo que requiere sesión (comprar, cuenta, admin) son **client components**.
-- La fuente de títulos (`h1–h3`) está en `@layer base` para que `font-script` la pueda pisar.
+- Las páginas de catálogo son **server components** con `revalidate = 60`.
+- Todo lo que requiere sesión (comprar, cuenta, admin, equipo) son **client components**.
+- El tema se aplica antes de pintar con un script en el `<head>` (`lib/theme.ts`, atributo `data-theme`, tokens `--acv-*`).
 
 ### 3.3 Base de datos (Supabase)
 
-El historial completo está en `supabase/migrations/`. Se aplica en orden por fecha.
+Historial completo en `supabase/migrations/` (se aplica en orden; nunca se editan migraciones viejas).
 
 **Tablas principales:**
 
 | Tabla | Contenido |
 |---|---|
-| `profiles` | Un perfil por usuario: nombre, teléfono, email, rol (`client` / `admin`). Se crea sola al registrarse (trigger `handle_new_user`). |
-| `products` | Catálogo: categoría, precio, tipo de entrega, características, notas, destacado, etiqueta de elección de e-book. |
-| `extra_groups` / `extra_options` / `product_extra_groups` | Extras, sus opciones (con "Otro" y opciones que agregan sesión) y a qué producto aplican. |
-| `ebooks` / `product_ebooks` / `product_ebook_choices` | E-books; cuáles incluye cada pack y entre cuáles se elige. |
-| `courses` / `lessons` | Cursos pregrabados y lecciones (video, adjunto, vista previa). |
-| `orders` / `order_items` | Pedidos y renglones, con los precios **congelados** al momento de la compra y aceptación de términos. |
-| `ebook_access` / `course_access` | Qué e-books y cursos tiene cada usuario (cursos con vencimiento a 12 meses). |
-| `sessions` | Sesiones 1 a 1 por Meet a agendar. |
-| `payment_settings` | Datos de transferencia (una sola fila), `card_enabled` (muestra el pago con tarjeta) y `card_fee` (recargo de Ualá). |
-| `card_payments` | Cada link de pago de Ualá creado para un pedido, con monto y estado. Solo lo escribe la función `uala`; el admin lo puede leer. |
-| `faqs` | Preguntas de Sakura y de la web. |
-| `testimonials` | Testimonios con @ de Instagram. |
-| `order_private` | Datos del pedido que solo ve la admin: link del diseño en Canva. |
-| `order_links` | Links de pedido que arma la admin (productos y adicionales, cliente, mensaje, vence a los 30 días) y el pedido en el que terminaron (`order_id`). Solo la admin los ve; el cliente los lee con `get_order_link`. |
-| `push_subscriptions` | Celulares de la admin con avisos activados (endpoint y claves de cifrado). Solo la admin puede suscribirse. |
-| `push_log` | Qué avisos ya se mandaron (uno por pedido y tipo). |
-| `site_events` | Pasos del embudo por día (`lo_quiero`, `checkout`), una vez por sesión del navegador. Sin datos personales; solo la lee el admin. Cuenta desde el 28/09/2026. |
-| `site_visits` | Visitas anónimas por día y página (`visits` = llegadas a la web, `views` = páginas vistas). Sin datos personales; solo la lee el admin. Cuenta desde el 28/09/2026. |
-| `admin_upload_tokens` | Tokens de un solo uso (2 hs) para subir archivos desde herramientas de administración. |
+| `profiles` | Nombre, teléfono, email, rol (`client` / `admin`), permiso de novedades. |
+| `products` · `extra_groups` · `extra_options` · `product_extra_groups` | Catálogo y extras. |
+| `ebooks` · `product_ebooks` · `product_ebook_choices` | E-books incluidos o a elección. |
+| `courses` · `lessons` | Cursos y lecciones. |
+| `orders` · `order_items` | Pedidos con precios congelados. Columnas clave: `source` (`web` / `whatsapp`), `origin` (anuncio, instagram, recomendación, google, web, otro; la web marca anuncio o web y Vale corrige el resto), `seen_at`, `waiting_since`, `paused_days`, `payment_method`. |
+| `order_private` | Link de Canva del pedido (solo admin). |
+| `order_links` | Links de pedido con precio especial opcional. |
+| `ebook_access` · `course_access` · `sessions` | Accesos y sesiones 1 a 1. |
+| `payment_settings` · `card_payments` | Datos de transferencia, tarjeta (apagada) y pagos de Ualá. |
+| `faqs` · `testimonials` | Sakura y testimonios. |
+| `team_members` | Integrantes: email (Gmail con el que entran), nombre, tarifa por pack, cada cuántos se paga, cuenta vinculada. |
+| `team_tasks` | Un CV asignado por renglón de pedido: textos (moderno, ATS, carta), notas, vencimiento, estado (`asignado` / `haciendo` / `terminado`), `started_at`, `finished_at`, link de Canva, pago que lo cubrió. |
+| `team_payments` | Pagos y adelantos al equipo, con los packs que cubre. |
+| `team_messages` | Chat Vale ↔ equipo, con CV referido y leído. |
+| `push_subscriptions` · `push_log` | Dispositivos con avisos activados (admin y equipo) y avisos enviados. |
+| `site_visits` · `site_events` | Visitas anónimas por día y página, y pasos del embudo (`lo_quiero`, `checkout`, `whatsapp`). |
+| `admin_upload_tokens` | Tokens de un solo uso para subidas de administración. |
 
-**Funciones (RPC)**, todas `SECURITY DEFINER`:
+**Funciones (RPC)** principales, todas `SECURITY DEFINER`:
 
 | Función | Quién | Qué hace |
 |---|---|---|
-| `create_order(items, accept_terms, name, phone, note)` | Cliente | Valida productos, e-book elegido y extras; calcula el total en el servidor; exige aceptar términos; guarda nombre y teléfono en el perfil. |
-| `submit_receipt(order, path)` | Cliente | Asocia el comprobante (en su propia carpeta), guarda la huella del archivo y pasa el pedido a "Revisando pago". |
-| `instant_eligible(order)` / `finish_receipt_check(...)` | Solo `verify-receipt` | Reglas de entrega inmediata (solo digital, archivo válido y no repetido, sin rechazos, máx. 2 sin verificar) y registro de la lectura. Si se aprueba y el número de operación no se repite, habilita todo y marca Entregado con `payment_check = 'pending'`. |
-| `admin_review_instant_payment(order, received, note)` | Admin | Transferencia verificada (`ok`) o no llegó (`rejected`): quita los accesos que dio ese pedido y lo cancela. |
-| `grant_order_access(order)` | Interna | Otorga e-books y cursos y crea sesiones; la usan las dos funciones anteriores. No se puede llamar desde la web. |
-| `admin_set_order_status(order, status, note)` | Admin | Cambia el estado. La primera vez que se aprueba el pago otorga e-books y cursos, crea las sesiones y marca como entregados los pedidos solo digitales. |
-| `admin_update_session(...)` | Admin | Fecha, link de Meet, estado y nota de una sesión. |
-| `mark_card_payment(uala_order, status)` | Solo la función `uala` | Guarda el estado que la función leyó de Ualá. Si es `APPROVED` o `PROCESSED` y el pedido no estaba pago, lo aprueba como una transferencia (`payment_method = 'card'`, guarda `card_total`). Nadie más la puede llamar. |
-| `admin_record_sale(name, phone, items, paid_on, total, delivered, note)` | Admin | Carga una venta cerrada por WhatsApp como pedido pagado o entregado, sin cuenta de cliente (`source = 'whatsapp'`). `items`: productos con sus adicionales; los precios salen del catálogo y `total` (opcional) es lo cobrado si hubo descuento. |
-| `admin_update_whatsapp_sale(order, total, name, phone, paid_on)` | Admin | Corrige una venta cargada por WhatsApp: monto cobrado, cliente, teléfono y fecha de pago (mantiene la hora). No sirve para pedidos de la web. |
-| `push_config()` | Solo funciones (service role) | Devuelve las claves VAPID guardadas en Vault. |
-| `get_order_link(token)` | Todos | Lo que ve el cliente al abrir un link de pedido, con los precios actuales del catálogo. |
-| `claim_order_link(token, order)` | Cliente | Después de `create_order`, ata el link al pedido del cliente (una sola vez). |
-| `track_event(event)` | Todos | Suma un paso del embudo. Solo acepta `lo_quiero` y `checkout` e ignora al admin. |
-| `track_visit(path, new_visit)` | Todos | Suma una visita anónima del día. Ignora al admin y las páginas privadas; las rutas desconocidas se agrupan en `/otras`. |
+| `create_order` · `submit_receipt` | Cliente | Crea el pedido recalculando precios / asocia el comprobante. |
+| `set_my_order_origin` | Cliente | Marca si su pedido vino de un anuncio. |
+| `admin_set_order_status` · `admin_set_waiting` · `admin_set_order_origin` | Admin | Estados (aprobar el pago libera todo), pausa del plazo y origen. |
+| `admin_record_sale` · `admin_update_whatsapp_sale` · `admin_update_whatsapp_sale_items` | Admin | Ventas por WhatsApp. |
+| `get_order_link` · `claim_order_link` | Todos / Cliente | Links de pedido. |
+| `admin_update_session` · `admin_review_instant_payment` | Admin | Sesiones y pagos al instante. |
+| `my_team_member_id` · `team_link_account` | Equipo | Vincula la cuenta de Google con su ficha del equipo. |
+| `team_set_task_status` | Equipo / Admin | Empezar, haciendo, terminado (guarda inicio y fin). |
+| `admin_team_pay` | Admin | Registra un pago y cubre los packs impagos más viejos. |
+| `team_chat_mark_read` | Admin / Equipo | Marca como leídos los mensajes de la conversación. |
+| `track_visit` · `track_event` | Todos | Visitas y embudo (ignoran a la admin). |
+| `mark_card_payment` · `instant_eligible` · `finish_receipt_check` · `push_config` · `cron_key` | Solo funciones del servidor | Ualá, comprobantes, claves VAPID y clave del cron. |
 | `is_admin()` | Todos | Usada por las políticas de seguridad. |
 
-**Triggers:**
-- `handle_new_user` crea el perfil y asigna admin a los dos mails de Valeria.
-- `protect_profile_role` impide que un cliente se cambie el rol.
-- `set_course_expiry` fija el vencimiento de los cursos a 12 meses.
+**Triggers:** `handle_new_user` (perfil al registrarse), `protect_profile_role`, `set_course_expiry` y **`team_task_starts_order`** (al asignar un CV, el pedido pago pasa a En proceso).
+
+**Realtime:** `orders`, `team_tasks`, `team_payments` y `team_messages` (contadores y listas que se actualizan solos).
+
+**Tarea programada (pg_cron):** `daily-digest`, lunes a sábado 12:00 UTC (9 hs de Argentina), llama a la función del mismo nombre con la clave de Vault.
 
 ### 3.4 Seguridad
 
-- **RLS (Row Level Security) activado en todas las tablas.**
-  - El catálogo es de lectura pública.
-  - Cada cliente solo ve sus pedidos, accesos y sesiones.
-  - Solo la administración escribe el catálogo.
+- **RLS activado en las 30 tablas.** Catálogo de lectura pública; cada cliente ve solo lo suyo; cada integrante del equipo ve solo sus CVs, pagos y mensajes; solo la admin escribe el resto.
 - **Los pedidos no se escriben directo:** todo pasa por funciones que recalculan precios y validan permisos.
-- La **clave publicable** de Supabase está en el código (`lib/supabase.ts`), y está bien que así sea: sin las políticas RLS no permite nada.
-- La **service role key** vive solo en las Edge Functions (variable de entorno de Supabase) y nunca en el repositorio.
-- Los **e-books** no se pueden descargar directo del almacenamiento: solo a través de la función que agrega el sello con el email.
-- Los **datos de transferencia** solo los ven usuarios logueados.
-- El repositorio es **público**: el CBU está reemplazado por un marcador en las migraciones y los e-books pagos no se suben.
-- **Una sola administradora.** Las cuentas nuevas siempre son cliente, y un cliente no puede cambiar su rol ni el email de su perfil.
-- **Anti-spam:** máximo 5 pedidos sin pagar por persona en 24 horas.
-- **Contraseñas:** mínimo 8 caracteres para cuentas nuevas y cambios de contraseña.
-- **Encabezados HTTP:** HSTS (Vercel), `X-Frame-Options: DENY` y `frame-ancestors 'none'` (no se puede embeber la web), `nosniff`, `Referrer-Policy` y `Permissions-Policy`. Sin `X-Powered-By`.
-- Recomendado: doble verificación (2FA) en GitHub, Vercel, Supabase, GoDaddy, Google, Meta y Canva.
+- La **clave publicable** de Supabase está en el código (es pública por diseño). La **service role key** y los secretos (Ualá, VAPID privada) viven solo en Supabase.
+- **E-books** solo a través de la función que estampa el email del comprador.
+- **Una sola administradora**; las cuentas nuevas son cliente y no pueden cambiar su rol ni su email.
+- **El equipo no ve precios ni contactos de clientes.**
+- Anti-spam (máx. 5 pedidos sin pagar por persona en 24 hs), contraseñas de 8+ caracteres, encabezados HTTP de seguridad (HSTS, `X-Frame-Options: DENY`, `nosniff`, Referrer-Policy, Permissions-Policy).
+- Repositorio **público**: sin CBU, claves ni e-books pagos.
+- Controles y chequeo semanal: [`docs/SEGURIDAD.md`](SEGURIDAD.md).
 
 ### 3.5 Funciones del servidor (Edge Functions)
 
-Código en `supabase/functions/`. Se despliegan en Supabase.
-
 | Función | Autenticación | Qué hace |
 |---|---|---|
-| `ebook-download` | Sesión del cliente (JWT) | Verifica que el usuario tenga acceso al e-book y descarga el PDF del bucket privado. Agrega en cada página, arriba del pie, la línea *"E-book adquirido por {email} - Pedido #N"* y guarda email y pedido en los metadatos del PDF. |
-| `notify-admin` | Sesión (JWT) | Manda la notificación push al celu de la admin: pedido nuevo o comprobante (solo del propio cliente, pedido reciente, una vez por tipo) o `{ test: true }` desde la admin. Usa `web-push` y las claves de Vault. |
-| `verify-receipt` | Sesión del cliente (JWT) | Para pedidos solo digitales: lee el comprobante con Claude (`ANTHROPIC_API_KEY`) y valida destinatario, monto, fecha, señales de edición y número de operación. Llama a `finish_receipt_check`, que habilita todo si pasa. |
-| `admin-upload` | Token de `admin_upload_tokens` (encabezado `x-upload-token`) | `?ebook=<id>&name=` sube el PDF de un e-book y lo vincula (borra el anterior). `?social=<ruta>` sube PNG, JPG, PDF o MP4 al bucket público `social` y devuelve la URL. |
-| `uala` | Sesión del cliente (se valida adentro), `?webhook=1` sin sesión, o `check` para el admin | Pago con tarjeta por Ualá Bis (API v2). Los clientes solo pueden pagar con tarjeta en producción y con la casilla activada; en modo prueba solo el admin (así nadie usa la tarjeta de prueba pública). `check` (botón "Probar conexión con Ualá") pide un token y dice qué secretos están cargados, sin mostrarlos. `create` arma el link de pago con el total más el costo de Ualá (`card_fee`, 4,9% + IVA = 5,929%, redondeado hacia arriba a $10; el monto se manda a Ualá **en pesos**, aunque su documentación diga centavos) y lo reutiliza 30 minutos. `sync` (al volver del pago) y el webhook **vuelven a consultar la orden en Ualá con nuestro token** antes de llamar a `mark_card_payment`: el aviso de Ualá no está firmado, así que nunca se le cree directamente. Si el monto o la referencia no coinciden, queda como `REVISAR_…` para el admin. Secretos: `UALA_USERNAME`, `UALA_CLIENT_ID`, `UALA_CLIENT_SECRET`, `UALA_ENV` (`stage` o `production`; sin valor usa stage). |
-
-Buena práctica: **borrar el token** de `admin_upload_tokens` apenas se termina de usar.
+| `ebook-download` | Sesión del cliente | Descarga el PDF con la línea "E-book adquirido por {email} - Pedido #N" en cada página. |
+| `notify-admin` | Sesión | Avisos push: `new_order` y `receipt` (a Vale, solo pedidos propios y recientes, una vez por tipo), `task_assigned` (al integrante), `task_done` (a Vale), `chat` (al otro lado de la conversación) y `test`. Usa `web-push` con las claves de Vault; etiquetas para no duplicar y avisos que quedan fijos. |
+| `daily-digest` | Clave del cron (Vault) | Resumen de la mañana a Vale y a cada integrante, con los mismos plazos que el panel. |
+| `verify-receipt` | Sesión del cliente | Lectura del comprobante con IA (apagada sin `ANTHROPIC_API_KEY`). |
+| `admin-upload` | Token de un solo uso | Sube PDFs de e-books o archivos al bucket público `social`. Borrar el token después de usarlo. |
+| `uala` | Sesión / webhook | Pago con tarjeta por Ualá Bis; vuelve a consultar cada orden en Ualá antes de aprobar. Apagado en la web. |
 
 ### 3.6 Almacenamiento de archivos (Storage)
 
-| Bucket | Público | Contenido | Límite |
-|---|---|---|---|
-| `receipts` | No | Comprobantes de transferencia (carpeta por usuario) | 10 MB · imagen o PDF |
-| `ebooks` | No | PDF de los e-books (solo admin; clientes vía `ebook-download`) | 50 MB |
-| `course-files` | No | Adjuntos de lecciones (compradores con acceso vigente) | 100 MB |
-| `avatars` | Sí | Fotos de perfil | 5 MB |
-| `social` | Sí | Imágenes, videos y PDF para redes (Metricool, Canva) | 50 MB |
+| Bucket | Público | Contenido |
+|---|---|---|
+| `receipts` | No | Comprobantes (carpeta por usuario, 10 MB, imagen o PDF) |
+| `ebooks` | No | PDF de los e-books |
+| `course-files` | No | Adjuntos de lecciones |
+| `avatars` | Sí | Fotos de perfil |
+| `social` | Sí | Imágenes, videos y PDF para redes |
+
+Las piezas de Instagram programadas en Metricool se sirven desde `public/social/` del sitio (`armadodecv.com/social/...`).
 
 ### 3.7 Inicio de sesión
 
-- **Email y contraseña.** La confirmación de email está **desactivada**: la cuenta queda activa al crearla.
-- **Recuperar contraseña:** `resetPasswordForEmail` con destino `/cuenta/nueva-clave`, donde `updateUser` guarda la nueva.
-- **Google:**
-  - OAuth configurado en Google Cloud y en Supabase (Authentication → Providers → Google).
-  - El botón aparece solo cuando el proveedor está activo (`/auth/v1/settings`).
-  - **La marca "Armado de CV" está verificada y publicada en Google** (con logo): la pantalla dice "Iniciar sesión en Armado de CV".
-- En Supabase → Authentication → URL Configuration deben figurar `https://www.armadodecv.com` y `https://www.armadodecv.com/**` como URLs permitidas.
+- **Email y contraseña** (confirmación de email desactivada) y **Google** (marca verificada: "Iniciar sesión en Armado de CV").
+- Al entrar con Google desde una sección del panel (`/admin#pedidos`, `/equipo#chat`), la sección se guarda antes de salir (`acv-return-hash`) y se vuelve a ella; `lib/supabase.ts` repara el hash si llega duplicado (esto resolvió el bucle de login).
+- El **equipo entra con su Gmail**: la primera vez, `team_link_account` vincula la cuenta con su ficha. Si se cambia el Gmail en Equipo, se desvincula la cuenta anterior.
+- En Supabase → Authentication → URL Configuration deben figurar `https://www.armadodecv.com` y `https://www.armadodecv.com/**`.
 
-### 3.8 Dominio, despliegue y entornos
+### 3.8 Apps instalables y notificaciones push
 
-- **Dominio en GoDaddy.** DNS:
-  - `A @ → 216.198.79.1` (Vercel)
-  - `CNAME www → *.vercel-dns-017.com`
-  - `TXT @ google-site-verification=…` (**no borrar**: sostiene la verificación de Google)
-- **Despliegue:** cada merge a `main` en GitHub despliega solo en Vercel. Cada Pull Request genera una vista previa.
-- **Variables de entorno (opcionales):** `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. Si no están, se usan los valores públicos del código.
-- **Desarrollo local:**
-  ```bash
-  npm install
-  npm run dev
-  ```
-- **Base de datos:** los cambios se hacen con migraciones nuevas en `supabase/migrations/` (nunca editando las viejas).
+| App | Manifest | Abre en | Para quién |
+|---|---|---|---|
+| Armado de CV (web) | `app/manifest.ts` | `/` | Clientes |
+| Armado de CV - Admin | `public/admin.webmanifest` | `/admin` | Vale (atajos: Venta por WhatsApp, Pedidos; recibe notas compartidas desde WhatsApp) |
+| Armado de CV - Equipo | `public/equipo.webmanifest` | `/equipo` | Integrantes del equipo (tablet) |
 
-### 3.9 Medición (píxel de Meta)
+- **Push:** VAPID (clave pública en `lib/push.ts`, privada en Vault). `public/sw.js` muestra el aviso (con `tag`, `renotify`, vibración y `requireInteraction` para los CV asignados) y al tocarlo abre la sección correcta.
+- En iPhone/iPad los avisos funcionan solo con la app agregada a la pantalla de inicio (iOS 16.4+).
+- **Aviso de versión nueva:** el panel y el equipo consultan `/api/version` y muestran "Hay una versión nueva · Actualizar".
 
-- El código está integrado (`components/meta-pixel.tsx`, `lib/pixel.ts`) y registra PageView, ViewContent (al abrir un producto), InitiateCheckout, CompleteRegistration (al crear la cuenta), Lead (al crear el pedido) y Purchase (al subir el comprobante).
-- **Activo desde el 27/09/2026** con el conjunto de datos "Armado de CV - Web" (ID 1983692595634961) del portfolio "Armado de Cv". No envía datos personales, solo la acción, el producto y el monto.
-- Para activarlo hace falta crear el píxel en el portfolio comercial "Armado de Cv" (Meta Business) y pegar el ID.
+### 3.9 Dominio, despliegue y entornos
+
+- **DNS en GoDaddy:** `A @ → 216.198.79.1` (Vercel), `CNAME www → *.vercel-dns-017.com`, `TXT google-site-verification` (**no borrar**).
+- **Despliegue:** cada merge a `main` despliega en Vercel; cada rama genera una vista previa. Flujo de trabajo: rama → push → verificación del deploy → merge a `main`.
+- **Variables de entorno (opcionales):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- **Desarrollo local:** `npm install` y `npm run dev`.
+
+### 3.10 Medición (visitas, embudo y píxel de Meta)
+
+- **Visitas propias** (`site_visits`, desde el 28/09): anónimas, por día y página, sin cookies. Ignora a la admin y las páginas privadas.
+- **Embudo** (`site_events`): `lo_quiero`, `checkout` y `whatsapp` (cualquier botón de WhatsApp de la web pública), una vez por sesión del navegador.
+- **Origen:** si la visita llega con `fbclid` o `utm_source`, el pedido queda como `anuncio`.
+- **Píxel de Meta** (conjunto "Armado de CV - Web", activo desde el 27/09, solo con consentimiento de cookies y nunca en el panel): PageView, ViewContent, InitiateCheckout, CompleteRegistration, Lead, Contact (paso a WhatsApp) y Purchase.
+- **Vercel Analytics** como segunda fuente de visitas.
 
 ---
 
@@ -408,110 +446,114 @@ Buena práctica: **borrar el token** de `admin_upload_tokens` apenas se termina 
 
 | Tarea | Dónde |
 |---|---|
-| Cambiar un precio o un texto de pack | Panel → Packs y precios (impacta en la web en ≤ 1 minuto) |
-| Aprobar un pago | Panel → Pedidos → abrir el comprobante → "Aprobar pago" |
-| Ver visitas | Vercel → proyecto armadodecv → Analytics |
-| Agendar una sesión 1 a 1 | Panel → Sesiones → fecha + link de Meet |
-| Subir o reemplazar un e-book | Panel → E-books |
-| Agregar una pregunta a Sakura | Panel → Sakura (preguntas) |
-| Agregar un testimonio | Panel → Testimonios (con el @ de Instagram) |
-| Cambiar el alias o el CBU | Panel → Datos de pago |
-| Cargar un curso | Panel → Cursos → lecciones con video no listado |
+| Ver qué hay que hacer hoy | Panel → Pedidos → **Hoy** (o el resumen push de las 9) |
+| Cargar una venta cerrada por WhatsApp | Botón verde **Venta por WhatsApp** (o compartir la nota desde WhatsApp) |
+| Mandar un pedido armado al cliente | Pedidos → **Link de pedido** |
+| Aprobar un pago | Pedidos → abrir el comprobante → "Aprobar pago" |
+| Pasarle un CV al equipo | Pedidos → ficha → bloque Equipo → **Asignar** (pegar textos) |
+| Ver cómo va el equipo y cuánto tarda | Panel → **Equipo** (Le debés, Tiempos, Mes a mes) |
+| Pagarle al equipo | Equipo → **Registrar pago** (cada 10 packs o adelanto) |
+| Hablar con el equipo | Burbuja de chat del panel |
+| Cambiar un precio o texto | Panel → Packs y precios (se ve en la web en ≤ 1 minuto) |
+| Agendar una sesión 1 a 1 | Panel → Sesiones |
+| Subir un e-book, pregunta de Sakura o testimonio | Panel → E-books / Sakura / Testimonios |
+| Cambiar alias o CBU | Panel → Datos de pago |
 
-**Producción de CVs para clientes (fuera de la web):**
-- Se hace en **Canva**: se duplica un trabajo anterior del mismo género con la misma cantidad de hojas (Pack Simple: 2 hojas; con carta: 3), se renombra "Cv - NOMBRE APELLIDO" y se reemplazan los datos.
-- Los textos salen del *Master Prompt* de Valeria.
-- Van solo las **3 experiencias más relevantes** para el puesto objetivo.
-- Primero se envía el link de Canva como boceto y, con el OK del cliente, se descarga el PDF.
-- Los turnos se agendan en WhatsApp Business (nombre / pack / fecha).
-- Los clientes sin CV previo completan el formulario de Google "Carga de datos para CV / Carta de presentación".
+**Producción de CVs:**
+1. Vale arma los textos con su **Master Prompt** (solo las 3 experiencias más relevantes para el puesto).
+2. Los asigna al equipo desde el pedido.
+3. El equipo duplica en Canva un trabajo anterior del mismo género y con la misma cantidad de hojas (Simple: 2; con carta: 3), lo renombra "Cv - NOMBRE APELLIDO", pega los textos y marca "Terminé este CV" con el link.
+4. Vale revisa, manda el link de Canva como boceto y, con el OK, descarga el PDF y entrega.
 
 ---
 
 ## 5. Marketing e integraciones externas
 
-- **Instagram @armadodecv.ok:**
-  - Se publica con **Metricool** (conectado) o con Meta Business Suite.
-  - Contenido con la identidad de marca: carruseles 1080×1350, historias 1080×1920, serie "Cómo y dónde postularme a…" con el logo oficial de cada empresa y un video de la web.
-- **Publicidad:**
-  - Se promociona **directamente desde Instagram o Business Suite**, solo en Instagram.
-  - Tope acordado: US$ 5 por día para mensajes (Instagram y WhatsApp) y US$ 5 por día para tráfico a la web.
-  - El Ads Manager quedó solo para consultas: hay una campaña en borrador sin publicar, y en los controles de la cuenta están excluidos Audience Network, Marketplace y la columna derecha de Facebook.
-- **Canva:** conectado. Se usa para los CV de clientes y para videos.
-- **Google Drive y Sheets:** conectados. El formulario de clientes pertenece a ayuda.armadodecv@gmail.com; para leer las respuestas hay que compartir la planilla con valeeria.gil@gmail.com.
-- **Destacadas de Instagram:** agrupadas en 7 (Web, Servicios, Clientes, Tips, Ofertas, En medios, Info), con portadas en `social/destacadas/` del bucket público.
+- **Instagram @armadodecv.ok** con **Metricool** (marca conectada). Lo que mejor funciona: la serie **"Cómo y dónde postularme a…"** (carruseles 1080×1350 con el logo de cada empresa). Historias 1080×1920. Reels dinámicos con subtítulos en Montserrat y placa final con el logo. No se repiten fotos.
+- **Publicidad solo en Instagram**, con tope total de **US$ 23 por día** (dos campañas de mensajes: US$ 10 + US$ 13). Límite de gasto de la cuenta: US$ 200.
+- **Canva:** CV de clientes y contenido. Las apps de Canva y el autocompletado de plantillas requieren Canva Enterprise, y Canva no se puede embeber dentro del panel.
+- **Google Drive y Sheets:** formulario "Carga de datos para CV / Carta de presentación" para clientes sin CV previo.
+- **Destacadas de Instagram:** Web, Servicios, Clientes, Tips, Ofertas, En medios, Info.
 
 ---
 
 ## 6. Qué vive fuera de este repositorio
 
-El repositorio es público, así que el **contenido pago y las fuentes de diseño** están en la PC de Valeria:
-
 | Qué | Dónde |
 |---|---|
-| E-books (HTML fuente, CSS de marca, script de armado de PDF) | `Documentos\armado-de-cv-ebooks\` (`build.ps1`, `assets\ebook.css`) |
-| Guías de regalo del pack (PDF con marca) | `Documentos\armado-de-cv-ebooks\guias-pack\` (`build-guias.ps1`) y copia en `OneDrive\...\Armado de CV\Guias\PDF con marca\` |
-| Contenido de redes (carruseles, historias, video, destacadas) | `Documentos\armado-de-cv-ebooks\contenido\` |
+| E-books (fuente, CSS de marca, armado de PDF) | `Documentos\armado-de-cv-ebooks\` |
+| Guías de regalo del pack | `Documentos\armado-de-cv-ebooks\guias-pack\` y OneDrive |
+| Contenido de redes (carruseles, historias, reels, tutorial del equipo) | `Documentos\armado-de-cv-ebooks\contenido\` |
 | Master Prompt de CVs y flujo en Canva | `Documentos\armado-de-cv-ebooks\flujo-cvs\prompt-cv.md` |
 | Plan de Instagram y Meta Ads | `Documentos\armado-de-cv-ebooks\contenido\PLAN-Instagram-y-Meta-Ads.md` |
-| PDFs de los e-books vendidos | Bucket privado `ebooks` en Supabase |
-| Secretos (service role key, cliente de Google OAuth) | Configuración de Supabase y de Google Cloud (nunca en el código) |
+| PDFs de los e-books vendidos | Bucket privado `ebooks` |
+| Secretos (service role, Google OAuth, Ualá, VAPID privada) | Supabase y Google Cloud (nunca en el código) |
 
-Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebooks\` (por ejemplo en OneDrive).
-
----
-
-## 7. Pendientes y próximos pasos
-
-- **Emails de recuperación de contraseña:**
-  - El servicio de email que Supabase trae por defecto tiene un límite muy bajo y puede no entregar mails a clientes. Para producción conviene configurar un **SMTP propio** (Supabase → Authentication → Emails → SMTP), por ejemplo con Resend o con una cuenta de Gmail con contraseña de aplicación.
-  - Conviene traducir al español la plantilla "Reset password".
-- **Cursos:** la estructura está lista; falta cargar el primero.
-- **Agente de Instagram** para respuestas y ventas: se deja para cuando haya volumen de ventas.
-- **Formulario de clientes:** vincular la planilla de respuestas y compartirla con valeeria.gil@gmail.com.
+Se recomienda una **copia de seguridad** de `Documentos\armado-de-cv-ebooks\` en OneDrive.
 
 ---
 
-## 8. Historial de cambios
+## 7. Diagnóstico de ventas por la web y mejoras
 
-| PR | Cambio |
+Revisión del 05/10/2026 con los datos propios (visitas y embudo desde el 28/09) y el Administrador de anuncios.
+
+### 7.1 Qué dicen los números
+
+| Indicador (28/09 → 05/10) | Valor |
 |---|---|
-| — | Reemplazo del sitio anterior (Vite) por el nuevo sitio en Next.js |
-| #1 | Identidad de marca, sección Asesorías separada, mejoras para celular |
-| #2 | Tienda con cuentas, panel de administración, cursos y legales |
-| #3 | Sakura, reglas de cancelación y cursos por 12 meses |
-| #4 | Sakura responde preguntas frecuentes |
-| #5 | E-books con licencia estampada y foto recortada |
-| #6 | Ajustes de diseño: portada, fotos, WhatsApp, testimonios y pedido interactivo |
-| #7 | Ingreso con Google automático y sección de guías |
-| #8 | Sakura en alta definición y e-books en PDF |
-| #9 | Píxel de Meta listo para activar |
-| #10 | Foto a la cintura e Instagram en testimonios |
-| #11 | Recuperar contraseña, mostrar/ocultar contraseña, cambiar contraseña desde Mi cuenta; base de datos y funciones versionadas en el repositorio; esta documentación |
-| #12 | E-books y guías al instante al subir el comprobante (con verificación posterior en el panel) y contador de visitas de Vercel |
-| #13 | Lectura del comprobante con IA, consentimiento informado dentro de los términos, encabezados de seguridad y corrección del alta automática de administradores (solo con Google) |
-| #14 | Aprobación manual de todos los pagos (entrega al instante apagada), única admin, contraseñas de 8 caracteres, email del perfil protegido y límite anti-spam de pedidos sin pagar |
-| #15 | Compra desde Instagram: sin botón de Google dentro del navegador de Instagram/Facebook/TikTok (Google lo bloquea) y con aviso para usar el email, la compra arranca en "Crear cuenta", opción de pedir el pack por WhatsApp sin cuenta, /admin sin mostrar emails, y controles de seguridad en `docs/SEGURIDAD.md` |
-| #16 | Píxel de Meta activado (con evento de registro) y política de privacidad actualizada para informarlo |
-| #17 | E-book nuevo "Cuánto pedir de sueldo" ($16.000, sección Guías). Todos los e-books y guías de regalo pasan al diseño 2026 (crema, Poppins, flores y "El consejo de Vale"); el diseño anterior queda en `assets/ebook-v1.css` de la carpeta de e-books |
-| #18 | Página /gratis con el checklist "Revisá tu CV en 10 minutos" (descarga sin registro, evento Lead del píxel) para la palabra clave CHECKLIST de Instagram |
-| #19 | Precios escalonados de las guías (Portales y Búsqueda $12.000; ATS y LinkedIn $16.000; Sueldo y Trabajo remoto $19.000; Kit $45.000), e-book nuevo "Trabajo remoto desde Latinoamérica", pago con tarjeta por Ualá Bis como segunda opción con el costo a cargo del cliente (apagado hasta cargar las credenciales), y la transferencia destacada como opción recomendada y sin recargo en toda la web |
-| 28/09 | Resumen de la guía al tocar "Lo quiero" (tapa, contenido, páginas y forma de entrega); botón de WhatsApp del panel que abre WhatsApp Business; numeración de pedidos: los reales van #1, #2, #3… y los de prueba (hechos desde la cuenta admin) desde #90100; los pedidos de prueba anteriores quedaron cancelados como #90005, #90011 y #90013 |
-| 28/09 | Mejoras de confianza en la home: presentación corta de Vale con foto debajo del inicio, botón "Ver packs · desde $X" (toma el pack más barato), banner al checklist gratis (/gratis), guías en carrusel deslizable en el celular, el cartel "Más elegido" pasa a "Recomendado" (o "Mejor precio" en los kits de guías) y "Cómo comprar" aclara cómo se recibe una guía. SEO: `robots.txt`, `sitemap.xml` y título, dirección canónica y vista previa para compartir propios en cada página pública (`lib/seo.ts`). Panel: si el pedido no tiene comprobante en la web (lo mandó por WhatsApp), el botón dice "Me llegó el pago (comprobante por WhatsApp)", pide confirmar que la plata está en el banco y deja al cliente el mensaje "¡Gracias! Recibí tu pago por WhatsApp." si no escribiste otro |
-| 28/09 | El Kit Búsqueda Laboral pasa a ser la primera tarjeta de Guías (orden 29); en tablet y compu las guías se acomodan con la última fila centrada; /gratis presenta primero el Kit |
-| 28/09 | Panel con pestaña **Inicio** (saludo, pedidos a gestionar con plazo restante, métricas del mes, más vendidos, visitas y reporte Excel anual con la marca); la admin entra directo al panel; contador de visitas anónimo propio (`site_visits`) y política de privacidad actualizada |
-| 28/09 | Frases motivacionales personales en el saludo del panel; embudo "Del clic a la venta" (`site_events`); plazo de entrega y mensajes de WhatsApp listos en cada pedido; "Ajustes incluidos" junto a los precios de los packs |
-| 29/09 | App del panel para el celu ("Armado de CV - Admin"), notificaciones push de pedidos y comprobantes (`notify-admin`, Vault), y carga de ventas por WhatsApp pegando o compartiendo la nota (`admin_record_sale`, `orders.source`, pedidos sin cuenta de cliente) |
-| 29/09 | Panel como app: encabezado propio con la foto de Google, menú inferior en el celu (Inicio, Pedidos, Venta por WhatsApp, Sesiones, Más), el botón Atrás del celu navega entre secciones y cierra ventanas sin volver al login de Google, sin el encabezado ni el pie de la web; nombre de la app "Armado de CV - Admin"; ícono monocromo para la barra de notificaciones (`public/icons/badge-96.png`); buscador y filtros deslizables en Pedidos; foto de Google también en el botón de cuenta de la web |
-| 29/09 | Adicional nuevo "Sección Servicios de LinkedIn" ($20.000, en Pack Premium y Perfil de LinkedIn; se puede sumar a otros packs desde Packs y precios). Venta por WhatsApp con varios productos y adicionales en un mismo pedido ("Nombre / Pack premium + pack medium + servicio de linkedin"), total calculado con los precios del catálogo y editable si hubo descuento (`admin_record_sale` con `p_items`) |
-| 29/09 | "Editar venta" en los pedidos cargados por WhatsApp (monto, cliente, teléfono y fecha de pago; `admin_update_whatsapp_sale`); aviso de versión nueva en el panel (`/api/version`) |
-| 29/09 | Inicio con contadores en vivo (A gestionar, En proceso, Entregados) y solo lo más urgente; "Ver" abre ese pedido puntual y los contadores abren Pedidos filtrado; pedidos y métricas se actualizan solos con Realtime (`orders` en la publicación `supabase_realtime`) |
-| 29/09 | Link de pedido para el cliente (`order_links`, página `/pedido/[token]`, compra con varios productos); tarjeta de pedido con cliente y monto en la misma fila; en las ventas de WhatsApp la nota es interna |
-| 29/09 | "Del clic a la venta" suma las ventas por WhatsApp y el total del mes (web + WhatsApp); botón "Ocultar montos" en Cómo viene el mes (tapa facturado, ticket, gráfico y montos de lo más vendido; se recuerda en el dispositivo) |
-| 29/09 | Ficha de pedido más simple (una acción principal, un botón de WhatsApp con el mensaje del paso, el resto en "Más opciones"); link de Canva privado por pedido (`order_private`); aviso de pedidos sin pagar hace más de 24 hs; ocultar montos también en Pedidos (compartido con Inicio); precio especial en el link de pedido (`order_links.custom_total`); permiso opcional para recibir novedades por mail (`profiles.marketing_opt_in`, en la compra y en Mi cuenta) y política de privacidad actualizada |
-| 29/09 | Web y panel sin desborde en celu/tablet (`.grid` con una columna que se achica), aviso de cookies (el píxel de Meta solo con consentimiento y nunca en el panel) |
-| 29/09 | Productos nuevos: Asesoría de LinkedIn ($30.000, en CV) y Asesoría para entrevistas ($50.000, en Asesorías); con 5 packs la grilla va de a 3 con la última fila centrada; las ventas por WhatsApp de sesiones crean la sesión a coordinar (`sessions.user_id` puede quedar vacío); fichas de pedido más compactas y mensaje "Coordinar la sesión" |
-| 29/09 | Pedidos nuevos a la vista: número rojo en Pedidos (nuevos sin ver + pagos por revisar, `orders.seen_at`), etiqueta "Nuevo", aviso en Inicio y cartel en vivo dentro del panel; "Para atender" incluye los pedidos web sin pagar; número en el ícono de la app y en la pestaña; notificaciones con prioridad alta, la suscripción del celu se guarda sola al abrir el panel y `push_log` registra cuántas se enviaron y los errores |
-| 29/09 | Pedidos urgentes: bloque "¿Lo necesitás urgente?" debajo de los packs (Express +$15.000 y horario puntual a cotizar por WhatsApp), aviso en el pedido junto a Express, Sakura y términos actualizados. Sesiones compradas junto con un pack de CV: quedan "Después del CV" hasta que el pedido se entrega (no suman al número de Sesiones), el cliente lo ve en Mi cuenta y al entregar el CV la ficha ofrece "Coordinar la sesión" |
-| 29/09 | "Esperando al cliente": pausa el plazo de entrega (`orders.waiting_since`, `paused_days`, RPC `admin_set_waiting`) y al retomar suma los días hábiles esperados; "Volver a En proceso" para pedidos entregados por error (borra `delivered_at`); las ventas por WhatsApp ya no se marcan entregadas solas por ser de hace más de 7 días |
-| 30/09 | "Editar venta" (WhatsApp) también cambia qué compró: productos y adicionales como Express (`admin_update_whatsapp_sale_items`); el monto sigue a los precios salvo que lo escribas, el plazo se recalcula y las sesiones se ajustan |
+| Visitas a la web | 559 (96% entra solo a la home y casi no pasa a otra página) |
+| Tocaron "Lo quiero" | 6 (≈ 1%) |
+| Llegaron a /comprar | 4 |
+| Pedidos web | 3: uno entregado, uno cancelado y uno **sin pagar desde el 03/10** (vino de un anuncio) |
+| Ventas por WhatsApp cargadas en el panel | La gran mayoría de las ventas |
+
+**Visitas por día:** ~65 a 120 entre el 28/09 y el 03/10, y **14–15 desde el 04/10**.
+
+### 7.2 Por qué no entran ventas por la web
+
+1. **La campaña de tráfico a la web terminó.** En el Administrador de anuncios, la campaña "Instagram Post" (la que mandaba clics a la web, 772 clics) figura **Completada**. Las dos activas son de **mensajes** (Instagram + WhatsApp), que llevan a la gente al chat y no a la web. Por eso las visitas cayeron de ~100 a ~15 por día.
+2. **El cliente de Instagram compra conversando.** Un CV es un servicio personal: la gente quiere preguntar antes de pagar, y el anuncio de mensajes se lo facilita. La web funciona como **catálogo y confianza**, y la venta se cierra por WhatsApp (que sí se registra en el panel).
+3. **La compra en la web pide muchos pasos**: crear cuenta → aceptar términos → transferir → subir comprobante. Dentro del navegador de Instagram no se puede entrar con Google, así que hay que crear cuenta con email y contraseña.
+4. **Precio de entrada que no coincidía**: el botón decía "Ver packs · desde $30.000" (tomaba la Asesoría de LinkedIn) y el pack más barato cuesta $35.000. **Corregido**: ahora toma el trabajo más barato de la sección (packs y LinkedIn).
+5. **No se medía bien el paso a WhatsApp**: solo contaban los botones de las tarjetas. **Corregido**: ahora cuenta cualquier botón de WhatsApp de la web (encabezado, barra inferior, portada, Sakura, pie), así el panel muestra cuánta gente pasa de la web al chat.
+6. **La confianza aparece tarde**: los testimonios están después de las guías y de "Sobre mí", y no hay ejemplos de CV terminados cerca de los precios.
+
+### 7.3 Mejoras recomendadas (de mayor a menor impacto)
+
+1. **Decidir el rol de la web.** Si la venta se cierra por WhatsApp, medir el éxito de la web como "pasó a WhatsApp" (ya se mide) y no como compra web. Si se quiere venta directa, volver a correr una campaña de **tráfico** chica (dentro de los US$ 23) hacia la web.
+2. **Ejemplos reales de CV (antes / después)** arriba de los precios, con permiso del cliente y datos tapados. Es la prueba más fuerte para un servicio de CV.
+3. **Testimonios justo debajo de los packs**, y un contador simple ("+N CV entregados").
+4. **Compra sin cuenta**: confirmar el pedido solo con nombre y WhatsApp, y ofrecer la cuenta después (solo hace falta para descargar guías). Es el cambio que más fricción saca.
+5. **Página de aterrizaje por anuncio** (por ejemplo `/cv`) con solo los 3 packs, testimonios y WhatsApp, sin guías ni asesorías.
+6. **Seguimiento del pedido web sin pagar** del 03/10: escribirle con el mensaje "Recordar el pago" que ya arma el panel.
+7. **Revisar los borradores del Administrador de anuncios** ("Revisar y publicar (5)"): hay cambios sin publicar, entre ellos la campaña en borrador "Mensajes IG + WhatsApp".
+
+---
+
+## 8. Pendientes y próximos pasos
+
+- **Equipo:** activar las notificaciones en la tablet del integrante (hoy 0 dispositivos) y actualizar la app a la última versión.
+- **Chat:** confirmar con un mensaje real de ida y vuelta.
+- **Anuncios:** el límite de gasto de US$ 200 alcanza para ~7–8 días a US$ 23 por día; revisarlo antes de que se corte.
+- **Emails:** configurar un SMTP propio (por ejemplo Resend) para que lleguen los mails de recuperación, y traducir la plantilla "Reset password".
+- **Cursos:** cargar el primero.
+- **Contenido:** siguiente guía "Cómo y dónde".
+- **Copias de seguridad:** exportar la base una vez por mes (el plan gratuito de Supabase no guarda copias).
+
+---
+
+## 9. Historial de cambios
+
+| Fecha / PR | Cambio |
+|---|---|
+| 24/09 | Reemplazo del sitio anterior (Vite) por el nuevo sitio en Next.js |
+| #1–#10 | Identidad de marca, Asesorías, tienda con cuentas, panel, cursos, legales, Sakura, e-books con sello, Google, guías, píxel de Meta, testimonios |
+| #11–#14 | Recuperar y cambiar contraseña, base de datos versionada, documentación, e-books al instante con lectura de comprobante (luego apagado), única admin, anti-spam |
+| #15–#19 | Compra desde Instagram (sin Google en el navegador interno), píxel activo, e-books "Cuánto pedir de sueldo" y "Trabajo remoto", `/gratis`, precios escalonados de guías, Ualá (apagado) |
+| 28/09 | Resumen de la guía al tocar "Lo quiero", numeración de pedidos real/prueba, mejoras de confianza en la home, SEO, panel con Inicio, métricas, Excel, visitas propias y embudo |
+| 29/09 | App del panel, avisos push, ventas por WhatsApp, link de pedido, contadores en vivo, ocultar montos, Canva privado por pedido, aviso de cookies, Asesoría de LinkedIn y para entrevistas, pedidos urgentes, sesiones "Después del CV", "Esperando al cliente" |
+| 30/09 | "Editar venta" de WhatsApp también cambia productos y adicionales |
+| 03/10 | Facturación semana a semana; "Pedilo por WhatsApp" en cada producto y origen de cada pedido web; de dónde vienen las ventas; "Copiar mensaje y número"; **pedidos por etapas**; **Equipo** (panel, asignación por pack, pagos que cubren CVs, resumen diario a las 9) |
+| 04/10 | Login con Google sin bucle; botones de pago sin duplicar; **app del equipo** para tablet y "Ver como él"; copiar por bloque, por renglón o lo seleccionado; carta en un solo bloque; **modo oscuro** en web, panel y equipo; modo trabajo; cambio del Gmail del integrante; abrir el siguiente CV al terminar; al asignar, el pedido pasa a En proceso (trigger); lista compacta; video tutorial y avisos por cada CV asignado; contenido del 5/10 y 9/10 |
+| 05/10 | Tarjeta abierta a todo el ancho en compu, tablet y celu; **chat Vale ↔ equipo** (burbuja, no leídos, avisos); textos separados por sección; copiar marca "Haciéndolo"; "Terminé este CV" con confirmación en pantalla y "Marcar como terminado" desde el panel; **tiempos por CV** para Vale y **marcas, récords y racha** para el equipo |
+| 05/10 | Esta documentación actualizada; "Ver packs · desde" toma el pack más barato; todos los botones de WhatsApp de la web cuentan en el embudo |
