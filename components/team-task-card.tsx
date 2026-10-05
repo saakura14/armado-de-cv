@@ -1,12 +1,28 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Columns2, Copy, ExternalLink, Maximize2, RotateCcw, SkipForward, X } from 'lucide-react'
-import { TASK_STATUS, dueLabel, type TeamTask } from '@/lib/team'
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Columns2, Copy, ExternalLink, RotateCcw, SkipForward, X } from 'lucide-react'
+import { dueLabel, type TeamTask } from '@/lib/team'
 
 /** Paragraphs (separated by a blank line), each with its lines: the pieces that get pasted one by one in Canva. */
 function splitPieces(text: string) {
   return text.replace(/\r\n/g, '\n').split(/\n[ \t]*\n+/).map((piece) => piece.replace(/^\n+|\n+$/g, '')).filter((piece) => piece.trim())
+}
+
+type Piece = { text: string; lines: string[] }
+
+/** The pieces "Copiar siguiente" goes through. */
+function piecesOf(text: string, whole = false): Piece[] {
+  // The cover letter goes whole (one block); the CVs go paragraph by paragraph.
+  const paragraphs = whole ? [text.trim()] : splitPieces(text)
+  // A long text pasted without blank lines: each line is a piece, so "Copiar siguiente" still goes bit by bit.
+  const list = !whole && paragraphs.length === 1 && paragraphs[0].split('\n').length > 6 ? paragraphs[0].split('\n').filter((line) => line.trim()) : paragraphs
+  return list.map((piece) => ({ text: piece, lines: piece.split('\n') }))
+}
+
+/** A paragraph is done when it was copied whole, or line by line. */
+function isPieceDone(pieces: Piece[], copied: string[], index: number) {
+  return copied.includes(`p${index}`) || pieces[index].lines.every((line, lineIndex) => !line.trim() || copied.includes(`p${index}l${lineIndex}`))
 }
 
 async function writeClipboard(text: string) {
@@ -23,6 +39,8 @@ function useStored<T>(key: string, initial: T) {
     setValue((current) => {
       const value = typeof next === 'function' ? (next as (current: T) => T)(current) : next
       try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* private mode */ }
+      // The lists show how much was copied: they listen to this.
+      window.setTimeout(() => window.dispatchEvent(new Event('acv-stored')), 0)
       return value
     })
   }
@@ -42,13 +60,7 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
   storageKey: string; label: string; text: string; whole?: boolean
   focus?: boolean; hidden?: boolean; nextStep?: NextStep; onProgress?: (done: number, total: number) => void
 }) {
-  const pieces = useMemo(() => {
-    // The cover letter goes whole (one block); the CVs go paragraph by paragraph.
-    const paragraphs = whole ? [text.trim()] : splitPieces(text)
-    // A long text pasted without blank lines: each line is a piece, so "Copiar siguiente" still goes bit by bit.
-    const list = !whole && paragraphs.length === 1 && paragraphs[0].split('\n').length > 6 ? paragraphs[0].split('\n').filter((line) => line.trim()) : paragraphs
-    return list.map((piece) => ({ text: piece, lines: piece.split('\n') }))
-  }, [text, whole])
+  const pieces = useMemo(() => piecesOf(text, whole), [text, whole])
   const [storedOpen, setOpen] = useStored(`acv-open-${storageKey}`, false)
   const open = focus || storedOpen
   const [copied, setCopied] = useStored<string[]>(`acv-copied-${storageKey}`, [])
@@ -81,8 +93,7 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
     await copy(value, [])
   }
 
-  // A paragraph is done when it was copied whole, or line by line.
-  const pieceDone = (index: number) => copied.includes(`p${index}`) || pieces[index].lines.every((line, lineIndex) => !line.trim() || copied.includes(`p${index}l${lineIndex}`))
+  const pieceDone = (index: number) => isPieceDone(pieces, copied, index)
   const doneCount = whole ? (copied.length ? 1 : 0) : pieces.filter((_, index) => pieceDone(index)).length
   const next = pieces.findIndex((_, index) => !pieceDone(index))
   useEffect(() => { onProgress?.(doneCount, pieces.length) }, [onProgress, doneCount, pieces.length])
@@ -318,46 +329,80 @@ export function TaskWorkspace({ task, actions, onClose }: { task: TeamTask; acti
   )
 }
 
-/**
- * A CV to build, as the team member sees it: the texts with copy buttons and the next step.
- * `actions` holds the buttons of each screen (the member's "Empecé"/"Terminé", or Vale's own tools).
- * `onOpen` shows the button to the work mode.
- */
-export function TeamTaskCard({ task, actions, onOpen, children }: { task: TeamTask; actions?: React.ReactNode; onOpen?: () => void; children?: React.ReactNode }) {
-  const due = task.status !== 'terminado' ? dueLabel(task.due_on) : null
-  const status = TASK_STATUS[task.status]
+/** How much of a CV was already copied on this device (0 to 1), from what CopyBlock keeps. Updates as it is copied. */
+function useTaskProgress(task: TeamTask) {
+  const [progress, setProgress] = useState(0)
+  useEffect(() => {
+    function read() {
+      let done = 0
+      let total = 0
+      for (const section of sectionsOf(task)) {
+        const pieces = piecesOf(section.text, section.whole)
+        let copied: string[] = []
+        try { copied = JSON.parse(localStorage.getItem(`acv-copied-${task.id}-${section.id}`) ?? '[]') as string[] } catch { /* private mode */ }
+        total += pieces.length
+        done += section.whole ? (copied.length ? 1 : 0) : pieces.filter((_, index) => isPieceDone(pieces, copied, index)).length
+      }
+      setProgress(total ? done / total : 0)
+    }
+    read()
+    window.addEventListener('acv-stored', read)
+    return () => window.removeEventListener('acv-stored', read)
+  }, [task])
+  return progress
+}
+
+/** Vale's notes and the texts with their copy buttons (for looking at a CV without opening the work mode). */
+export function TaskTexts({ task }: { task: TeamTask }) {
   return (
-    <li className="rounded-3xl bg-white p-4 shadow-[0_18px_40px_-34px_rgba(67,32,44,0.6)] sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{task.order_number ? `Pedido #${task.order_number}` : 'Ejemplo'}</p>
-          <p className="mt-0.5 text-[15px] font-bold text-ink">{task.pack_name} · {task.client_name}</p>
-          <p className="text-xs text-piedra">CV moderno + CV ATS{task.has_letter ? ' + carta de presentación' : ''}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <span className={`rounded-full px-2.5 py-0.5 font-display text-[11px] font-bold ${status.tone}`}>{status.label}</span>
-          {due && <span className={`rounded-full px-2.5 py-0.5 font-display text-[11px] font-bold ${due.urgent ? 'bg-rosa-deep text-white' : 'bg-papel text-ciruela'}`}>{due.text}</span>}
+    <div className="space-y-2">
+      {task.notes && <p className="rounded-xl bg-papel px-3 py-2 text-sm text-ink"><b>Notas de Vale:</b> {task.notes}</p>}
+      <CopyBlock storageKey={`${task.id}-moderno`} label="CV moderno" text={task.cv_modern} />
+      <CopyBlock storageKey={`${task.id}-ats`} label="CV ATS" text={task.cv_ats} />
+      {task.has_letter && task.letter && <CopyBlock storageKey={`${task.id}-carta`} label="Carta de presentación" text={task.letter} whole />}
+      {task.has_letter && !task.letter && <p className="px-1 text-xs font-semibold text-rosa-deep">Lleva carta: el texto te lo pasa Vale.</p>}
+    </div>
+  )
+}
+
+/**
+ * One CV in a list, in a single compact line: who, which pack, for when and how much was copied, with one button on the right.
+ * The colored edge tells the state at a glance (grey to do, pink in progress, green finished).
+ * `onOpen` makes the line open the work mode; otherwise `children` unfold under it.
+ */
+export function TaskRow({ task, action, onOpen, children }: { task: TeamTask; action?: React.ReactNode; onOpen?: () => void; children?: React.ReactNode }) {
+  const [expanded, setExpanded] = useState(false)
+  const progress = useTaskProgress(task)
+  const due = task.status !== 'terminado' ? dueLabel(task.due_on) : null
+  const edge = task.status === 'terminado' ? 'bg-whatsapp' : task.status === 'haciendo' ? 'bg-rosa' : 'bg-line'
+  const toggle = onOpen ?? (children ? () => setExpanded((value) => !value) : undefined)
+  return (
+    <li className="overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)]">
+      <div className="flex items-stretch">
+        <span aria-hidden className={`w-1.5 shrink-0 ${edge}`} />
+        <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 pr-2.5">
+          <button type="button" onClick={toggle} disabled={!toggle} aria-expanded={children && !onOpen ? expanded : undefined} className="min-w-0 flex-1 text-left">
+            <p className="flex items-baseline gap-2">
+              <span className="truncate text-[15px] font-bold text-ink">{task.client_name}</span>
+              <span className="shrink-0 text-xs text-piedra">{task.order_number ? `#${task.order_number}` : 'Ejemplo'}</span>
+              {task.status === 'haciendo' && <span className="shrink-0 font-display text-[11px] font-bold text-rosa-deep">· En curso</span>}
+            </p>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-piedra">
+              {due && <span className={`rounded-full px-2 py-px font-display text-[11px] font-bold ${due.urgent ? 'bg-rosa-deep text-white' : 'bg-papel text-ciruela'}`}>{due.text}</span>}
+              <span className="truncate">{task.pack_name}{task.has_letter ? ' · con carta' : ''}{task.notes ? ' · 📝 nota' : ''}</span>
+            </p>
+            {task.status !== 'terminado' && progress > 0 && (
+              <span className="mt-1.5 flex items-center gap-2">
+                <span className="h-1 w-28 rounded-full bg-papel"><span className="block h-1 rounded-full bg-rosa" style={{ width: `${Math.round(progress * 100)}%` }} /></span>
+                <span className="text-[11px] text-piedra">{Math.round(progress * 100)}% copiado</span>
+              </span>
+            )}
+          </button>
+          {action}
+          {children && !onOpen && <ChevronDown aria-hidden className={`h-4 w-4 shrink-0 text-piedra transition-transform ${expanded ? 'rotate-180' : ''}`} />}
         </div>
       </div>
-      {task.notes && <p className="mt-3 rounded-2xl bg-papel px-3.5 py-2.5 text-sm text-ink"><b>Notas de Vale:</b> {task.notes}</p>}
-      {task.status !== 'terminado' && onOpen && (
-        <button type="button" onClick={onOpen} className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-ciruela px-4 font-display text-sm font-bold text-white hover:bg-rosa">
-          <Maximize2 className="h-4 w-4" />Armar este CV (modo trabajo)
-        </button>
-      )}
-      {task.status !== 'terminado' && (
-        <div className="mt-3 space-y-2">
-          <CopyBlock storageKey={`${task.id}-moderno`} label="CV moderno" text={task.cv_modern} />
-          <CopyBlock storageKey={`${task.id}-ats`} label="CV ATS" text={task.cv_ats} />
-          {task.has_letter && task.letter && <CopyBlock storageKey={`${task.id}-carta`} label="Carta de presentación" text={task.letter} whole />}
-          {task.has_letter && !task.letter && <p className="px-1 text-xs font-semibold text-rosa-deep">Lleva carta: el texto te lo pasa Vale.</p>}
-        </div>
-      )}
-      {task.status === 'terminado' && task.design_url && (
-        <a href={task.design_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">Ver el diseño en Canva<ExternalLink className="h-3.5 w-3.5" /></a>
-      )}
-      {children}
-      {actions && <div className="mt-3">{actions}</div>}
+      {expanded && children && <div className="border-t border-line px-3 py-3">{children}</div>}
     </li>
   )
 }

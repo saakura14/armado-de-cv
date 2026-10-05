@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Eye, Loader2, RefreshCw, Trash2, UserPlus, X } from 'lucide-react'
-import { TeamTaskCard } from '@/components/team-task-card'
+import { TaskRow, TaskTexts } from '@/components/team-task-card'
 import { TeamView } from '@/components/team-view'
 import { monthKey } from '@/lib/dashboard'
 import { formatARS } from '@/lib/catalog'
 import { useHideMoney } from '@/lib/hide-money'
 import { formatDate } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
-import { TASK_SELECT, batchStats, monthlyStats, sortTasks, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
+import { TASK_SELECT, TASK_STATUS, batchStats, monthlyStats, sortTasks, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
 import { Button, Field, cardClass, inputClass, useFlash } from './ui'
 
 /** Add someone to the team with the Gmail they sign in with. */
@@ -278,16 +278,16 @@ export function TeamAdmin() {
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
           <div className="min-w-0 space-y-4">
             {/* The numbers in one compact strip: two per row on the phone, four in a row from a tablet. */}
-            <div className="grid grid-cols-2 overflow-hidden rounded-3xl bg-white shadow-[0_18px_40px_-34px_rgba(67,32,44,0.6)] sm:grid-cols-4">
+            <div className="grid grid-cols-2 overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)] sm:grid-cols-4">
               {[
                 { label: 'Para hacer', value: pending.length, strong: true },
                 { label: 'Haciéndolos', value: pending.filter((task) => task.status === 'haciendo').length },
                 { label: 'Este mes', value: thisMonth?.packs ?? 0 },
                 { label: 'Total hechos', value: finished.length },
               ].map(({ label, value, strong }, index) => (
-                <div key={label} className={`px-4 py-3 ${strong ? 'bg-rosa text-white' : ''} ${index % 2 ? 'border-l border-line' : ''} ${index > 1 ? 'border-t border-line sm:border-t-0' : ''} ${index === 2 ? 'sm:border-l' : ''}`}>
+                <div key={label} className={`px-3.5 py-2.5 ${strong ? 'bg-rosa text-white' : ''} ${index % 2 ? 'border-l border-line' : ''} ${index > 1 ? 'border-t border-line sm:border-t-0' : ''} ${index === 2 ? 'sm:border-l' : ''}`}>
                   <p className={`font-display text-[11px] font-semibold uppercase tracking-wider ${strong ? 'text-white/85' : 'text-piedra'}`}>{label}</p>
-                  <p className={`mt-0.5 font-display text-2xl font-extrabold ${strong ? '' : 'text-ciruela'}`}>{value}</p>
+                  <p className={`font-display text-xl font-extrabold ${strong ? '' : 'text-ciruela'}`}>{value}</p>
                 </div>
               ))}
             </div>
@@ -305,7 +305,19 @@ export function TeamAdmin() {
               </div>
               {list.length === 0
                 ? <p className="mt-3 rounded-3xl bg-white px-6 py-8 text-center text-sm text-piedra">{view === 'pendientes' ? `${member.name.split(' ')[0]} no tiene CVs pendientes.` : 'Todavía no terminó ningún CV.'}</p>
-                : <ul className="mt-3 grid gap-3 2xl:grid-cols-2">{list.map((task) => <TeamTaskCard key={task.id} task={task} actions={<TaskTools task={task} onChanged={load} />} />)}</ul>}
+                : (
+                  // One line per CV with its state; tapping it unfolds the texts and the tools.
+                  <ul className="mt-3 grid gap-2 2xl:grid-cols-2">
+                    {list.map((task) => (
+                      <TaskRow key={task.id} task={task} action={<span className={`shrink-0 rounded-full px-2.5 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span>}>
+                        <div className="space-y-3">
+                          {task.status !== 'terminado' ? <TaskTexts task={task} /> : task.design_url ? <a href={task.design_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-rosa-deep hover:underline">Ver el diseño en Canva</a> : null}
+                          <TaskTools task={task} onChanged={load} />
+                        </div>
+                      </TaskRow>
+                    ))}
+                  </ul>
+                )}
             </section>
           </div>
 

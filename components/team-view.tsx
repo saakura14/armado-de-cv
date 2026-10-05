@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarClock, CheckCircle2, ListTodo, Wallet } from 'lucide-react'
-import { TaskWorkspace, TeamTaskCard } from '@/components/team-task-card'
+import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, Wallet } from 'lucide-react'
+import { TaskRow, TaskWorkspace } from '@/components/team-task-card'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
 import { formatARS } from '@/lib/catalog'
 import { monthKey } from '@/lib/dashboard'
@@ -24,7 +24,7 @@ export function TeamLogo() {
 }
 
 /** "Empecé" and "Terminé" for one task (the pack counts for the payment when it is finished). In the preview they do nothing. */
-function TaskActions({ task, preview, onChanged, onStarted, onFinished }: { task: TeamTask; preview?: boolean; onChanged: () => void; onStarted?: () => void; onFinished?: () => void }) {
+function TaskActions({ task, preview, onChanged, onFinished }: { task: TeamTask; preview?: boolean; onChanged: () => void; onFinished?: () => void }) {
   const [busy, setBusy] = useState(false)
   const [link, setLink] = useState('')
   const flash = useFlash()
@@ -39,7 +39,6 @@ function TaskActions({ task, preview, onChanged, onStarted, onFinished }: { task
     // Vale gets a notification when a CV is finished.
     if (status === 'terminado') supabase.functions.invoke('notify-admin', { body: { task_id: task.id, kind: 'task_done' } }).then(() => undefined, () => undefined)
     onChanged()
-    if (status === 'haciendo') onStarted?.()
     if (status === 'terminado') onFinished?.()
   }
 
@@ -81,8 +80,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   const [workingId, setWorkingId] = useState<string | null>(null)
   const closeWork = useCallback(() => setWorkingId(null), [])
   // "Listo el #12, seguimos con el #13": a short message when the work mode jumps to the next CV.
-  const [notice, setNotice] = useState('')
-  useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 4000); return () => window.clearTimeout(timer) }, [notice])
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
+  useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 4000); return () => window.clearTimeout(timer) }, [notice])
   const { pending, finished } = sortTasks(tasks)
   const batch = batchStats(member, tasks, payments)
   const months = monthlyStats(tasks, payments)
@@ -94,13 +93,22 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   const list = view === 'pendientes' ? shownPending : finished.slice(0, 30)
   // Closes by itself when the CV is finished (it leaves the pending list).
   const working = workingId ? shownPending.find((task) => task.id === workingId) ?? null : null
+  // "Empezar" marks it as started (Vale sees it "Haciéndolo") and opens the work mode; "Seguir" just opens it.
+  async function openTask(task: TeamTask) {
+    if (!preview && task.status === 'asignado') {
+      const { error } = await supabase.rpc('team_set_task_status', { p_task: task.id, p_status: 'haciendo', p_design_url: null })
+      if (error) { setNotice({ ok: false, text: errorMessage(error) }); return }
+      onChanged()
+    }
+    setWorkingId(task.id)
+  }
   // A CV finished in work mode: the next pending one (most urgent first) opens by itself.
   function finishedWorking(done: TeamTask) {
     const following = pending.find((task) => task.id !== done.id)
     setWorkingId(following?.id ?? null)
-    setNotice(following
+    setNotice({ ok: true, text: following
       ? `✅ Listo el pedido #${done.order_number}. Seguimos con el #${following.order_number}: ${following.pack_name} de ${following.client_name}.`
-      : '✅ ¡Terminaste todos los CVs! Buen trabajo.')
+      : '✅ ¡Terminaste todos los CVs! Buen trabajo.' })
   }
 
   const stats = [
@@ -121,16 +129,16 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
 
       <main className="mx-auto max-w-6xl space-y-4 px-4 py-5 @3xl:px-6 @3xl:py-6">
         <div>
-          <h1 className="font-script text-4xl leading-none text-rosa">¡Hola, {member.name.split(' ')[0]}!</h1>
+          <h1 className="font-script text-3xl leading-none text-rosa">¡Hola, {member.name.split(' ')[0]}!</h1>
           <p className="mt-1 text-sm text-piedra">{pending.length ? `Tenés ${pending.length} ${pending.length === 1 ? 'CV para armar' : 'CVs para armar'}${urgent ? `, ${urgent} para hoy o atrasados` : ''}.` : 'No tenés CVs pendientes. ¡Todo al día!'}</p>
         </div>
 
         {/* The numbers in one compact strip: two per row on a phone, four in a row from a small tablet. */}
-        <div className="grid grid-cols-2 overflow-hidden rounded-3xl bg-white shadow-[0_18px_40px_-34px_rgba(67,32,44,0.6)] @lg:grid-cols-4">
+        <div className="grid grid-cols-2 overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)] @lg:grid-cols-4">
           {stats.map(({ icon: Icon, label, value, strong }, index) => (
-            <div key={label} className={`px-4 py-3 ${strong ? 'bg-rosa text-white' : ''} ${index % 2 ? 'border-l border-line' : ''} ${index > 1 ? 'border-t border-line @lg:border-t-0' : ''} ${index === 2 ? '@lg:border-l' : ''}`}>
+            <div key={label} className={`px-3.5 py-2.5 ${strong ? 'bg-rosa text-white' : ''} ${index % 2 ? 'border-l border-line' : ''} ${index > 1 ? 'border-t border-line @lg:border-t-0' : ''} ${index === 2 ? '@lg:border-l' : ''}`}>
               <p className={`flex items-center gap-1.5 font-display text-[11px] font-semibold uppercase tracking-wider ${strong ? 'text-white/85' : 'text-piedra'}`}><Icon className="h-3.5 w-3.5" />{label}</p>
-              <p className={`mt-0.5 font-display text-2xl font-extrabold ${strong ? '' : 'text-ciruela'}`}>{value}</p>
+              <p className={`font-display text-xl font-extrabold ${strong ? '' : 'text-ciruela'}`}>{value}</p>
             </div>
           ))}
         </div>
@@ -147,16 +155,38 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
               ))}
             </div>
             {preview && view === 'pendientes' && pending.length === 0 && <p className="mt-3 text-xs font-semibold text-rosa-deep">Ejemplo: así le llega un CV cuando se lo asignás (no es un pedido real).</p>}
-            {list.length === 0
-              ? <p className="mt-3 rounded-3xl bg-white p-8 text-center text-piedra">{view === 'pendientes' ? 'No tenés CVs para armar. Cuando Vale te pase uno, te aparece acá y te llega un aviso.' : 'Todavía no terminaste ningún CV.'}</p>
-              : <ul className="mt-3 grid gap-3 @6xl:grid-cols-2">{list.map((task) => <TeamTaskCard key={task.id} task={task} onOpen={task.status === 'terminado' ? undefined : () => setWorkingId(task.id)} actions={<TaskActions task={task} preview={preview} onChanged={onChanged} onStarted={() => setWorkingId(task.id)} />} />)}</ul>}
+            {list.length === 0 ? (
+              <p className="mt-3 rounded-2xl bg-white p-6 text-center text-sm text-piedra">{view === 'pendientes' ? 'No tenés CVs para armar. Cuando Vale te pase uno, te aparece acá y te llega un aviso.' : 'Todavía no terminaste ningún CV.'}</p>
+            ) : view === 'pendientes' ? (
+              // The urgent ones first, apart, so it's clear what to do today.
+              <div className="mt-3 space-y-4">
+                {[
+                  { title: 'Para hoy o atrasados', items: list.filter((task) => task.due_on && task.due_on <= today) },
+                  { title: urgent ? 'Próximos' : 'Para hacer', items: list.filter((task) => !(task.due_on && task.due_on <= today)) },
+                ].filter((group) => group.items.length).map((group) => (
+                  <div key={group.title}>
+                    <p className="mb-1.5 px-1 font-display text-[11px] font-bold uppercase tracking-wider text-piedra">{group.title} · {group.items.length}</p>
+                    <ul className="grid gap-2 @5xl:grid-cols-2">
+                      {group.items.map((task) => (
+                        <TaskRow key={task.id} task={task} onOpen={() => openTask(task)}
+                          action={<button type="button" onClick={() => openTask(task)} className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3.5 font-display text-xs font-bold text-white ${task.status === 'haciendo' ? 'bg-rosa hover:bg-rosa-deep' : 'bg-ciruela hover:bg-rosa'}`}>{task.status === 'haciendo' ? 'Seguir' : 'Empezar'}<ChevronRight className="h-4 w-4" /></button>} />
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <ul className="mt-3 grid gap-2 @5xl:grid-cols-2">
+                {list.map((task) => <TaskRow key={task.id} task={task} action={<span className="shrink-0 text-right text-[11px] leading-tight text-piedra">{formatDate(task.finished_at!, true)}<br /><b className={task.paid_in ? 'text-whatsapp' : 'text-ciruela'}>{task.paid_in ? 'cobrado' : 'a cobrar'}</b></span>} />)}
+              </ul>
+            )}
           </section>
 
           {/* Money and history: beside the CVs on a tablet, under them on a phone. */}
           <aside className="space-y-4 @3xl:sticky @3xl:top-20">
             <section className={cardClass} aria-labelledby="batch-title">
               <h2 id="batch-title" className="font-display text-base font-bold text-ciruela">Tu próximo cobro</h2>
-              <p className="mt-1 font-display text-3xl font-extrabold text-ciruela">{batch.count}<span className="text-base text-piedra"> de {batch.size} CVs</span></p>
+              <p className="mt-1 font-display text-2xl font-extrabold text-ciruela">{batch.count}<span className="text-sm text-piedra"> de {batch.size} CVs</span></p>
               <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${batch.count >= batch.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(batch.count / batch.size, 1) * 100}%` }} /></div>
               <p className="mt-2 text-xs leading-snug text-piedra">{batch.count} {batch.count === 1 ? 'CV' : 'CVs'} × {formatARS(member.rate)}{batch.advances ? ` − ${formatARS(batch.advances)} de adelanto` : ''} = <b className="text-ink">{formatARS(batch.owed)}</b></p>
             </section>
@@ -189,7 +219,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
       </main>
 
       {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
-      {notice && <p role="status" className="fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl bg-whatsapp px-4 py-3 text-center text-sm font-bold text-white shadow-lg">{notice}</p>}
+      {notice && <p role="status" className={`fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl px-4 py-3 text-center text-sm font-bold text-white shadow-lg ${notice.ok ? 'bg-whatsapp' : 'bg-rosa-deep'}`}>{notice.text}</p>}
     </div>
   )
 }
