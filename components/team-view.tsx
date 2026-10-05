@@ -28,14 +28,25 @@ export function TeamLogo() {
 function TaskActions({ task, preview, onChanged, onFinished }: { task: TeamTask; preview?: boolean; onChanged: () => void; onFinished?: () => void }) {
   const [busy, setBusy] = useState(false)
   const [link, setLink] = useState('')
+  // "Terminé" asks again on the screen itself: the browser's own confirm can be silenced on a tablet and then never fires.
+  const [confirming, setConfirming] = useState(false)
   const flash = useFlash()
 
+  // Whatever is pasted (a whole "Mirá mi diseño: https://..." or a link without https), only the address is kept.
+  function designUrl() {
+    const value = link.trim()
+    if (!value) return null
+    const found = value.match(/https?:\/\/\S+/i)?.[0] ?? (/^(www\.)?canva\.(com|link)\//i.test(value) ? `https://${value}` : null)
+    return found
+  }
+
   async function move(status: 'haciendo' | 'terminado') {
-    if (preview) { flash.show('ok', 'Es la vista previa: acá él lo marca y a vos te llega el aviso.'); return }
-    if (status === 'terminado' && !window.confirm(`¿Terminaste el ${task.pack_name} de ${task.client_name} (pedido #${task.order_number})? Ya no lo vas a poder volver atrás.`)) return
+    if (preview) { flash.show('ok', 'Es la vista previa: acá él lo marca y a vos te llega el aviso.'); setConfirming(false); return }
+    if (link.trim() && !designUrl()) { flash.show('error', 'Ese link no parece de Canva: copiá el link del diseño o dejá el campo vacío.'); return }
     setBusy(true)
-    const { error } = await supabase.rpc('team_set_task_status', { p_task: task.id, p_status: status, p_design_url: link.trim() || null })
+    const { error } = await supabase.rpc('team_set_task_status', { p_task: task.id, p_status: status, p_design_url: designUrl() })
     setBusy(false)
+    setConfirming(false)
     if (error) { flash.show('error', errorMessage(error)); return }
     // Vale gets a notification when a CV is finished.
     if (status === 'terminado') supabase.functions.invoke('notify-admin', { body: { task_id: task.id, kind: 'task_done' } }).then(() => undefined, () => undefined)
@@ -48,12 +59,22 @@ function TaskActions({ task, preview, onChanged, onFinished }: { task: TeamTask;
     <div className="space-y-2">
       {task.status === 'haciendo' && (
         <label className="block text-xs font-semibold uppercase tracking-wider text-piedra">Link del diseño en Canva (opcional)
-          <input value={link} onChange={(event) => setLink(event.target.value)} placeholder="https://www.canva.com/design/..." className={inputClass} />
+          <input value={link} onChange={(event) => setLink(event.target.value)} placeholder="https://www.canva.com/design/..." inputMode="url" className={inputClass} />
         </label>
       )}
-      {task.status === 'asignado'
-        ? <Button className="w-full" busy={busy} onClick={() => move('haciendo')}>Empecé</Button>
-        : <Button variant="success" className="w-full" busy={busy} onClick={() => move('terminado')}>Terminé este CV</Button>}
+      {task.status === 'asignado' ? (
+        <Button className="w-full" busy={busy} onClick={() => move('haciendo')}>Empecé</Button>
+      ) : confirming ? (
+        <div className="space-y-2 rounded-2xl bg-whatsapp/10 p-3">
+          <p className="text-sm font-semibold text-ink">¿Terminaste el {task.pack_name} de {task.client_name} (#{task.order_number})? Después no se puede volver atrás.</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" disabled={busy} onClick={() => setConfirming(false)}>Todavía no</Button>
+            <Button variant="success" busy={busy} onClick={() => move('terminado')}>Sí, terminé</Button>
+          </div>
+        </div>
+      ) : (
+        <Button variant="success" className="w-full" onClick={() => setConfirming(true)}>Terminé este CV</Button>
+      )}
       {flash.node}
     </div>
   )
