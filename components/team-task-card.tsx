@@ -137,18 +137,19 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
   const floating = focus ? 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(1.25rem+env(safe-area-inset-bottom))]'
 
   return (
-    <div className={`${hidden ? 'hidden' : ''} ${focus ? '' : 'rounded-2xl border border-line bg-white'}`}>
+    <div className={`${hidden ? 'hidden' : ''} ${focus ? '' : '@container rounded-2xl border border-line bg-white'}`}>
       {!focus && (
         // Stays at the top while scrolling a long text, so "Copiar siguiente" is always at hand.
-        <div className={`flex flex-wrap items-center gap-2 rounded-t-2xl bg-white px-3 py-2 ${open ? 'sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 border-b border-line shadow-[0_8px_16px_-14px_rgba(67,32,44,0.5)]' : 'rounded-b-2xl'}`}>
-          <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex min-h-10 flex-1 items-center gap-2 text-left">
+        <div className={`flex flex-col gap-2 rounded-t-2xl bg-white px-3 py-2 @md:flex-row @md:items-center ${open ? 'sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 border-b border-line shadow-[0_8px_16px_-14px_rgba(67,32,44,0.5)]' : 'rounded-b-2xl'}`}>
+          <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex min-h-9 min-w-0 flex-1 items-center gap-2 text-left">
             <ChevronDown className={`h-4 w-4 shrink-0 text-piedra transition-transform ${open ? 'rotate-180' : ''}`} />
-            <span className="font-display text-sm font-bold text-ciruela">{label}</span>
+            <span className="whitespace-nowrap font-display text-sm font-bold text-ciruela">{label}</span>
             {!whole && <span className={`rounded-full px-2 py-0.5 font-display text-[11px] font-bold ${doneCount === pieces.length ? 'bg-whatsapp/15 text-whatsapp' : 'bg-papel text-piedra'}`}>{doneCount}/{pieces.length}</span>}
           </button>
-          <div className="flex gap-2">
+          {/* Side by side when there is room; under the title, sharing the width, in a narrow box (phone, two columns). */}
+          <div className={`grid gap-2 ${!whole && next >= 0 ? 'grid-cols-2' : 'grid-cols-1'} @md:flex @md:shrink-0`}>
             {!whole && next >= 0 && (
-              <button type="button" onClick={copyNext} className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-rosa px-3.5 font-display text-xs font-bold text-white hover:bg-rosa-deep">
+              <button type="button" onClick={copyNext} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full bg-rosa px-3.5 font-display text-xs font-bold text-white hover:bg-rosa-deep">
                 <SkipForward className="h-4 w-4" />{doneCount ? 'Copiar siguiente' : 'Copiar el 1°'}
               </button>
             )}
@@ -383,7 +384,8 @@ export function TaskRow({ task, action, onOpen, children }: { task: TeamTask; ac
   const edge = task.status === 'terminado' ? 'bg-whatsapp' : task.status === 'haciendo' ? 'bg-rosa' : 'bg-line'
   const toggle = onOpen ?? (children ? () => setExpanded((value) => !value) : undefined)
   return (
-    <li className="overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)]">
+    // Open, it takes the whole width of the list so its texts have room (and the neighbor keeps its own height).
+    <li className={`overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)] ${expanded ? 'col-span-full' : ''}`}>
       <div className="flex items-stretch">
         <span aria-hidden className={`w-1.5 shrink-0 ${edge}`} />
         <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 pr-2.5">
