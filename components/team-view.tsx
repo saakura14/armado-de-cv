@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Wallet, X } from 'lucide-react'
 import { TaskRow, TaskWorkspace } from '@/components/team-task-card'
-import { TeamChat, TeamChatPanel, useTeamUnread, type ChatTask } from '@/components/team-chat'
+import { TeamChat, TeamChatBubble, TeamChatWindow, useTeamUnread, type ChatTask } from '@/components/team-chat'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
 import { monthKey } from '@/lib/dashboard'
@@ -259,17 +259,12 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
 
       {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} onAsk={preview ? undefined : () => { setChatTask(chatTasks.find((task) => task.id === working.id) ?? null); setChatOpen(true) }} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
       {notice && <p role="status" className={`fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl px-4 py-3 text-center text-sm font-bold text-white shadow-lg ${notice.ok ? 'bg-whatsapp' : 'bg-rosa-deep'}`}>{notice.text}</p>}
-      {!preview && !working && (
-        <button type="button" onClick={() => setChatOpen(true)} aria-label={`Chat con Vale${unread ? `: ${unread} sin leer` : ''}`}
-          className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-ciruela pl-4 pr-5 font-display text-sm font-bold text-white shadow-[0_18px_40px_-14px_rgba(67,32,44,0.8)] hover:bg-rosa">
-          <MessageCircle className="h-5 w-5" />Chat con Vale
-          {unread > 0 && <span className="absolute -right-1 -top-1 min-w-6 rounded-full bg-rosa px-1.5 text-center text-xs font-bold leading-6 text-white ring-2 ring-blanco">{unread}</span>}
-        </button>
-      )}
+      {/* Chat with Vale: a bubble in the corner (hidden in the work mode, which has its own "¿Una duda?" button). */}
+      {!preview && !working && <TeamChatBubble open={chatOpen} unread={unread} onClick={() => (chatOpen ? closeChat() : setChatOpen(true))} label="Chat con Vale" className="bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4" />}
       {chatOpen && !preview && (
-        <TeamChatPanel title="Chat con Vale" onClose={closeChat}>
+        <TeamChatWindow title="Chat con Vale" onClose={closeChat} className="sm:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] sm:right-4">
           <TeamChat memberId={member.id} side="member" otherName="Vale" tasks={chatTasks} draftTask={chatTask} onDraftTaskUsed={clearChatTask} />
-        </TeamChatPanel>
+        </TeamChatWindow>
       )}
       {tutorial && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ciruela/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Tutorial del panel" onClick={() => setTutorial(false)}>

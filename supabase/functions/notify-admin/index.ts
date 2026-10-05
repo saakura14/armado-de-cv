@@ -78,7 +78,7 @@ Deno.serve(async (request) => {
       message = { title: '💬 Vale te escribió', body: text, url: '/equipo#chat', tag: `chat-${chat.member_id}` }
     } else {
       if (!member || member.user_id !== user.id) return json(403, { error: 'No es tu conversación' })
-      message = { title: `💬 ${member.name.split(' ')[0]} te escribió`, body: text, url: '/admin#equipo', tag: `chat-${chat.member_id}` }
+      message = { title: `💬 ${member.name.split(' ')[0]} te escribió`, body: text, url: '/admin#chat', tag: `chat-${chat.member_id}` }
     }
   } else {
     if (!body.order_id || (body.kind !== 'new_order' && body.kind !== 'receipt')) return json(400, { error: 'Datos incompletos' })
