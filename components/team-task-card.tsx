@@ -246,7 +246,7 @@ function sectionsOf(task: TeamTask) {
  * Tabs for each text, the big "Copiar siguiente" at the bottom, and "Empecé"/"Terminé" at the end.
  * Canva can't be shown inside the panel (Canva doesn't allow it), so there is a button to open it.
  */
-export function TaskWorkspace({ task, actions, onClose }: { task: TeamTask; actions?: React.ReactNode; onClose: () => void }) {
+export function TaskWorkspace({ task, actions, onClose, onAsk }: { task: TeamTask; actions?: React.ReactNode; onClose: () => void; onAsk?: () => void }) {
   const sections = sectionsOf(task)
   const [tab, setTab] = useState(sections[0].id)
   const [progress, setProgress] = useState<Record<string, [number, number]>>({})
@@ -325,11 +325,17 @@ export function TaskWorkspace({ task, actions, onClose }: { task: TeamTask; acti
           })}
 
           {actions && <div ref={actionsRef} className="rounded-2xl bg-white p-3">{actions}</div>}
-          {/* A doubt goes to Vale's WhatsApp with the order already written, so she knows which CV it is. */}
-          <a href={whatsappUrl(`Hola Vale, tengo una duda con el CV del pedido #${task.order_number} (${task.pack_name} de ${task.client_name}): `)} target="_blank" rel="noreferrer"
-            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-line bg-white px-4 font-display text-sm font-bold text-ciruela hover:border-ciruela">
-            <MessageCircle className="h-4 w-4 text-whatsapp" />¿Una duda con este CV? Escribile a Vale
-          </a>
+          {/* A doubt about this CV: the panel chat with the CV already attached (or WhatsApp where there is no chat, like the preview). */}
+          {onAsk ? (
+            <button type="button" onClick={onAsk} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-line bg-white px-4 font-display text-sm font-bold text-ciruela hover:border-ciruela">
+              <MessageCircle className="h-4 w-4 text-rosa" />¿Una duda con este CV? Escribile a Vale
+            </button>
+          ) : (
+            <a href={whatsappUrl(`Hola Vale, tengo una duda con el CV del pedido #${task.order_number} (${task.pack_name} de ${task.client_name}): `)} target="_blank" rel="noreferrer"
+              className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-line bg-white px-4 font-display text-sm font-bold text-ciruela hover:border-ciruela">
+              <MessageCircle className="h-4 w-4 text-whatsapp" />¿Una duda con este CV? Escribile a Vale
+            </a>
+          )}
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Wallet, X } from 'lucide-react'
 import { TaskRow, TaskWorkspace } from '@/components/team-task-card'
+import { TeamChat, TeamChatPanel, useTeamUnread, type ChatTask } from '@/components/team-chat'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
 import { monthKey } from '@/lib/dashboard'
@@ -78,6 +79,20 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   const [view, setView] = useState<'pendientes' | 'terminados'>('pendientes')
   // The CV open in work mode (full screen, next to Canva).
   const [workingId, setWorkingId] = useState<string | null>(null)
+  // Chat with Vale: a floating button with the unread count; "#chat" in the address (from a notification) opens it.
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatTask, setChatTask] = useState<ChatTask | null>(null)
+  const unread = useTeamUnread(preview ? null : member.id, 'member')
+  const closeChat = useCallback(() => { setChatOpen(false); if (window.location.hash === '#chat') history.replaceState(history.state, '', window.location.pathname) }, [])
+  const clearChatTask = useCallback(() => setChatTask(null), [])
+  useEffect(() => {
+    if (preview) return
+    const fromHash = () => { if (window.location.hash === '#chat') setChatOpen(true) }
+    fromHash()
+    window.addEventListener('hashchange', fromHash)
+    return () => window.removeEventListener('hashchange', fromHash)
+  }, [preview])
+  const chatTasks: ChatTask[] = tasks.map(({ id, order_number, client_name, pack_name }) => ({ id, order_number, client_name, pack_name }))
   const closeWork = useCallback(() => setWorkingId(null), [])
   // The step-by-step video, and whether it was already offered on this device.
   const [tutorial, setTutorial] = useState(false)
@@ -132,7 +147,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-4 px-4 py-5 @3xl:px-6 @3xl:py-6">
+      <main className="mx-auto max-w-6xl space-y-4 px-4 pb-24 pt-5 @3xl:px-6 @3xl:pt-6">
         <div>
           <h1 className="font-script text-3xl leading-none text-rosa">¡Hola, {member.name.split(' ')[0]}!</h1>
           <p className="mt-1 text-sm text-piedra">{pending.length ? `Tenés ${pending.length} ${pending.length === 1 ? 'CV para armar' : 'CVs para armar'}${urgent ? `, ${urgent} para hoy o atrasados` : ''}.` : 'No tenés CVs pendientes. ¡Todo al día!'}</p>
@@ -233,15 +248,29 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
               <h2 id="help-title" className="font-display text-base font-bold text-ciruela">¿Cómo se usa?</h2>
               <div className="mt-2 grid gap-2">
                 <button type="button" onClick={() => setTutorial(true)} className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-ciruela px-4 font-display text-sm font-bold text-white hover:bg-rosa"><PlayCircle className="h-4 w-4" />Ver el tutorial</button>
-                <a href={whatsappUrl('Hola Vale, tengo una consulta con el panel: ')} target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-line px-4 font-display text-sm font-bold text-ciruela hover:border-ciruela"><MessageCircle className="h-4 w-4 text-whatsapp" />Escribile a Vale</a>
+                {preview
+                  ? <a href={whatsappUrl('Hola Vale, tengo una consulta con el panel: ')} target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-line px-4 font-display text-sm font-bold text-ciruela hover:border-ciruela"><MessageCircle className="h-4 w-4 text-whatsapp" />Escribile a Vale</a>
+                  : <button type="button" onClick={() => setChatOpen(true)} className="flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-line px-4 font-display text-sm font-bold text-ciruela hover:border-ciruela"><MessageCircle className="h-4 w-4 text-rosa" />Escribile a Vale</button>}
               </div>
             </section>
           </aside>
         </div>
       </main>
 
-      {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
+      {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} onAsk={preview ? undefined : () => { setChatTask(chatTasks.find((task) => task.id === working.id) ?? null); setChatOpen(true) }} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
       {notice && <p role="status" className={`fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl px-4 py-3 text-center text-sm font-bold text-white shadow-lg ${notice.ok ? 'bg-whatsapp' : 'bg-rosa-deep'}`}>{notice.text}</p>}
+      {!preview && !working && (
+        <button type="button" onClick={() => setChatOpen(true)} aria-label={`Chat con Vale${unread ? `: ${unread} sin leer` : ''}`}
+          className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-40 inline-flex h-14 items-center gap-2 rounded-full bg-ciruela pl-4 pr-5 font-display text-sm font-bold text-white shadow-[0_18px_40px_-14px_rgba(67,32,44,0.8)] hover:bg-rosa">
+          <MessageCircle className="h-5 w-5" />Chat con Vale
+          {unread > 0 && <span className="absolute -right-1 -top-1 min-w-6 rounded-full bg-rosa px-1.5 text-center text-xs font-bold leading-6 text-white ring-2 ring-blanco">{unread}</span>}
+        </button>
+      )}
+      {chatOpen && !preview && (
+        <TeamChatPanel title="Chat con Vale" onClose={closeChat}>
+          <TeamChat memberId={member.id} side="member" otherName="Vale" tasks={chatTasks} draftTask={chatTask} onDraftTaskUsed={clearChatTask} />
+        </TeamChatPanel>
+      )}
       {tutorial && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-ciruela/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Tutorial del panel" onClick={() => setTutorial(false)}>
           <div className="relative w-full max-w-sm" onClick={(event) => event.stopPropagation()}>

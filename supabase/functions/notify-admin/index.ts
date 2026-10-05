@@ -1,5 +1,5 @@
 // Push notifications to the admin's phone: a new order, or a receipt uploaded by the customer;
-// and for the team: a CV assigned to a member (to their phone) or finished by them (to the admin).
+// and for the team: a CV assigned to a member (to their phone) or finished by them (to the admin), and the team chat messages.
 // Called from the customer's browser right after the action (only for their own, fresh orders, once per kind),
 // or by the admin with { test: true } to check that notifications arrive.
 // The VAPID keys are read from Vault through public.push_config() (service role only).
@@ -27,7 +27,7 @@ Deno.serve(async (request) => {
   const { data: { user } } = await admin.auth.getUser(token)
   if (!user) return json(401, { error: 'Sesión inválida' })
 
-  const body = await request.json().catch(() => ({})) as { order_id?: string; task_id?: string; kind?: 'new_order' | 'receipt' | 'task_assigned' | 'task_done'; test?: boolean }
+  const body = await request.json().catch(() => ({})) as { order_id?: string; task_id?: string; message_id?: string; kind?: 'new_order' | 'receipt' | 'task_assigned' | 'task_done' | 'chat'; test?: boolean }
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
   const isAdmin = profile?.role === 'admin'
 
@@ -61,6 +61,24 @@ Deno.serve(async (request) => {
     } else {
       if (!member || member.user_id !== user.id) return json(403, { error: 'No es tu tarea' })
       message = { title: `✅ ${member.name} terminó el CV del pedido #${task.order_number}`, body: `${task.pack_name} de ${task.client_name}: listo para que lo revises y lo entregues.`, url: '/admin#equipo', tag: `done-${task.id}` }
+    }
+  } else if (body.kind === 'chat') {
+    // Team chat: a message from Vale goes to the member's devices, one from the member goes to Vale.
+    if (!body.message_id) return json(400, { error: 'Datos incompletos' })
+    const { data: chat } = await admin.from('team_messages').select('id, member_id, sender, body, created_at, team_members(user_id, name), team_tasks(order_number)').eq('id', body.message_id).maybeSingle()
+    if (!chat) return json(404, { error: 'Mensaje no encontrado' })
+    if (Date.now() - new Date(chat.created_at).getTime() > FRESH_MINUTES * 60 * 1000) return json(200, { sent: 0, skipped: 'viejo' })
+    const member = (Array.isArray(chat.team_members) ? chat.team_members[0] : chat.team_members) as { user_id: string | null; name: string } | null
+    const task = (Array.isArray(chat.team_tasks) ? chat.team_tasks[0] : chat.team_tasks) as { order_number: number } | null
+    const text = `${task ? `(#${task.order_number}) ` : ''}${chat.body}`.slice(0, 160)
+    if (chat.sender === 'admin') {
+      if (!isAdmin) return json(403, { error: 'Solo la administradora' })
+      if (!member?.user_id) return json(200, { sent: 0, skipped: 'todavía no entró' })
+      recipients = [member.user_id]
+      message = { title: '💬 Vale te escribió', body: text, url: '/equipo#chat', tag: `chat-${chat.member_id}` }
+    } else {
+      if (!member || member.user_id !== user.id) return json(403, { error: 'No es tu conversación' })
+      message = { title: `💬 ${member.name.split(' ')[0]} te escribió`, body: text, url: '/admin#equipo', tag: `chat-${chat.member_id}` }
     }
   } else {
     if (!body.order_id || (body.kind !== 'new_order' && body.kind !== 'receipt')) return json(400, { error: 'Datos incompletos' })
