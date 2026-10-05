@@ -59,10 +59,8 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
     }).select('id').single()
     setBusy(false)
     if (error) { flash.show('error', /duplicate|unique/i.test(error.message) ? 'Este pack ya está asignado.' : errorMessage(error)); return }
-    // The member gets a notification on their phone.
+    // The member gets a notification on their phone. The order moves to "En proceso" in the database (team_task_starts_order).
     supabase.functions.invoke('notify-admin', { body: { task_id: (data as { id: string }).id, kind: 'task_assigned' } }).then(() => undefined, () => undefined)
-    // Once the texts are with the team, the work has started: a paid order moves to "En proceso" by itself.
-    if (order.status === 'paid') await supabase.rpc('admin_set_order_status', { p_order: order.id, p_status: 'in_progress', p_note: null })
     onSaved()
     onClose()
   }
