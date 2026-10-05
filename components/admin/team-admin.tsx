@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Eye, Loader2, MessageCircle, RefreshCw, Trash2, UserPlus, X } from 'lucide-react'
+import { Check, Eye, Loader2, MessageCircle, RefreshCw, Trash2, UserPlus, X } from 'lucide-react'
 import { TaskRow, TaskTexts } from '@/components/team-task-card'
 import { openAdminChat, useTeamUnread } from '@/components/team-chat'
 import { TeamView } from '@/components/team-view'
@@ -160,6 +160,13 @@ function TaskTools({ task, onChanged }: { task: TeamTask; onChanged: () => void 
     const { error } = await supabase.from('team_tasks').update({ status: 'haciendo', finished_at: null }).eq('id', task.id)
     if (error) flash.show('error', errorMessage(error)); else onChanged()
   }
+  // For when the team member finished but couldn't mark it (it counts for the payment the same way).
+  async function finish() {
+    if (!window.confirm(`¿Marcar como terminado el CV del pedido #${task.order_number}? Suma para el pago de ${task.pack_name}.`)) return
+    const now = new Date().toISOString()
+    const { error } = await supabase.from('team_tasks').update({ status: 'terminado', started_at: task.started_at ?? now, finished_at: now }).eq('id', task.id)
+    if (error) flash.show('error', errorMessage(error)); else onChanged()
+  }
   async function unassign() {
     if (!window.confirm(`¿Sacarle el CV del pedido #${task.order_number}? Lo vas a poder asignar de nuevo desde Pedidos.`)) return
     const { error } = await supabase.from('team_tasks').delete().eq('id', task.id)
@@ -169,7 +176,7 @@ function TaskTools({ task, onChanged }: { task: TeamTask; onChanged: () => void 
     <div className="flex flex-wrap items-center gap-3 text-xs">
       {task.status === 'terminado'
         ? <><span className="text-whatsapp">✓ Terminado el {formatDate(task.finished_at!, true)}{task.paid_in ? ' · pagado' : ' · a pagar'}</span>{!task.paid_in && <button type="button" onClick={reopen} className="font-semibold text-piedra hover:text-ciruela">Volver a pendiente</button>}</>
-        : <button type="button" onClick={unassign} className="inline-flex items-center gap-1 font-semibold text-rosa-deep hover:underline"><Trash2 className="h-3.5 w-3.5" />Sacar la asignación</button>}
+        : <><button type="button" onClick={finish} className="inline-flex items-center gap-1 font-semibold text-whatsapp hover:underline"><Check className="h-3.5 w-3.5" />Marcar como terminado</button><button type="button" onClick={unassign} className="inline-flex items-center gap-1 font-semibold text-rosa-deep hover:underline"><Trash2 className="h-3.5 w-3.5" />Sacar la asignación</button></>}
       {flash.node}
     </div>
   )
