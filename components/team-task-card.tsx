@@ -13,11 +13,32 @@ function splitPieces(text: string) {
 type Piece = { text: string; lines: string[] }
 
 /** The pieces "Copiar siguiente" goes through. */
+/** A section title of the CV: a short line in capitals ("HERRAMIENTAS", "OBJETIVO PROFESIONAL"). */
+export function isHeading(line: string) {
+  const value = line.trim()
+  // At least 5 letters, so a tool alone in capitals ("SQL", "HTML") isn't taken for a title.
+  return value.length <= 50 && (value.match(/\p{L}/gu)?.length ?? 0) >= 5 && value === value.toLocaleUpperCase('es') && !/^[•\-–—*·]/.test(value)
+}
+
 function piecesOf(text: string, whole = false): Piece[] {
-  // The cover letter goes whole (one block); the CVs go paragraph by paragraph.
-  const paragraphs = whole ? [text.trim()] : splitPieces(text)
+  // The cover letter goes whole (one block).
+  if (whole) return [{ text: text.trim(), lines: text.trim().split('\n') }]
+  // A CV with section titles: one piece per section, title and content together, blank lines or not
+  // (a title glued to the previous section, like "FORTALEZAS" after the tools, still starts its own piece).
+  const lines = text.replace(/\r\n/g, '\n').split('\n')
+  if (lines.filter(isHeading).length >= 2) {
+    const sections: string[][] = []
+    for (const line of lines) {
+      if (!line.trim()) continue
+      if (isHeading(line) || !sections.length) sections.push([line.trim()])
+      else sections[sections.length - 1].push(line.trim())
+    }
+    return sections.map((section) => ({ text: section.join('\n'), lines: section }))
+  }
+  // Without titles: paragraph by paragraph.
+  const paragraphs = splitPieces(text)
   // A long text pasted without blank lines: each line is a piece, so "Copiar siguiente" still goes bit by bit.
-  const list = !whole && paragraphs.length === 1 && paragraphs[0].split('\n').length > 6 ? paragraphs[0].split('\n').filter((line) => line.trim()) : paragraphs
+  const list = paragraphs.length === 1 && paragraphs[0].split('\n').length > 6 ? paragraphs[0].split('\n').filter((line) => line.trim()) : paragraphs
   return list.map((piece) => ({ text: piece, lines: piece.split('\n') }))
 }
 
@@ -64,7 +85,8 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
   const pieces = useMemo(() => piecesOf(text, whole), [text, whole])
   const [storedOpen, setOpen] = useStored(`acv-open-${storageKey}`, false)
   const open = focus || storedOpen
-  const [copied, setCopied] = useStored<string[]>(`acv-copied-${storageKey}`, [])
+  // "copied2": since the pieces are whole sections, what was ticked with the old paragraph split no longer applies.
+  const [copied, setCopied] = useStored<string[]>(`acv-copied2-${storageKey}`, [])
   const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null)
   const timer = useRef<number | undefined>(undefined)
   const refs = useRef<(HTMLDivElement | null)[]>([])
@@ -176,12 +198,12 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
                 <div key={index} ref={(element) => { refs.current[index] = element }} className={`flex scroll-mt-20 items-start gap-2 rounded-xl border p-1.5 transition-colors ${index === next && !whole ? 'border-rosa bg-petalo-wash/40' : done ? 'border-transparent bg-whatsapp/5' : 'border-transparent bg-papel/50'}`}>
                   <div className="min-w-0 flex-1 select-text font-sans text-[15px] leading-relaxed text-ink">
                     {piece.lines.map((line, lineIndex) => !line.trim() ? <span key={lineIndex} className="block h-2" /> : mode === 'marcar' ? (
-                      <span key={lineIndex} className={`block cursor-text whitespace-pre-wrap break-words px-1.5 py-0.5 ${!done && copied.includes(`p${index}l${lineIndex}`) ? 'text-whatsapp' : ''}`}>{line}</span>
+                      <span key={lineIndex} className={`block cursor-text whitespace-pre-wrap break-words px-1.5 py-0.5 ${isHeading(line) ? 'font-display text-[13px] font-bold tracking-wide text-ciruela' : ''} ${!done && copied.includes(`p${index}l${lineIndex}`) ? 'text-whatsapp' : ''}`}>{line}</span>
                     ) : (
                       <span key={lineIndex} role="button" tabIndex={0}
                         onClick={(event) => copy(line.trim(), [`p${index}l${lineIndex}`], event.currentTarget, true)}
                         onKeyDown={(event) => { if (event.key === 'Enter') copy(line.trim(), [`p${index}l${lineIndex}`], event.currentTarget, true) }}
-                        className={`block cursor-pointer whitespace-pre-wrap break-words rounded-lg px-1.5 py-0.5 hover:bg-white active:bg-rosa/10 ${!done && copied.includes(`p${index}l${lineIndex}`) ? 'text-whatsapp' : ''}`}>{line}</span>
+                        className={`block cursor-pointer whitespace-pre-wrap break-words rounded-lg px-1.5 py-0.5 hover:bg-white active:bg-rosa/10 ${isHeading(line) ? 'font-display text-[13px] font-bold tracking-wide text-ciruela' : ''} ${!done && copied.includes(`p${index}l${lineIndex}`) ? 'text-whatsapp' : ''}`}>{line}</span>
                     ))}
                   </div>
                   <button type="button" onClick={(event) => copy(piece.text, [`p${index}`], event.currentTarget.previousElementSibling as HTMLElement | null)} aria-label={`Copiar el bloque ${index + 1}`}
@@ -352,7 +374,7 @@ function useTaskProgress(task: TeamTask) {
       for (const section of sectionsOf(task)) {
         const pieces = piecesOf(section.text, section.whole)
         let copied: string[] = []
-        try { copied = JSON.parse(localStorage.getItem(`acv-copied-${task.id}-${section.id}`) ?? '[]') as string[] } catch { /* private mode */ }
+        try { copied = JSON.parse(localStorage.getItem(`acv-copied2-${task.id}-${section.id}`) ?? '[]') as string[] } catch { /* private mode */ }
         total += pieces.length
         done += section.whole ? (copied.length ? 1 : 0) : pieces.filter((_, index) => isPieceDone(pieces, copied, index)).length
       }
