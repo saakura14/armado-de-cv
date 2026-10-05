@@ -1,4 +1,4 @@
-// Exporta el catálogo a PNG 1080×1920: node brand-src/catalogo/render.mjs (necesita Playwright instalado).
+// Exporta el catálogo (historia de Instagram) a PNG 1080×1920: node brand-src/catalogo/render.mjs (necesita Playwright instalado).
 import { chromium } from 'playwright'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
@@ -19,8 +19,8 @@ if (process.env.HTTPS_PROXY) {
     route.fulfill({ body, contentType: url.includes('googleapis') ? 'text/css' : 'font/woff2' })
   })
 }
-await page.goto('file://' + join(here, 'catalogo-cv.html'), { waitUntil: 'networkidle' })
+await page.goto('file://' + join(here, 'catalogo-historia.html'), { waitUntil: 'networkidle' })
 await page.evaluate(() => document.fonts.ready)
-await page.screenshot({ path: join(out, 'catalogo-cv.png') })
+await page.screenshot({ path: join(out, 'catalogo-historia.png') })
 await browser.close()
-console.log('Listo:', join(out, 'catalogo-cv.png'))
+console.log('Listo:', join(out, 'catalogo-historia.png'))
