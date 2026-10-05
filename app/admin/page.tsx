@@ -7,6 +7,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { Avatar } from '@/components/avatar'
 import { AppSetup } from '@/components/admin/app-setup'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { AdminTeamChat } from '@/components/team-chat'
 import { WhatsappSaleDialog } from '@/components/admin/whatsapp-sale-dialog'
 import { UpdateBanner } from '@/components/admin/update-banner'
 import { AuthPanel } from '@/components/auth-panel'
@@ -260,6 +261,9 @@ export default function AdminPage() {
         <WhatsAppIcon className="h-6 w-6 shrink-0" />
         <span className="max-w-0 overflow-hidden whitespace-nowrap transition-all duration-200 group-hover:max-w-40 group-focus-visible:max-w-40">Venta por WhatsApp</span>
       </button>
+
+      {/* Chat with the team: a bubble on every section, above the sale button. */}
+      <AdminTeamChat />
 
       {/* "Más": the rest of the sections */}
       {more && (

@@ -9,17 +9,20 @@ export type TeamMessage = { id: string; member_id: string; sender: 'admin' | 'me
 export type ChatTask = { id: string; order_number: number; client_name: string; pack_name: string }
 type Side = TeamMessage['sender']
 
-/** Messages from the other side not read yet, live (for the badges). */
+/** Messages from the other side not read yet, live (for the badges). "all": every conversation (Vale's bubble). */
 export function useTeamUnread(memberId: string | null | undefined, side: Side) {
   const [count, setCount] = useState(0)
   useEffect(() => {
     if (!memberId) return
     const other: Side = side === 'admin' ? 'member' : 'admin'
-    const load = () => supabase.from('team_messages').select('id', { count: 'exact', head: true }).eq('member_id', memberId).eq('sender', other).is('read_at', null)
-      .then(({ count: value }) => setCount(value ?? 0))
+    const load = () => {
+      let query = supabase.from('team_messages').select('id', { count: 'exact', head: true }).eq('sender', other).is('read_at', null)
+      if (memberId !== 'all') query = query.eq('member_id', memberId)
+      query.then(({ count: value }) => setCount(value ?? 0))
+    }
     load()
     const channel = supabase.channel(`team-unread-${side}-${memberId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages', filter: `member_id=eq.${memberId}` }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_messages', ...(memberId === 'all' ? {} : { filter: `member_id=eq.${memberId}` }) }, load)
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [memberId, side])
@@ -198,24 +201,98 @@ export function TeamChat({ memberId, side, otherName, tasks = [], draftTask, onD
   )
 }
 
-/** The chat as a panel: full screen on a phone, a column on the right on a tablet or computer. */
-export function TeamChatPanel({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+/** Round chat button with the unread count; it turns into an X while the window is open. */
+export function TeamChatBubble({ open, unread, onClick, label, className = '' }: { open: boolean; unread: number; onClick: () => void; label: string; className?: string }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={open ? 'Cerrar el chat' : `${label}${unread ? `: ${unread} sin leer` : ''}`} aria-expanded={open} title={label}
+      className={`fixed z-[57] flex h-14 w-14 items-center justify-center rounded-full bg-ciruela text-white shadow-[0_18px_40px_-14px_rgba(67,32,44,0.8)] transition-transform hover:scale-105 hover:bg-rosa ${className}`}>
+      {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+      {!open && unread > 0 && <span className="absolute -right-1 -top-1 min-w-6 rounded-full bg-rosa px-1.5 text-center text-xs font-bold leading-6 text-white ring-2 ring-blanco">{unread}</span>}
+    </button>
+  )
+}
+
+/**
+ * The chat window: a small window over the corner on a tablet or computer (the screen behind keeps working),
+ * full screen on a phone. `className` places it above its bubble.
+ */
+export function TeamChatWindow({ title, onClose, children, header, className = 'sm:bottom-24 sm:right-4' }: {
+  title: string; onClose: () => void; children: React.ReactNode; header?: React.ReactNode; className?: string
+}) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
   return (
-    <div className="fixed inset-0 z-[58] flex justify-end bg-ciruela/40 backdrop-blur-[2px]" onClick={onClose}>
-      <section role="dialog" aria-modal="true" aria-label={title} onClick={(event) => event.stopPropagation()}
-        className="flex h-full w-full flex-col bg-arena shadow-2xl sm:max-w-md sm:rounded-l-[28px] sm:border-l sm:border-line">
-        <header className="flex items-center gap-3 border-b border-line bg-blanco px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:rounded-tl-[28px]">
-          <MessageCircle className="h-5 w-5 text-rosa" />
-          <h2 className="flex-1 font-display text-base font-bold text-ciruela">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Cerrar" className="rounded-full p-2 text-piedra hover:bg-papel hover:text-ciruela"><X className="h-5 w-5" /></button>
-        </header>
-        <div className="min-h-0 flex-1">{children}</div>
-      </section>
-    </div>
+    <section role="dialog" aria-label={title}
+      className={`fixed inset-0 z-[58] flex flex-col overflow-hidden bg-arena shadow-[0_30px_80px_-20px_rgba(67,32,44,0.55)] sm:inset-auto sm:h-[min(540px,calc(100dvh-9rem))] sm:w-[370px] sm:rounded-3xl sm:border sm:border-line ${className}`}>
+      <header className="flex items-center gap-2.5 border-b border-line bg-blanco px-4 pb-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] sm:pt-2.5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-petalo-wash text-rosa"><MessageCircle className="h-4 w-4" /></span>
+        <div className="min-w-0 flex-1">{header ?? <h2 className="truncate font-display text-sm font-bold text-ciruela">{title}</h2>}</div>
+        <button type="button" onClick={onClose} aria-label="Cerrar" className="rounded-full p-2 text-piedra hover:bg-papel hover:text-ciruela"><X className="h-5 w-5" /></button>
+      </header>
+      <div className="min-h-0 flex-1">{children}</div>
+    </section>
+  )
+}
+
+/** Opens Vale's chat from anywhere in the panel (for example the "Mensajes" button in Equipo). */
+export const openAdminChat = () => window.dispatchEvent(new Event('acv-open-chat'))
+
+type ChatMember = { id: string; name: string }
+
+/**
+ * Vale's chat bubble, on every section of the panel: messages from the team arrive wherever she is.
+ * With more than one person on the team, the window has a selector.
+ */
+export function AdminTeamChat() {
+  const [members, setMembers] = useState<ChatMember[]>([])
+  const [memberId, setMemberId] = useState<string | null>(null)
+  const [open, setOpen] = useState(false)
+  const [tasks, setTasks] = useState<ChatTask[]>([])
+  const unread = useTeamUnread('all', 'admin')
+  const close = useCallback(() => setOpen(false), [])
+
+  useEffect(() => {
+    supabase.from('team_members').select('id, name').eq('active', true).order('created_at').then(({ data }) => {
+      const list = (data as ChatMember[] | null) ?? []
+      setMembers(list)
+      setMemberId((current) => current ?? list[0]?.id ?? null)
+    })
+    // A notification "Gustavo te escribió" opens /admin#chat; the "Mensajes" button sends an event.
+    const fromHash = () => { if (window.location.hash === '#chat') setOpen(true) }
+    const onEvent = () => setOpen(true)
+    fromHash()
+    window.addEventListener('hashchange', fromHash)
+    window.addEventListener('acv-open-chat', onEvent)
+    return () => { window.removeEventListener('hashchange', fromHash); window.removeEventListener('acv-open-chat', onEvent) }
+  }, [])
+
+  // The CVs of that person, for the "#18 · Camila" tags and to attach one to a message.
+  useEffect(() => {
+    if (!memberId || !open) return
+    supabase.from('team_tasks').select('id, order_number, client_name, pack_name').eq('member_id', memberId).order('assigned_at', { ascending: false }).limit(200)
+      .then(({ data }) => setTasks((data as ChatTask[] | null) ?? []))
+  }, [memberId, open])
+
+  if (!members.length || !memberId) return null
+  const member = members.find((item) => item.id === memberId) ?? members[0]
+  const first = member.name.split(' ')[0]
+  return (
+    <>
+      {/* Above the bottom bar on a phone, above the WhatsApp sale button on a computer. */}
+      <TeamChatBubble open={open} unread={unread} onClick={() => setOpen((value) => !value)} label={`Chat con ${first}`} className="bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-4 lg:bottom-24 lg:right-6" />
+      {open && (
+        <TeamChatWindow title={`Chat con ${first}`} onClose={close} className="sm:bottom-[calc(9.5rem+env(safe-area-inset-bottom))] sm:right-4 lg:bottom-[10.5rem] lg:right-6"
+          header={members.length > 1 ? (
+            <select value={memberId} onChange={(event) => setMemberId(event.target.value)} aria-label="Con quién" className="w-full rounded-full border border-line bg-white px-3 py-1.5 font-display text-sm font-bold text-ciruela">
+              {members.map((item) => <option key={item.id} value={item.id}>Chat con {item.name}</option>)}
+            </select>
+          ) : undefined}>
+          <TeamChat key={memberId} memberId={memberId} side="admin" otherName={first} tasks={tasks} />
+        </TeamChatWindow>
+      )}
+    </>
   )
 }
