@@ -76,13 +76,13 @@ Elementos presentes en todo el sitio:
 
 ### 2.2 Catálogo y precios
 
-Todo el catálogo se edita desde **Panel → Packs y precios**. Precios vigentes al 26/09/2026 (ARS):
+Todo el catálogo se edita desde **Panel → Packs y precios**. Precios vigentes al 05/10/2026 (ARS):
 
 | Categoría | Producto | Precio | Entrega |
 |---|---|---|---|
-| CV | Pack Simple (2 CV: moderno + ATS) | $30.000 | Servicio |
-| CV | Pack Medium (2 CV + carta) | $32.000 | Servicio |
-| CV | **Pack Premium** (2 CV + carta + LinkedIn) — *más elegido* | $60.000 | Servicio |
+| CV | Pack Simple (2 CV: moderno + ATS) | $35.000 | Servicio |
+| CV | Pack Medium (2 CV + carta) | $37.000 | Servicio |
+| CV | **Pack Premium** (2 CV + carta + LinkedIn) — *más elegido* | $65.000 | Servicio |
 | CV | Perfil de LinkedIn (sin CV) | $40.000 | Servicio |
 | CV | Asesoría de LinkedIn (sesión 1 a 1 de 60 min por Meet) | $30.000 | Sesión |
 | Asesorías | E-book individual (a elección entre 3) | $18.000 | Digital |
@@ -90,10 +90,12 @@ Todo el catálogo se edita desde **Panel → Packs y precios**. Precios vigentes
 | Asesorías | Asesoría para entrevistas (sesión 1 a 1 de 90 min, sin e-books) | $50.000 | Sesión |
 | Asesorías | Pack Premium (Pack Plus + sesión 1 a 1 de 90 min) | $60.000 | Sesión |
 | Vocacional | Test de orientación vocacional (CHASIDE + TV-A) | $30.000 | Servicio |
-| Guías | Portales de empleo | $16.000 | Digital |
+| Guías | Portales de empleo | $12.000 | Digital |
 | Guías | LinkedIn para conseguir trabajo | $16.000 | Digital |
 | Guías | CV a prueba de filtros ATS | $16.000 | Digital |
-| Guías | Búsqueda organizada | $16.000 | Digital |
+| Guías | Búsqueda organizada | $12.000 | Digital |
+| Guías | Cuánto pedir de sueldo | $19.000 | Digital |
+| Guías | Trabajo remoto desde Latinoamérica | $19.000 | Digital |
 | Guías | **Kit Búsqueda Laboral** (las 4 guías) — *más elegido* | $45.000 | Digital |
 
 **Extras** (se suman al producto):
@@ -515,3 +517,4 @@ Se recomienda tener una **copia de seguridad** de `Documentos\armado-de-cv-ebook
 | 29/09 | Pedidos urgentes: bloque "¿Lo necesitás urgente?" debajo de los packs (Express +$15.000 y horario puntual a cotizar por WhatsApp), aviso en el pedido junto a Express, Sakura y términos actualizados. Sesiones compradas junto con un pack de CV: quedan "Después del CV" hasta que el pedido se entrega (no suman al número de Sesiones), el cliente lo ve en Mi cuenta y al entregar el CV la ficha ofrece "Coordinar la sesión" |
 | 29/09 | "Esperando al cliente": pausa el plazo de entrega (`orders.waiting_since`, `paused_days`, RPC `admin_set_waiting`) y al retomar suma los días hábiles esperados; "Volver a En proceso" para pedidos entregados por error (borra `delivered_at`); las ventas por WhatsApp ya no se marcan entregadas solas por ser de hace más de 7 días |
 | 30/09 | "Editar venta" (WhatsApp) también cambia qué compró: productos y adicionales como Express (`admin_update_whatsapp_sale_items`); el monto sigue a los precios salvo que lo escribas, el plazo se recalcula y las sesiones se ajustan |
+| 05/10 | Precios nuevos de los packs de CV: Simple $35.000, Medium $37.000 y Premium $65.000 (los pedidos ya hechos mantienen su precio). Catálogo con la identidad de marca en `brand-src/catalogo/` (historia de Instagram y versión para WhatsApp), exportado a `public/social/catalogo/` |
