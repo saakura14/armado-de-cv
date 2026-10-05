@@ -122,6 +122,11 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
     }
     setWorkingId(task.id)
   }
+  // Copying a text means the work started, even if "Empezar" was skipped: Vale sees it "Haciéndolo".
+  function markStarted(task: TeamTask) {
+    if (preview || task.status !== 'asignado') return
+    supabase.rpc('team_set_task_status', { p_task: task.id, p_status: 'haciendo', p_design_url: null }).then(({ error }) => { if (!error) onChanged() })
+  }
   // A CV finished in work mode: the next pending one (most urgent first) opens by itself.
   function finishedWorking(done: TeamTask) {
     const following = pending.find((task) => task.id !== done.id)
@@ -257,7 +262,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
         </div>
       </main>
 
-      {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} onAsk={preview ? undefined : () => { setChatTask(chatTasks.find((task) => task.id === working.id) ?? null); setChatOpen(true) }} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
+      {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} onStart={() => markStarted(working)} onAsk={preview ? undefined : () => { setChatTask(chatTasks.find((task) => task.id === working.id) ?? null); setChatOpen(true) }} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
       {notice && <p role="status" className={`fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl px-4 py-3 text-center text-sm font-bold text-white shadow-lg ${notice.ok ? 'bg-whatsapp' : 'bg-rosa-deep'}`}>{notice.text}</p>}
       {/* Chat with Vale: a bubble in the corner (hidden in the work mode, which has its own "¿Una duda?" button). */}
       {!preview && !working && <TeamChatBubble open={chatOpen} unread={unread} onClick={() => (chatOpen ? closeChat() : setChatOpen(true))} label="Chat con Vale" className="bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4" />}

@@ -16,8 +16,9 @@ type Piece = { text: string; lines: string[] }
 /** A section title of the CV: a short line in capitals ("HERRAMIENTAS", "OBJETIVO PROFESIONAL"). */
 export function isHeading(line: string) {
   const value = line.trim()
-  // At least 5 letters, so a tool alone in capitals ("SQL", "HTML") isn't taken for a title.
-  return value.length <= 50 && (value.match(/\p{L}/gu)?.length ?? 0) >= 5 && value === value.toLocaleUpperCase('es') && !/^[•\-–—*·]/.test(value)
+  // At least 5 letters, so a tool alone in capitals ("SQL", "HTML") isn't taken for a title; no digits, so a school
+  // with its years ("EEM N.º 4 | 2011 – 2016") or a license number stays with its section.
+  return value.length <= 50 && (value.match(/\p{L}/gu)?.length ?? 0) >= 5 && !/\d/.test(value) && value === value.toLocaleUpperCase('es') && !/^[•\-–—*·]/.test(value)
 }
 
 function piecesOf(text: string, whole = false): Piece[] {
@@ -30,7 +31,11 @@ function piecesOf(text: string, whole = false): Piece[] {
     const sections: string[][] = []
     for (const line of lines) {
       if (!line.trim()) continue
-      if (isHeading(line) || !sections.length) sections.push([line.trim()])
+      const last = sections[sections.length - 1]
+      // A title right after another one ("EXPERIENCIA PROFESIONAL" and then the first job in capitals) stays in the
+      // same piece, so no bubble is left with a title and nothing under it.
+      if (isHeading(line) && last?.every(isHeading)) last.push(line.trim())
+      else if (isHeading(line) || !last) sections.push([line.trim()])
       else sections[sections.length - 1].push(line.trim())
     }
     return sections.map((section) => ({ text: section.join('\n'), lines: section }))
@@ -78,9 +83,9 @@ type NextStep = { label: string; go: () => void }
  * `focus` is the work mode: always open, with the buttons in a bar at the bottom (the thumb's reach) and, once everything
  * is copied, a button to the next text.
  */
-function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidden = false, nextStep, onProgress }: {
+function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidden = false, nextStep, onProgress, onCopied }: {
   storageKey: string; label: string; text: string; whole?: boolean
-  focus?: boolean; hidden?: boolean; nextStep?: NextStep; onProgress?: (done: number, total: number) => void
+  focus?: boolean; hidden?: boolean; nextStep?: NextStep; onProgress?: (done: number, total: number) => void; onCopied?: () => void
 }) {
   const pieces = useMemo(() => piecesOf(text, whole), [text, whole])
   const [storedOpen, setOpen] = useStored(`acv-open-${storageKey}`, false)
@@ -131,6 +136,7 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
     if (tap && window.getSelection()?.toString()) return
     if (await writeClipboard(value)) {
       setCopied((current) => [...new Set([...current, ...mark])])
+      onCopied?.()
       const preview = value.replace(/\s+/g, ' ').trim()
       notify(true, `Copiado: «${preview.length > 42 ? `${preview.slice(0, 42)}…` : preview}»`)
     } else if (element) {
@@ -268,7 +274,7 @@ function sectionsOf(task: TeamTask) {
  * Tabs for each text, the big "Copiar siguiente" at the bottom, and "Empecé"/"Terminé" at the end.
  * Canva can't be shown inside the panel (Canva doesn't allow it), so there is a button to open it.
  */
-export function TaskWorkspace({ task, actions, onClose, onAsk }: { task: TeamTask; actions?: React.ReactNode; onClose: () => void; onAsk?: () => void }) {
+export function TaskWorkspace({ task, actions, onClose, onAsk, onStart }: { task: TeamTask; actions?: React.ReactNode; onClose: () => void; onAsk?: () => void; onStart?: () => void }) {
   const sections = sectionsOf(task)
   const [tab, setTab] = useState(sections[0].id)
   const [progress, setProgress] = useState<Record<string, [number, number]>>({})
@@ -338,7 +344,7 @@ export function TaskWorkspace({ task, actions, onClose, onAsk }: { task: TeamTas
           {sections.map((section, index) => {
             const following = sections[index + 1]
             return (
-              <CopyBlock key={section.id} focus hidden={tab !== section.id} storageKey={`${task.id}-${section.id}`} label={section.label} text={section.text} whole={section.whole}
+              <CopyBlock key={section.id} focus hidden={tab !== section.id} onCopied={task.status === 'asignado' ? onStart : undefined} storageKey={`${task.id}-${section.id}`} label={section.label} text={section.text} whole={section.whole}
                 onProgress={reporters[section.id]}
                 nextStep={following
                   ? { label: `Seguir con ${following.label === 'Carta' ? 'la carta' : `el ${following.label}`}`, go: () => goTo(following.id) }

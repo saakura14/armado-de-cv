@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Loader2, LogOut, RefreshCw } from 'lucide-react'
 import { AuthPanel } from '@/components/auth-panel'
 import { AppSetup } from '@/components/admin/app-setup'
+import { UpdateBanner } from '@/components/admin/update-banner'
 import { TeamLogo, TeamView } from '@/components/team-view'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { setAppBadge, syncPush } from '@/lib/push'
@@ -94,6 +95,8 @@ export default function TeamPage() {
           </>
         )}
       />
+      {/* A tablet can keep an old version open for days: this offers the new one. */}
+      <UpdateBanner />
       {error && <p role="alert" className="fixed inset-x-4 bottom-4 z-40 mx-auto max-w-md rounded-2xl bg-petalo-wash px-4 py-3 text-center text-sm font-semibold text-rosa-deep shadow-lg">No se pudo actualizar: {error}</p>}
     </div>
   )
