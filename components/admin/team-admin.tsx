@@ -10,7 +10,7 @@ import { formatARS } from '@/lib/catalog'
 import { useHideMoney } from '@/lib/hide-money'
 import { formatDate } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
-import { TASK_SELECT, TASK_STATUS, batchStats, monthlyStats, sortTasks, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
+import { MIN_WORK_MINUTES, TASK_SELECT, TASK_STATUS, batchStats, formatMinutes, monthlyStats, sortTasks, timesByPack, todayWork, workMinutes, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
 import { Button, Field, cardClass, inputClass, useFlash } from './ui'
 
 /** Add someone to the team with the Gmail they sign in with. */
@@ -267,6 +267,8 @@ export function TeamAdmin() {
   const { pending, finished } = sortTasks(own)
   const batch = member ? batchStats(member, own, ownPayments) : null
   const months = monthlyStats(own, ownPayments)
+  const packTimes = timesByPack(own)
+  const todayDone = todayWork(own)
   const thisMonth = months.find((row) => row.key === monthKey(new Date()))
   const list = view === 'pendientes' ? pending : finished.slice(0, 40)
 
@@ -324,7 +326,7 @@ export function TeamAdmin() {
                   // One line per CV with its state; tapping it unfolds the texts and the tools.
                   <ul className="mt-3 grid items-start gap-2 2xl:grid-cols-2">
                     {list.map((task) => (
-                      <TaskRow key={task.id} task={task} action={<span className={`shrink-0 rounded-full px-2.5 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span>}>
+                      <TaskRow key={task.id} task={task} action={<span className="flex shrink-0 flex-col items-end gap-1">{workMinutes(task) !== null && <span className="font-display text-[11px] font-bold text-ciruela">⏱ {formatMinutes(workMinutes(task)!)}</span>}<span className={`rounded-full px-2.5 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span></span>}>
                         <div className="space-y-3">
                           {task.status !== 'terminado' ? <TaskTexts task={task} /> : task.design_url ? <a href={task.design_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-rosa-deep hover:underline">Ver el diseño en Canva</a> : null}
                           <TaskTools task={task} onChanged={load} />
@@ -351,6 +353,17 @@ export function TeamAdmin() {
               <div className="mt-3"><PaymentForm key={`pay-${member.id}`} member={member} batch={batch} onSaved={load} /></div>
             </section>
 
+            {/* Only Vale sees this: how long each pack takes (from "Empecé" to "Terminé"). */}
+            {packTimes.length > 0 && (
+              <section className={cardClass} aria-labelledby="times-title">
+                <h2 id="times-title" className="font-display text-base font-bold text-ciruela">Tiempos</h2>
+                <table className="mt-2 w-full text-sm">
+                  <thead><tr className="text-left text-[11px] uppercase tracking-wider text-piedra"><th className="pb-1.5 font-semibold">Pack</th><th className="pb-1.5 text-right font-semibold">CVs</th><th className="pb-1.5 text-right font-semibold">Promedio</th><th className="pb-1.5 text-right font-semibold">Mejor</th></tr></thead>
+                  <tbody>{packTimes.map((row) => <tr key={row.pack} className="border-t border-line"><td className="py-1.5 font-semibold text-ink">{row.pack}</td><td className="py-1.5 text-right">{row.count}</td><td className="py-1.5 text-right">{formatMinutes(row.average)}</td><td className="py-1.5 text-right">{formatMinutes(row.best)}</td></tr>)}</tbody>
+                </table>
+                <p className="mt-2 text-xs text-piedra">Hoy: <b className="text-ink">{todayDone.count} {todayDone.count === 1 ? 'CV' : 'CVs'}</b>{todayDone.minutes ? ` en ${formatMinutes(todayDone.minutes)} de trabajo` : ''}. Se mide de &quot;Empecé&quot; a &quot;Terminé&quot;; menos de {MIN_WORK_MINUTES} min no cuenta (lo empezó sin tocar &quot;Empecé&quot;).</p>
+              </section>
+            )}
             <section className={cardClass} aria-labelledby="months-title">
               <h2 id="months-title" className="font-display text-base font-bold text-ciruela">Mes a mes</h2>
               {months.length === 0 ? <p className="mt-1 text-sm text-piedra">Todavía no hay CVs terminados ni pagos.</p> : (

@@ -89,3 +89,66 @@ export function dueLabel(dueOn: string | null, now = new Date()) {
   if (days === 1) return { text: 'Para mañana', urgent: false }
   return { text: `Para el ${dueFormat.format(new Date(`${dueOn}T00:00:00Z`)).replace(/\./g, '')}`, urgent: false }
 }
+
+// ---- Work times (from "Empecé" to "Terminé") ----
+
+/** Under this, the CV was started without "Empecé" (only the last minutes were measured): it doesn't count for times or records. */
+export const MIN_WORK_MINUTES = 8
+
+/** Minutes between "Empecé" and "Terminé", or null when it can't be measured. */
+export function workMinutes(task: Pick<TeamTask, 'started_at' | 'finished_at'>) {
+  if (!task.started_at || !task.finished_at) return null
+  const minutes = Math.round((time(task.finished_at) - time(task.started_at)) / 60000)
+  return minutes >= MIN_WORK_MINUTES ? minutes : null
+}
+
+/** "27 min", "1 h 05 min". */
+export function formatMinutes(minutes: number) {
+  if (minutes < 60) return `${minutes} min`
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} min`
+}
+
+const arDay = (value: string | Date) => new Date(new Date(value).getTime() - 3 * 3600e3).toISOString().slice(0, 10)
+
+/** Per pack: how many, the average and the best time (only the measurable ones). */
+export function timesByPack(tasks: TeamTask[]) {
+  const packs = new Map<string, number[]>()
+  for (const task of tasks) {
+    const minutes = task.status === 'terminado' ? workMinutes(task) : null
+    if (minutes === null) continue
+    packs.set(task.pack_name, [...(packs.get(task.pack_name) ?? []), minutes])
+  }
+  return [...packs.entries()].map(([pack, list]) => ({ pack, count: list.length, average: Math.round(list.reduce((sum, value) => sum + value, 0) / list.length), best: Math.min(...list) }))
+    .sort((a, b) => b.count - a.count)
+}
+
+/** CVs finished today and the work minutes they add up to. */
+export function todayWork(tasks: TeamTask[], now = new Date()) {
+  const today = arDay(now)
+  const done = tasks.filter((task) => task.status === 'terminado' && task.finished_at && arDay(task.finished_at) === today)
+  return { count: done.length, minutes: done.reduce((sum, task) => sum + (workMinutes(task) ?? 0), 0) }
+}
+
+/** Days in a row with at least one CV finished (weekends don't break it); today counts once something is finished. */
+export function streakDays(tasks: TeamTask[], now = new Date()) {
+  const days = new Set(tasks.filter((task) => task.status === 'terminado' && task.finished_at).map((task) => arDay(task.finished_at!)))
+  let cursor = new Date(`${arDay(now)}T12:00:00Z`)
+  // Nothing yet today: the streak is still alive if yesterday (or Friday) counted.
+  if (!days.has(cursor.toISOString().slice(0, 10))) cursor = new Date(cursor.getTime() - 864e5)
+  let count = 0
+  for (let guard = 0; guard < 400; guard++) {
+    const key = cursor.toISOString().slice(0, 10)
+    const weekend = cursor.getUTCDay() === 0 || cursor.getUTCDay() === 6
+    if (days.has(key)) count++
+    else if (!weekend) break
+    cursor = new Date(cursor.getTime() - 864e5)
+  }
+  return count
+}
+
+/** How a just-finished CV compares with the best earlier time for the same pack. */
+export function recordCheck(done: TeamTask, minutes: number, tasks: TeamTask[]) {
+  const earlier = tasks.filter((task) => task.id !== done.id && task.pack_name === done.pack_name && task.status === 'terminado').map(workMinutes).filter((value): value is number => value !== null)
+  const best = earlier.length ? Math.min(...earlier) : null
+  return { best, isRecord: best !== null && minutes < best, first: best === null }
+}

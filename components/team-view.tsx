@@ -9,7 +9,7 @@ import { formatARS, whatsappUrl } from '@/lib/catalog'
 import { monthKey } from '@/lib/dashboard'
 import { formatDate } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
-import { batchStats, monthlyStats, sortTasks, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
+import { MIN_WORK_MINUTES, batchStats, formatMinutes, monthlyStats, recordCheck, sortTasks, streakDays, timesByPack, todayWork, workMinutes, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
 
 export function TeamLogo() {
   return (
@@ -122,7 +122,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   function markTutorialSeen() { setTutorialSeen(true); try { localStorage.setItem('acv-tutorial-seen', '1') } catch { /* private mode */ } }
   // "Listo el #12, seguimos con el #13": a short message when the work mode jumps to the next CV.
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
-  useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 4000); return () => window.clearTimeout(timer) }, [notice])
+  useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 6500); return () => window.clearTimeout(timer) }, [notice])
   const { pending, finished } = sortTasks(tasks)
   const batch = batchStats(member, tasks, payments)
   const months = monthlyStats(tasks, payments)
@@ -152,10 +152,24 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   function finishedWorking(done: TeamTask) {
     const following = pending.find((task) => task.id !== done.id)
     setWorkingId(following?.id ?? null)
+    // His mark for this pack: a new record, his first time, or how far from his best.
+    const minutes = done.started_at ? Math.round((Date.now() - new Date(done.started_at).getTime()) / 60000) : null
+    let mark = '✅ ¡Listo!'
+    if (minutes !== null && minutes >= MIN_WORK_MINUTES) {
+      const { best, isRecord, first } = recordCheck(done, minutes, tasks)
+      mark = isRecord ? `🏆 ¡Nueva marca! ${done.pack_name} en ${formatMinutes(minutes)} (antes ${formatMinutes(best!)}).`
+        : first ? `⏱ Primer ${done.pack_name}: ${formatMinutes(minutes)}. ¡Esa es tu marca a superar!`
+        : `✅ Listo en ${formatMinutes(minutes)} · tu marca: ${formatMinutes(best!)}.`
+    }
     setNotice({ ok: true, text: following
-      ? `✅ Listo el pedido #${done.order_number}. Seguimos con el #${following.order_number}: ${following.pack_name} de ${following.client_name}.`
-      : '✅ ¡Terminaste todos los CVs! Buen trabajo.' })
+      ? `${mark} Seguimos con el #${following.order_number}: ${following.pack_name} de ${following.client_name}.`
+      : `${mark} ¡Terminaste todos los CVs!` })
   }
+
+  // His marks (Vale sees the full times in her panel).
+  const records = timesByPack(tasks)
+  const streak = streakDays(tasks)
+  const todayDone = todayWork(tasks)
 
   const stats = [
     { icon: ListTodo, label: 'Para hacer', value: String(pending.length), strong: true },
@@ -232,13 +246,27 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
               </div>
             ) : (
               <ul className="mt-3 grid items-start gap-2 @5xl:grid-cols-2">
-                {list.map((task) => <TaskRow key={task.id} task={task} action={<span className="shrink-0 text-right text-[11px] leading-tight text-piedra">{formatDate(task.finished_at!, true)}<br /><b className={task.paid_in ? 'text-whatsapp' : 'text-ciruela'}>{task.paid_in ? 'cobrado' : 'a cobrar'}</b></span>} />)}
+                {list.map((task) => <TaskRow key={task.id} task={task} action={<span className="shrink-0 text-right text-[11px] leading-tight text-piedra">{formatDate(task.finished_at!, true)}{workMinutes(task) !== null ? ` · ⏱ ${formatMinutes(workMinutes(task)!)}` : ''}<br /><b className={task.paid_in ? 'text-whatsapp' : 'text-ciruela'}>{task.paid_in ? 'cobrado' : 'a cobrar'}</b></span>} />)}
               </ul>
             )}
           </section>
 
           {/* Money and history: beside the CVs on a tablet, under them on a phone. */}
           <aside className="space-y-4 @3xl:sticky @3xl:top-20">
+            {/* His own marks, game style: streak of days, today's count and his best time per pack (no averages: those are Vale's). */}
+            {records.length > 0 && (
+              <section className={cardClass} aria-labelledby="marks-title">
+                <h2 id="marks-title" className="font-display text-base font-bold text-ciruela">Tus marcas 🏆</h2>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="rounded-2xl bg-petalo-wash/60 px-3 py-2"><p className="font-display text-[11px] font-bold uppercase tracking-wider text-piedra">Racha</p><p className="font-display text-xl font-extrabold text-ciruela">🔥 {streak} {streak === 1 ? 'día' : 'días'}</p></div>
+                  <div className="rounded-2xl bg-papel px-3 py-2"><p className="font-display text-[11px] font-bold uppercase tracking-wider text-piedra">Hoy</p><p className="font-display text-xl font-extrabold text-ciruela">{todayDone.count} {todayDone.count === 1 ? 'CV' : 'CVs'}</p></div>
+                </div>
+                <ul className="mt-3 space-y-1.5 text-sm">
+                  {records.map((row) => <li key={row.pack} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5 first:border-0 first:pt-0"><span className="text-ink">{row.pack}</span><b className="font-display text-ciruela">⏱ {formatMinutes(row.best)}</b></li>)}
+                </ul>
+                <p className="mt-2 text-[11px] leading-snug text-piedra">Tu mejor tiempo por pack, de &quot;Empecé&quot; a &quot;Terminé&quot;. ¡A superarlo!</p>
+              </section>
+            )}
             <section className={cardClass} aria-labelledby="batch-title">
               <h2 id="batch-title" className="font-display text-base font-bold text-ciruela">Tu próximo cobro</h2>
               <p className="mt-1 font-display text-2xl font-extrabold text-ciruela">{batch.count}<span className="text-sm text-piedra"> de {batch.size} CVs</span></p>
