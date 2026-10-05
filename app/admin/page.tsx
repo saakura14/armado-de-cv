@@ -257,7 +257,7 @@ export default function AdminPage() {
       </nav>
 
       {/* Computer: WhatsApp sale as a floating button (on the phone it sits in the middle of the bottom bar) */}
-      <button type="button" onClick={() => openOverlay(() => setSale(''))} aria-label="Venta por WhatsApp" className="group fixed bottom-6 right-6 z-30 hidden h-14 items-center gap-2 rounded-full bg-whatsapp pl-4 pr-4 font-display text-sm font-bold text-white shadow-xl shadow-whatsapp/30 transition-all hover:pr-5 lg:flex">
+      <button type="button" onClick={() => openOverlay(() => setSale(''))} aria-label="Venta por WhatsApp" className="group fixed bottom-6 right-6 z-30 hidden h-14 min-w-14 items-center justify-center gap-0 rounded-full bg-whatsapp px-4 font-display text-sm font-bold text-white shadow-xl shadow-whatsapp/30 transition-all hover:gap-2 hover:pr-5 focus-visible:gap-2 lg:flex">
         <WhatsAppIcon className="h-6 w-6 shrink-0" />
         <span className="max-w-0 overflow-hidden whitespace-nowrap transition-all duration-200 group-hover:max-w-40 group-focus-visible:max-w-40">Venta por WhatsApp</span>
       </button>
