@@ -31,7 +31,8 @@ Deno.serve(async (request) => {
   const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
   const isAdmin = profile?.role === 'admin'
 
-  let message: { title: string; body: string; url: string }
+  // tag: one notification per item (two packs of the same order don't replace each other); sticky: stays on screen until tapped.
+  let message: { title: string; body: string; url: string; tag?: string; sticky?: boolean }
   let logged: { order_id: string; kind: string } | null = null
   // Who gets it: the admins, unless it is a task for a team member.
   let recipients: string[] | null = null
@@ -43,7 +44,8 @@ Deno.serve(async (request) => {
       const { data: member } = await admin.from('team_members').select('id').eq('user_id', user.id).eq('active', true).maybeSingle()
       if (!member) return json(403, { error: 'Solo la administradora o el equipo' })
       recipients = [user.id]
-      message = { title: '¡Las notificaciones funcionan! ✍️', body: 'Te voy a avisar acá cuando tengas un CV nuevo para armar.', url: '/equipo' }
+      const { count } = await admin.from('team_tasks').select('id', { count: 'exact', head: true }).eq('member_id', member.id).neq('status', 'terminado')
+      message = { title: '¡Las notificaciones funcionan! ✍️', body: count ? `Ya tenés ${count} ${count === 1 ? 'CV' : 'CVs'} para armar. Te aviso acá cada vez que Vale te pase uno nuevo.` : 'Te voy a avisar acá cada vez que Vale te pase un CV nuevo.', url: '/equipo' }
     }
   } else if (body.kind === 'task_assigned' || body.kind === 'task_done') {
     // Team: a CV assigned to a member (from the admin) or finished by the member (to the admin).
@@ -55,10 +57,10 @@ Deno.serve(async (request) => {
       if (!isAdmin) return json(403, { error: 'Solo la administradora' })
       if (!member?.user_id) return json(200, { sent: 0, skipped: 'todavía no entró' })
       recipients = [member.user_id]
-      message = { title: `✍️ Nuevo CV para armar · pedido #${task.order_number}`, body: `${task.pack_name} de ${task.client_name}. Los textos ya están en tu panel.`, url: '/equipo' }
+      message = { title: `✍️ Nuevo CV para armar · pedido #${task.order_number}`, body: `${task.pack_name} de ${task.client_name}. Los textos ya están en tu panel.`, url: '/equipo', tag: `task-${task.id}`, sticky: true }
     } else {
       if (!member || member.user_id !== user.id) return json(403, { error: 'No es tu tarea' })
-      message = { title: `✅ ${member.name} terminó el CV del pedido #${task.order_number}`, body: `${task.pack_name} de ${task.client_name}: listo para que lo revises y lo entregues.`, url: '/admin#equipo' }
+      message = { title: `✅ ${member.name} terminó el CV del pedido #${task.order_number}`, body: `${task.pack_name} de ${task.client_name}: listo para que lo revises y lo entregues.`, url: '/admin#equipo', tag: `done-${task.id}` }
     }
   } else {
     if (!body.order_id || (body.kind !== 'new_order' && body.kind !== 'receipt')) return json(400, { error: 'Datos incompletos' })
