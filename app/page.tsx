@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, Camera, ClipboardCheck, Clock, Megaphone, Zap } from 'lucide-react'
+import { ArrowRight, Camera, ClipboardCheck, Clock, FileSearch, Megaphone, Zap } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { ProductGrid } from '@/components/product-grid'
 import { Faq, HowToBuy, SectionTitle } from '@/components/sections'
@@ -58,6 +58,7 @@ export default async function Home() {
               <a href={whatsappUrl('¡Hola! Quiero consultar por el armado de mi CV.')} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-ciruela/15 px-6 py-3 font-display font-bold text-ciruela hover:border-whatsapp hover:text-whatsapp"><WhatsAppIcon className="h-5 w-5" />Consultar</a>
             </div>
             <p className="mt-6 flex items-center gap-2 text-sm text-piedra"><Clock className="h-4 w-4 text-rosa" />3 a 4 días hábiles · Express en 24 hs hábiles · <a href="#urgente" className="font-semibold text-rosa-deep hover:underline">¿Urgente?</a></p>
+            <Link href="/test-ats" className="mt-4 inline-flex items-center gap-2 rounded-full bg-papel px-4 py-2 font-display text-sm font-bold text-ciruela transition-colors hover:bg-petalo-wash"><FileSearch className="h-4 w-4 text-rosa" />¿Tu CV pasa los filtros? Hacé el test ATS gratis<ArrowRight className="h-4 w-4" /></Link>
           </div>
           <Image src="/img/hero-banner.jpg" alt="Valeria mostrando un CV y un perfil de LinkedIn en el celular" width={1472} height={704} priority className="h-64 w-full object-cover object-[78%_center] sm:h-80 lg:hidden" />
         </div>
@@ -127,6 +128,19 @@ export default async function Home() {
         <div className="mx-auto max-w-5xl">
           <Testimonials />
         </div>
+      </section>
+
+      {/* Free ATS test: the CV is analyzed in the browser and the result offers the packs */}
+      <section className="px-4 pb-8 sm:px-6">
+        <Link href="/test-ats" className="group mx-auto flex max-w-5xl flex-col items-center gap-5 rounded-[32px] bg-ciruela p-6 text-white sm:flex-row sm:p-8">
+          <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white/10"><FileSearch className="h-8 w-8 text-petalo" /></span>
+          <div className="flex-1 text-center sm:text-left">
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-petalo">Test gratis · 1 minuto</p>
+            <p className="mt-2 font-display text-2xl font-extrabold leading-tight">¿Tu CV pasa los filtros ATS?</p>
+            <p className="mt-2 text-white/80">Subilo en PDF y te digo cómo lo ve un sistema de selección, qué le falta y cómo corregirlo.</p>
+          </div>
+          <span className="inline-flex min-h-12 items-center gap-2 rounded-full bg-rosa px-6 py-3 font-display text-sm font-bold text-white transition-transform group-hover:translate-x-1">Hacer el test<ArrowRight className="h-4 w-4" /></span>
+        </Link>
       </section>
 
       {/* Free checklist: a first step for people who are not ready to buy yet */}

@@ -5,6 +5,7 @@ import { SITE_URL } from './catalog'
 export const PUBLIC_PAGES = [
   { path: '/', priority: 1, changeFrequency: 'weekly' },
   { path: '/asesorias', priority: 0.9, changeFrequency: 'weekly' },
+  { path: '/test-ats', priority: 0.9, changeFrequency: 'monthly' },
   { path: '/gratis', priority: 0.8, changeFrequency: 'monthly' },
   { path: '/cursos', priority: 0.6, changeFrequency: 'monthly' },
   { path: '/terminos', priority: 0.2, changeFrequency: 'yearly' },

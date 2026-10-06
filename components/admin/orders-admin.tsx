@@ -26,7 +26,7 @@ export type Filter = Stage | LegacyFilter
 
 type Buyer = { id: string; email: string | null; full_name: string | null; phone: string | null }
 
-function waLink(phone: string | null, text: string) {
+export function waLink(phone: string | null, text: string) {
   const digits = (phone ?? '').replace(/\D/g, '')
   if (!digits) return null
   const full = digits.startsWith('54') ? digits : `549${digits.replace(/^0/, '').replace(/^15/, '')}`
@@ -38,7 +38,7 @@ function waLink(phone: string | null, text: string) {
  * on Android the link forces the WhatsApp Business app; on a computer it opens WhatsApp Web
  * (keep it signed in with the business number). iPhone can't choose the app, so it uses wa.me.
  */
-function openBusinessWhatsapp(event: React.MouseEvent<HTMLAnchorElement>, link: string) {
+export function openBusinessWhatsapp(event: React.MouseEvent<HTMLAnchorElement>, link: string) {
   const url = new URL(link)
   const phone = url.pathname.slice(1), text = url.searchParams.get('text') ?? ''
   const agent = navigator.userAgent
