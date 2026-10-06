@@ -243,7 +243,7 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
   const deadline = service && (order.status === 'paid' || order.status === 'in_progress') ? deliveryDeadline(order) : null
   // Ready-made message for the next step of this order.
   const template = order.status === 'pending_payment'
-    ? { label: 'Recordar el pago', text: `¡Hola ${firstName}! Vi tu pedido #${order.number} (${products}) por ${formatARS(order.total)}. ¿Pudiste hacer la transferencia? Si tenés alguna duda, te ayudo.` }
+    ? { label: 'Recordar el pago', text: `¡Hola ${firstName}! Vi tu pedido #${order.number} (${products}) por ${formatARS(order.total)}. ¿Pudiste hacer la transferencia? Acá tenés los datos para pagar: https://armadodecv.com/cuenta/pedido/${order.id}\nCuando transfieras, mandame el comprobante por acá y arranco. Si tenés alguna duda, te ayudo.` }
     : service && (order.status === 'paid' || order.status === 'in_progress')
       ? { label: 'Pedir los datos', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, pasame tu CV actual (si tenés) y contame a qué puesto o rubro apuntás.` }
       : session && (order.status === 'paid' || order.status === 'in_progress')

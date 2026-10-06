@@ -170,6 +170,12 @@ export default function OrderPage() {
               {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}{order.receipt_path ? 'Subir otro comprobante' : 'Elegir archivo'}
               <input type="file" accept="image/*,application/pdf" className="sr-only" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadReceipt(file); event.target.value = '' }} />
             </label>
+            {!order.receipt_path && (
+              <a href={whatsappUrl(`¡Hola! Soy ${order.customer_name ?? ''}. Te mando el comprobante de mi pedido #${order.number} (${formatARS(order.total)}).`)} target="_blank" rel="noreferrer" className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-full border border-whatsapp/40 bg-white px-5 py-2.5 font-display text-sm font-bold text-[#128c4a]">
+                <WhatsAppIcon className="h-4 w-4" />O mandámelo por WhatsApp
+              </a>
+            )}
+            {!digitalOnly && !order.receipt_path && <p className="mt-4 text-xs leading-relaxed text-piedra">Apenas me llega tu pago te escribo para arrancar. Cuanto antes transfieras, antes empiezo: tu CV está en 3 a 4 días hábiles desde que tengo tu información.</p>}
             {verifying && <p role="status" className="mt-3 flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm text-ink"><Loader2 className="h-4 w-4 animate-spin text-rosa" />Verificando tu comprobante…</p>}
             {error && <p role="alert" className="mt-3 rounded-xl bg-petalo-wash px-3 py-2 text-sm font-semibold text-rosa-deep">{error}</p>}
           </div>
