@@ -3,12 +3,12 @@
 import { SaleItemsEditor, useSaleCatalog } from './sale-items'
 import type { SaleItem } from '@/lib/whatsapp-sale'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw, Hourglass } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw, Hourglass, Video } from 'lucide-react'
 import { useHideMoney } from '@/lib/hide-money'
 import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
-import { ORDER_SELECT, STATUS, formatDate, type Order, type OrderStatus } from '@/lib/orders'
+import { ORDER_SELECT, STATUS, formatDate, pendingSessions, type Order, type OrderStatus } from '@/lib/orders'
 import { deliveryDeadline, formatDue } from '@/lib/dashboard'
 import { STAGES, kindsOf, moveTo, sortForStage, stageOf, toStage, todayReason, type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
 import { DeadlineChip } from './dashboard-admin'
@@ -17,7 +17,7 @@ import { TeamRow, type OrderTask } from './assign-task'
 
 // The admin also sees every Ualá checkout opened for the order (buyers can't read that table).
 type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null; team_tasks?: OrderTask[] }
-const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, team_members(name))`
+const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, team_members(name)), sessions(id, title, status, scheduled_at)`
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, inputClass, useFlash } from './ui'
 
@@ -241,6 +241,7 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
   // A 1:1 session: its own product, or the Meet feedback of the vocational test.
   const session = order.order_items.some((item) => item.products?.delivery === 'session' || item.extras.some((extra) => extra.group_id === 'devolucion'))
   const deadline = service && (order.status === 'paid' || order.status === 'in_progress') ? deliveryDeadline(order) : null
+  const nextSession = pendingSessions(order)[0]
   // Ready-made message for the next step of this order.
   const template = order.status === 'pending_payment'
     ? { label: 'Recordar el pago', text: `¡Hola ${firstName}! Vi tu pedido #${order.number} (${products}) por ${formatARS(order.total)}. ¿Pudiste hacer la transferencia? Acá tenés los datos para pagar: https://armadodecv.com/cuenta/pedido/${order.id}\nCuando transfieras, mandame el comprobante por acá y arranco. Si tenés alguna duda, te ayudo.` }
@@ -249,7 +250,10 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
       : session && (order.status === 'paid' || order.status === 'in_progress')
         ? { label: 'Coordinar la sesión', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 ¿Qué días y horarios te quedan cómodos para la sesión por Google Meet?` }
       // CV + session: once the CV is delivered, the session comes next.
-      : service && session && order.status === 'delivered'
+      // Already scheduled: a reminder with the day; done (or none recorded yet): the testimonial.
+      : service && session && order.status === 'delivered' && nextSession?.status === 'scheduled' && nextSession.scheduled_at
+        ? { label: 'Recordar la sesión', text: `¡Hola ${firstName}! Te recuerdo nuestra sesión por Google Meet el ${formatDate(nextSession.scheduled_at, true)} 🙌 Cualquier cosa me avisás.` }
+      : service && session && order.status === 'delivered' && (nextSession || !order.sessions)
         ? { label: 'Coordinar la sesión', text: `¡Hola ${firstName}! Ya tenés tu CV 🙌 Ahora sigue la sesión por Google Meet: ¿qué días y horarios te quedan cómodos?` }
       : order.status === 'delivered'
         ? { label: 'Pedir un testimonio', text: `¡Hola ${firstName}! ¿Cómo te fue con tu ${products}? Si te gustó, me ayudaría muchísimo que me cuentes tu experiencia en un mensajito 💕 Si me das permiso, lo comparto en Instagram solo con tu nombre.` }
@@ -326,6 +330,19 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
         ))}
         {order.customer_note && <li className="border-t border-line pt-2 text-ink"><b>Nota del cliente:</b> {order.customer_note}</li>}
       </ul>
+      {/* Sessions go on after the CV is delivered: each one with its own state (it is handled in Sesiones). */}
+      {(order.sessions ?? []).length > 0 && order.status !== 'cancelled' && (
+        <ul className="mt-2 space-y-1 text-[13px]">
+          {order.sessions!.map((item) => (
+            <li key={item.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Video className="h-4 w-4 shrink-0 text-rosa" /><span className="font-semibold text-ink">{item.title}</span>
+              <span className={`rounded-full px-2 py-0.5 font-display text-[11px] font-bold ${item.status === 'done' ? 'bg-whatsapp/15 text-whatsapp' : item.status === 'cancelled' ? 'bg-papel text-piedra' : 'bg-arena text-ciruela'}`}>
+                {item.status === 'done' ? 'Realizada' : item.status === 'cancelled' ? 'Cancelada' : item.status === 'scheduled' && item.scheduled_at ? `Agendada: ${formatDate(item.scheduled_at, true)}` : 'Por agendar'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       {service && order.status !== 'cancelled' && order.status !== 'pending_payment' && <CanvaLink order={order} />}
       <TeamRow order={order} tasks={order.team_tasks ?? []} firstName={firstName} onChanged={onChanged} />
 
@@ -337,7 +354,7 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
           ? <Button variant="success" className={action} busy={busy === 'paid'} onClick={() => setStatus('paid')}>Aprobar pago</Button>
           : <Button variant="success" className={action} busy={busy === 'paid'} onClick={approveOutsideWeb}>Me llegó el pago</Button>)}
         {order.status === 'paid' && <Button className={action} busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Pasar a En proceso</Button>}
-        {order.status === 'in_progress' && <Button className={action} busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>Marcar entregado</Button>}
+        {order.status === 'in_progress' && <Button className={action} busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>{service && session ? 'Marcar CV entregado' : 'Marcar entregado'}</Button>}
         {order.status === 'cancelled' && <Button variant="secondary" className={action} busy={busy === 'pending_payment'} onClick={() => setStatus('pending_payment')}>Reabrir</Button>}
         {(templateLink ?? whatsapp) && (
           <a href={(templateLink ?? whatsapp)!} onClick={(event) => openBusinessWhatsapp(event, (templateLink ?? whatsapp)!)} target="_blank" rel="noreferrer" title={template?.text ?? 'Se abre en WhatsApp Business (11 5106-0953)'} className={`${action} inline-flex items-center justify-center gap-2 rounded-full border border-whatsapp/40 px-3 py-2 font-display text-[13px] font-bold text-whatsapp hover:bg-whatsapp hover:text-white`}>

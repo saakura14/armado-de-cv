@@ -1,4 +1,4 @@
-import type { Order, OrderStatus } from './orders'
+import { pendingSessions, type Order, type OrderStatus } from './orders'
 import { deliveryDeadline } from './dashboard'
 
 /**
@@ -42,6 +42,8 @@ export function stageOf(order: Order, now = Date.now()): WorkStage {
   // E-books unlocked on upload still need the transfer checked: that is collecting money.
   if (order.payment_check === 'pending' || order.status === 'pending_payment' || order.status === 'payment_review') return 'cobrar'
   if (order.status === 'delivered') {
+    // CV delivered but the session is still ahead: it stays in sight until the session is done.
+    if (pendingSessions(order).length > 0) return 'entregados'
     const at = new Date(order.delivered_at ?? order.paid_at ?? order.created_at).getTime()
     return now - at <= WEEK ? 'entregados' : 'archivo'
   }
@@ -84,6 +86,7 @@ export function todayReason(order: Order, unseen: boolean, now = new Date()): Re
     if (deadline && deadline.remaining === 1) return { label: 'Vence mañana', tone: 'naranja', rank: 4 }
   }
   if (order.status === 'paid') return { label: 'Para arrancar', tone: 'arena', rank: 5 }
+  if (order.status === 'delivered' && pendingSessions(order).some((session) => session.status === 'to_schedule')) return { label: 'Agendar la asesoría', tone: 'arena', rank: 5 }
   if (order.status === 'pending_payment' && now.getTime() - new Date(order.created_at).getTime() > 24 * 60 * 60 * 1000) return { label: 'Recordar el pago', tone: 'arena', rank: 6 }
   return null
 }
