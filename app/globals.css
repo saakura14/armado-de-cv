@@ -43,7 +43,7 @@
 /* Dark theme: the page, cards and lines go plum-dark; headings and text go light. Set by the script in <head>. */
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --acv-rosa: #d65c7b;
+  --acv-rosa: #c24c6a;          /* dark enough for white button text */
   --acv-rosa-deep: #b84d68;
   --acv-petalo: #e8959b;
   --acv-petalo-wash: #3a2129;
@@ -54,7 +54,7 @@
   --acv-piedra: #b7aaae;
   --acv-ink: #efe5e8;
   --acv-line: #3b2d33;
-  --acv-whatsapp: #22b45d;
+  --acv-whatsapp: #1b9550;
   --acv-card: #211a1d;
   --acv-heading: #f4d9e0;
 }
@@ -80,6 +80,15 @@
   :where(:root[data-theme='dark']) .hover\:bg-white:hover { background-color: var(--acv-card); }
   :where(:root[data-theme='dark']) .bg-white\/60 { background-color: color-mix(in oklab, var(--acv-card) 60%, transparent); }
   :where(:root[data-theme='dark']) .ring-blanco { --tw-ring-color: var(--acv-blanco); }
+  :where(:root[data-theme='dark']) .bg-white\/70,
+  :where(:root[data-theme='dark']) .bg-white\/80,
+  :where(:root[data-theme='dark']) .bg-white\/90 { background-color: color-mix(in oklab, var(--acv-card) 85%, transparent); }
+  /* Pétalo stays light in dark, so the plum text on it stays dark too (the numbered steps). */
+  :where(:root[data-theme='dark']) .bg-petalo.text-ciruela { color: #43202c; }
+  /* Fixed greens and amber picked for light backgrounds. */
+  :where(:root[data-theme='dark']) .text-\[\#128c4a\],
+  :where(:root[data-theme='dark']) .text-\[\#1f9d5a\] { color: #4fd487; }
+  :where(:root[data-theme='dark']) .text-\[\#b7791f\] { color: #e3a948; }
 }
 
 html {

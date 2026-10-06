@@ -93,7 +93,7 @@ export function AtsTest() {
     <div className="space-y-5">
       <div className="rounded-[32px] bg-white p-5 shadow-[0_30px_60px_-40px_rgba(67,32,44,0.55)] sm:p-8">
         <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left">
-          <div className="relative grid h-36 w-36 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(${view.ring} ${result.score * 3.6}deg, #f3e7e9 0deg)` }}>
+          <div className="relative grid h-36 w-36 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(${view.ring} ${result.score * 3.6}deg, var(--color-petalo-wash) 0deg)` }}>
             <div className="grid h-28 w-28 place-items-center rounded-full bg-white">
               <span className="font-display text-4xl font-extrabold text-ciruela">{result.score}<span className="text-lg text-piedra">/100</span></span>
             </div>
