@@ -51,7 +51,14 @@ export type Order = {
   /** Business days the order waited for the customer, added to the deadline. */
   paused_days?: number
   order_items: OrderItem[]
+  /** 1:1 sessions of the order (admin select only): they go on after the CV is delivered. */
+  sessions?: OrderSession[]
 }
+
+export type OrderSession = { id: string; title: string; status: 'to_schedule' | 'scheduled' | 'done' | 'cancelled'; scheduled_at: string | null }
+
+/** Sessions of a delivered order that still have to happen: the order is not finished yet. */
+export const pendingSessions = (order: Order) => (order.sessions ?? []).filter((session) => session.status === 'to_schedule' || session.status === 'scheduled')
 
 export const ORDER_SELECT = '*, order_items(*, products(delivery, category), ebooks(title))'
 
