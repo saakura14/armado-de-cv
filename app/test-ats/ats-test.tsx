@@ -101,6 +101,7 @@ export function AtsTest() {
           <div>
             <p className={`font-display text-xl font-extrabold leading-tight ${view.tone}`}>{view.title}</p>
             <p className="mt-2 text-piedra">{view.text}</p>
+            {result.cap && <p className="mt-2 flex items-start gap-2 rounded-xl bg-rosa/10 px-3 py-2 text-left text-sm font-semibold text-rosa-deep"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{result.cap}</p>}
             <p className="mt-2 text-sm font-semibold text-ciruela">{failed.length === 0 ? 'No encontré problemas en los puntos que reviso.' : `Encontré ${failed.length} ${failed.length === 1 ? 'cosa' : 'cosas'} para corregir.`}</p>
           </div>
         </div>
