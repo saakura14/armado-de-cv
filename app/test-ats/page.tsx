@@ -25,6 +25,7 @@ export default function AtsTestPage() {
           <ul className="mt-6 space-y-2">
             {POINTS.map((point) => <li key={point} className="flex items-start gap-2 text-ink"><Check className="mt-0.5 h-5 w-5 shrink-0 text-rosa" />{point}</li>)}
           </ul>
+          <p className="mt-6 rounded-2xl bg-white/70 p-4 text-sm leading-relaxed text-piedra"><b className="text-ciruela">Es una guía orientativa:</b> te muestra cómo está tu CV en los puntos que miran los sistemas. Para una revisión honesta y profesional, hecha por mí, y tu CV listo para postular, elegí un <a href="/#precios" className="font-semibold text-rosa-deep underline">pack</a>.</p>
         </div>
         <AtsTest />
       </div>
