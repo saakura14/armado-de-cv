@@ -69,6 +69,7 @@ export default async function Home() {
           <Image src="/img/valeria-retrato.jpg" alt="Valeria, de Armado de CV" width={768} height={1060} className="h-20 w-20 shrink-0 rounded-full object-cover object-top sm:h-24 sm:w-24" />
           <div>
             <p className="leading-relaxed text-ink">Soy <b className="text-ciruela">Vale</b>, <b className="text-ciruela">Técnica en Programación de la UTN</b>, con formación en <b className="text-ciruela">RR.HH. IT y sistemas ATS</b>. Cada CV lo armo yo, sobre tu experiencia real.</p>
+            <p className="mt-1.5 text-sm text-piedra">Más de <b className="text-ciruela">17.000 personas</b> siguen mis guías en <a href={`https://instagram.com/${CONTACT.instagram}`} target="_blank" rel="noreferrer" className="font-semibold text-rosa-deep hover:underline">@{CONTACT.instagram}</a></p>
             <a href="#sobre-mi" className="mt-2 inline-flex items-center gap-1 font-display text-sm font-bold text-rosa-deep hover:underline">Conocé más sobre mí<ArrowRight className="h-4 w-4" /></a>
           </div>
         </div>
@@ -118,6 +119,13 @@ export default async function Home() {
               <p className="mt-1 text-sm leading-relaxed text-ink">Antes de entregarte el CV te paso un boceto y lo ajustamos juntos. Ya entregado, tenés 24 hs para pedir cambios sin costo.</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Testimonials right after the prices: proof at the moment of deciding */}
+      <section className="px-4 pb-16 sm:px-6 lg:pb-20" aria-label="Testimonios">
+        <div className="mx-auto max-w-5xl">
+          <Testimonials />
         </div>
       </section>
 
@@ -178,12 +186,10 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Testimonials + community */}
+      {/* Community */}
       <section className="bg-white px-4 py-16 sm:px-6" aria-labelledby="comunidad-title">
         <div className="mx-auto max-w-5xl">
-          <Testimonials />
-
-          <h2 id="comunidad-title" className="mt-14 text-center text-xs font-semibold uppercase tracking-[0.35em] text-ciruela sm:text-sm">Sumate a la comunidad</h2>
+          <h2 id="comunidad-title" className="text-center text-xs font-semibold uppercase tracking-[0.35em] text-ciruela sm:text-sm">Sumate a la comunidad</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             <a href={CONTACT.whatsappChannel} target="_blank" rel="noreferrer" className="flex items-center gap-4 rounded-3xl border border-line bg-blanco p-5 hover:border-whatsapp md:flex-col md:text-center">
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-whatsapp/10"><WhatsAppIcon className="h-7 w-7 text-whatsapp" /></span>
