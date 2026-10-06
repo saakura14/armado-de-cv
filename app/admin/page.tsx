@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, BookOpen, CreditCard, ExternalLink, Home, Loader2, HelpCircle, LogOut, Menu, PlayCircle, ShoppingBag, Star, Tag, UserRound, Users, Video, X } from 'lucide-react'
+import { ArrowRight, BookOpen, CreditCard, ExternalLink, FileSearch, Home, Loader2, HelpCircle, LogOut, Menu, PlayCircle, ShoppingBag, Star, Tag, UserRound, Users, Video, X } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { Avatar } from '@/components/avatar'
 import { AppSetup } from '@/components/admin/app-setup'
@@ -11,6 +11,7 @@ import { AdminTeamChat } from '@/components/team-chat'
 import { WhatsappSaleDialog } from '@/components/admin/whatsapp-sale-dialog'
 import { UpdateBanner } from '@/components/admin/update-banner'
 import { AuthPanel } from '@/components/auth-panel'
+import { AtsAdmin } from '@/components/admin/ats-admin'
 import { CoursesAdmin } from '@/components/admin/courses-admin'
 import { DashboardAdmin, type OpenTarget } from '@/components/admin/dashboard-admin'
 import { EbooksAdmin } from '@/components/admin/ebooks-admin'
@@ -33,6 +34,7 @@ const TABS = [
   { id: 'pedidos', label: 'Pedidos', short: 'Pedidos', icon: ShoppingBag },
   { id: 'sesiones', label: 'Sesiones', short: 'Sesiones', icon: Video },
   { id: 'equipo', label: 'Equipo', short: 'Equipo', icon: Users },
+  { id: 'test-ats', label: 'Test ATS', short: 'Test ATS', icon: FileSearch },
   { id: 'productos', label: 'Packs y precios', short: 'Precios', icon: Tag },
   { id: 'ebooks', label: 'E-books', short: 'E-books', icon: BookOpen },
   { id: 'cursos', label: 'Cursos', short: 'Cursos', icon: PlayCircle },
@@ -227,6 +229,7 @@ export default function AdminPage() {
           {tab === 'pedidos' && <OrdersAdmin key={`${ordersView?.filter}-${ordersView?.search}`} initialFilter={ordersView?.filter} initialSearch={ordersView?.search} />}
           {tab === 'sesiones' && <SessionsAdmin />}
           {tab === 'equipo' && <TeamAdmin />}
+          {tab === 'test-ats' && <AtsAdmin />}
           {tab === 'productos' && <ProductsAdmin />}
           {tab === 'ebooks' && <EbooksAdmin />}
           {tab === 'cursos' && <CoursesAdmin />}
