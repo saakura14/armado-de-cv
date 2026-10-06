@@ -129,3 +129,11 @@ body {
 .only-dark { display: none; }
 :root[data-theme='dark'] .only-dark { display: block; }
 :root[data-theme='dark'] .only-light { display: none; }
+
+/* Home hero on the computer: the photo's light wall stays light, so in dark the section turns dark and the photo fades into it. */
+:root[data-theme='dark'] .hero-wall { background-color: var(--acv-card); }
+:root[data-theme='dark'] .hero-wall-photo {
+  filter: brightness(0.7);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 45%);
+  mask-image: linear-gradient(to right, transparent 0, #000 45%);
+}

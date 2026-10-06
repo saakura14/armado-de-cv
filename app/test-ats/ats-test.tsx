@@ -125,6 +125,7 @@ export function AtsTest() {
           <button type="submit" disabled={busy} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-rosa px-6 py-3 font-display font-bold text-white transition-colors hover:bg-rosa-deep disabled:opacity-60 sm:w-auto">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}Ver mi resultado completo
           </button>
+          <p className="mt-4 text-sm text-white/80">¿Preferís una revisión honesta, hecha por mí? <Link href="/#precios" className="font-bold text-petalo underline">Elegí tu pack</Link> y te dejo el CV listo para postular.</p>
         </form>
       )}
 
@@ -154,16 +155,18 @@ export function AtsTest() {
               {passed.map((check) => <li key={check.id} className="flex items-start gap-2 text-sm text-piedra"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#1f9d5a]" /><span><b className="text-ciruela">{check.title}.</b> {check.detail}</span></li>)}
             </ul>
           )}
-          <p className="mt-5 text-xs text-piedra">Resultado orientativo: cada empresa usa un sistema distinto. Reviso los mismos puntos que miro en cada CV que armo.</p>
+          <p className="mt-5 text-xs text-piedra">Resultado orientativo y automático: cada empresa usa un sistema distinto. Para una revisión profesional de tu CV, hecha por una persona, elegí un pack.</p>
         </div>
       )}
 
       {stage !== 'puntaje' && (
         <div className="rounded-[32px] bg-petalo-wash p-5 sm:p-8">
-          <p className="font-display text-xl font-extrabold text-ciruela">{result.score >= 85 ? '¿Lo llevamos al siguiente nivel?' : '¿Querés que lo deje listo por vos?'}</p>
+          <p className="font-display text-xl font-extrabold text-ciruela">{result.score >= 85 ? '¿Querés una opinión honesta de verdad?' : '¿Querés que lo deje listo por vos?'}</p>
+          <p className="mt-2 text-ink"><b className="text-ciruela">Este test es una guía automática:</b> mira el formato y los puntos básicos, pero no sabe si tu experiencia está bien contada, si tu perfil vende ni si convencés a un reclutador. Eso lo reviso yo, persona a persona, en cada pack.</p>
           <p className="mt-2 text-ink">{result.score >= 85
-            ? 'Con el Pack Premium sumás tu perfil de LinkedIn y la carta de presentación, para que los reclutadores también te encuentren a vos.'
-            : 'Te armo dos CV: uno moderno con foto, para mandar por mail o entregar, y otro optimizado para ATS, sin foto, que pasa los filtros. En 3 a 4 días hábiles.'}</p>
+            ? 'Con el Pack Premium reviso y potencio tu CV, y sumás tu perfil de LinkedIn y la carta de presentación.'
+            : 'Te armo dos CV: una versión moderna con foto, para mandar por mail o entregar, y otra optimizada para ATS, sin foto, que pasa los filtros. En 3 a 4 días hábiles.'}</p>
+          <p className="mt-2 text-sm text-piedra">Lo comprás acá mismo en la web en 2 minutos y pagás por transferencia.</p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link href="/#precios" className="inline-flex min-h-12 items-center rounded-full bg-ciruela px-6 py-3 font-display text-sm font-bold text-white hover:bg-rosa">Ver packs y precios</Link>
             <a href={sales} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-whatsapp px-6 py-3 font-display text-sm font-bold text-white hover:brightness-95"><WhatsAppIcon className="h-4 w-4" />Escribirle a Vale</a>
