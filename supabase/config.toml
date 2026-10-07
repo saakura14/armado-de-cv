@@ -22,3 +22,7 @@ verify_jwt = false
 [functions.daily-digest]
 # Called only by pg_cron with the private key from Vault (x-cron-key), no session.
 verify_jwt = false
+
+[functions.ats-followup]
+# Called only by pg_cron with the private key from Vault (x-cron-key), no session. Secret: RESEND_API_KEY.
+verify_jwt = false
