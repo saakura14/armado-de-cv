@@ -72,7 +72,7 @@ export function AtsTest() {
   const [fileName, setFileName] = useState('')
   const [result, setResult] = useState<AtsResult | null>(null)
   const [error, setError] = useState('')
-  const [lead, setLead] = useState({ name: '', phone: '', ok: false })
+  const [lead, setLead] = useState({ name: '', email: '', phone: '', ok: false })
   const [busy, setBusy] = useState(false)
   const input = useRef<HTMLInputElement>(null)
 
@@ -102,7 +102,7 @@ export function AtsTest() {
     if (!result) return
     setBusy(true)
     setError('')
-    const { data, error: rpcError } = await supabase.rpc('ats_check_submit', { p_name: lead.name, p_phone: lead.phone, p_score: result.score, p_issues: result.failed, p_has_job_ad: ad.trim().length > 40, p_area: area })
+    const { data, error: rpcError } = await supabase.rpc('ats_check_submit', { p_name: lead.name, p_phone: lead.phone, p_score: result.score, p_issues: result.failed, p_has_job_ad: ad.trim().length > 40, p_area: area, p_email: lead.email })
     setBusy(false)
     if (rpcError) { setError(errorMessage(rpcError)); return }
     track('Lead', { content_name: 'Test ATS', value: result.score })
@@ -180,17 +180,18 @@ export function AtsTest() {
       {stage === 'puntaje' && (
         <form onSubmit={unlock} className="rounded-[32px] bg-ciruela p-5 text-white sm:p-8">
           <p className="font-script text-4xl leading-none text-petalo">Mirá qué corregir</p>
-          <p className="mt-2 text-white/85">Dejame tu nombre y tu WhatsApp y te muestro el detalle de cada punto, con cómo arreglarlo. Es 1 análisis gratis por persona.</p>
+          <p className="mt-2 text-white/85">Dejame tu nombre, tu WhatsApp y tu mail y te muestro el detalle de cada punto, con cómo arreglarlo. Es 1 análisis gratis por persona.</p>
           <ul className="mt-4 space-y-2 blur-[3px] select-none" aria-hidden="true">
             {failed.slice(0, 3).map((check) => <li key={check.id} className="flex items-center gap-2 text-sm"><XCircle className="h-4 w-4 text-petalo" />{check.title}</li>)}
           </ul>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <input required minLength={2} maxLength={80} value={lead.name} onChange={(event) => setLead((c) => ({ ...c, name: event.target.value }))} placeholder="Tu nombre" autoComplete="given-name" className="rounded-2xl border-0 bg-white px-4 py-3 text-base text-ink outline-none" />
             <input required inputMode="tel" value={lead.phone} onChange={(event) => setLead((c) => ({ ...c, phone: event.target.value }))} placeholder="Tu WhatsApp (ej: 11 2345-6789)" autoComplete="tel" className="rounded-2xl border-0 bg-white px-4 py-3 text-base text-ink outline-none" />
+            <input required type="email" maxLength={120} value={lead.email} onChange={(event) => setLead((c) => ({ ...c, email: event.target.value }))} placeholder="Tu mail" autoComplete="email" className="rounded-2xl border-0 bg-white px-4 py-3 text-base text-ink outline-none sm:col-span-2" />
           </div>
           <label className="mt-3 flex items-start gap-2 text-xs text-white/80">
             <input type="checkbox" required checked={lead.ok} onChange={(event) => setLead((c) => ({ ...c, ok: event.target.checked }))} className="mt-0.5 accent-rosa" />
-            <span>Acepto que Armado de CV me escriba por WhatsApp sobre mi CV. Ver <Link href="/privacidad" className="underline">política de privacidad</Link>.</span>
+            <span>Acepto que Armado de CV me escriba por mail y por WhatsApp sobre mi CV (me puedo dar de baja cuando quiera). Ver <Link href="/privacidad" className="underline">política de privacidad</Link>.</span>
           </label>
           {error && <p className="mt-3 rounded-2xl bg-white/10 px-4 py-2 text-sm font-semibold">{error}</p>}
           <button type="submit" disabled={busy} className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-rosa px-6 py-3 font-display font-bold text-white transition-colors hover:bg-rosa-deep disabled:opacity-60 sm:w-auto">

@@ -9,7 +9,7 @@ import { errorMessage, supabase } from '@/lib/supabase'
 import { openBusinessWhatsapp, waLink } from './orders-admin'
 import { cardClass, useFlash } from './ui'
 
-type Lead = { id: string; created_at: string; name: string; phone: string; score: number; issues: CheckId[]; has_job_ad: boolean; area: string | null; attempts: number; contacted_at: string | null }
+type Lead = { id: string; created_at: string; name: string; phone: string; score: number; issues: CheckId[]; has_job_ad: boolean; area: string | null; email: string | null; followup_sent_at: string | null; unsubscribed_at: string | null; attempts: number; contacted_at: string | null }
 
 const scoreTone = (score: number) => (score >= 85 ? 'bg-[#1f9d5a]' : score >= 65 ? 'bg-[#d69e2e]' : 'bg-rosa')
 
@@ -61,6 +61,7 @@ export function AtsAdmin() {
                 <div className="min-w-0 flex-1">
                   <p className="font-display font-bold text-ciruela">{lead.name}</p>
                   <p className="text-xs text-piedra">{new Date(lead.created_at).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}{lead.area ? ` · ${ROLE_AREAS.find((item) => item.id === lead.area)?.label ?? 'Otra área'}` : ''}{lead.has_job_ad ? ' · con aviso' : ''}{lead.attempts > 1 ? ` · lo intentó ${lead.attempts} veces` : ''}</p>
+                  {lead.email && <p className="text-xs text-piedra break-all">{lead.email}{lead.unsubscribed_at ? ' · se dio de baja' : lead.followup_sent_at ? ' · le llegó el mail con los packs' : ' · el mail con los packs sale a la hora del test'}</p>}
                   {lead.issues.length > 0 && <p className="mt-1 text-sm text-ink">{lead.issues.map((id) => CHECK_LABELS[id] ?? id).join(' · ')}</p>}
                 </div>
               </div>
