@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { Check, FileSearch } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { CHECK_LABELS, type CheckId } from '@/lib/ats-check'
+import { ROLE_AREAS } from '@/lib/ats-roles'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { openBusinessWhatsapp, waLink } from './orders-admin'
 import { cardClass, useFlash } from './ui'
 
-type Lead = { id: string; created_at: string; name: string; phone: string; score: number; issues: CheckId[]; has_job_ad: boolean; attempts: number; contacted_at: string | null }
+type Lead = { id: string; created_at: string; name: string; phone: string; score: number; issues: CheckId[]; has_job_ad: boolean; area: string | null; attempts: number; contacted_at: string | null }
 
 const scoreTone = (score: number) => (score >= 85 ? 'bg-[#1f9d5a]' : score >= 65 ? 'bg-[#d69e2e]' : 'bg-rosa')
 
@@ -59,7 +60,7 @@ export function AtsAdmin() {
                 <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-full font-display font-extrabold text-white ${scoreTone(lead.score)}`}>{lead.score}</span>
                 <div className="min-w-0 flex-1">
                   <p className="font-display font-bold text-ciruela">{lead.name}</p>
-                  <p className="text-xs text-piedra">{new Date(lead.created_at).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}{lead.has_job_ad ? ' · con aviso' : ''}{lead.attempts > 1 ? ` · lo intentó ${lead.attempts} veces` : ''}</p>
+                  <p className="text-xs text-piedra">{new Date(lead.created_at).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}{lead.area ? ` · ${ROLE_AREAS.find((item) => item.id === lead.area)?.label ?? 'Otra área'}` : ''}{lead.has_job_ad ? ' · con aviso' : ''}{lead.attempts > 1 ? ` · lo intentó ${lead.attempts} veces` : ''}</p>
                   {lead.issues.length > 0 && <p className="mt-1 text-sm text-ink">{lead.issues.map((id) => CHECK_LABELS[id] ?? id).join(' · ')}</p>}
                 </div>
               </div>
