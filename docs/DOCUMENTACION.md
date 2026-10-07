@@ -562,3 +562,4 @@ Revisión del 05/10/2026 con los datos propios (visitas y embudo desde el 28/09)
 | 06/10 | Test ATS más exigente: puntajes con techo por problemas graves, perfil, fechas como períodos, logros con números, viñetas y frases genéricas; pago con tarjeta (Ualá) habilitado en la web y opción de mandar el comprobante por WhatsApp |
 | 07/10 | Test ATS como un ATS real: ficha del candidato, coincidencia con el puesto por área o aviso, filtro de años de experiencia; área obligatoria y guardada en el panel |
 | 07/10 | Test ATS: pide mail y una hora después manda un mail automático con el resultado y los packs (función `ats-followup` cada 10 min con pg_cron, Resend con `RESEND_API_KEY`, de 9 a 21; baja en `/baja`) |
+| 07/10 | **Pack Primer Empleo** (`cv-primer-empleo`, $20.000): 1 CV ATS para primer trabajo, lo hace Vale (no está en `TEAM_PACKS`); primero en la lista de CV, con Express y portales; Sakura lo conoce; el mail del test lo ofrece aparte |
