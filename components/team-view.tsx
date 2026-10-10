@@ -28,9 +28,17 @@ export function TeamLogo() {
 function TaskActions({ task, preview, onChanged, onFinished }: { task: TeamTask; preview?: boolean; onChanged: () => void; onFinished?: () => void }) {
   const [busy, setBusy] = useState(false)
   const [link, setLink] = useState('')
-  // "Terminé" asks again on the screen itself: the browser's own confirm can be silenced on a tablet and then never fires.
+  // "Terminé" asks again in a window of its own (the browser's confirm can be silenced on a tablet). "Sí, terminé" sits
+  // somewhere else and only works after a moment, so a double tap on "Terminé este CV" can't finish the CV by mistake.
   const [confirming, setConfirming] = useState(false)
+  const [armed, setArmed] = useState(false)
   const flash = useFlash()
+
+  useEffect(() => {
+    if (!confirming) { setArmed(false); return }
+    const timer = window.setTimeout(() => setArmed(true), 2000)
+    return () => window.clearTimeout(timer)
+  }, [confirming])
 
   // Whatever is pasted (a whole "Mirá mi diseño: https://..." or a link without https), only the address is kept.
   function designUrl() {
@@ -64,16 +72,21 @@ function TaskActions({ task, preview, onChanged, onFinished }: { task: TeamTask;
       )}
       {task.status === 'asignado' ? (
         <Button className="w-full" busy={busy} onClick={() => move('haciendo')}>Empecé</Button>
-      ) : confirming ? (
-        <div className="space-y-2 rounded-2xl bg-whatsapp/10 p-3">
-          <p className="text-sm font-semibold text-ink">¿Terminaste el {task.pack_name} de {task.client_name} (#{task.order_number})? Después no se puede volver atrás.</p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" disabled={busy} onClick={() => setConfirming(false)}>Todavía no</Button>
-            <Button variant="success" busy={busy} onClick={() => move('terminado')}>Sí, terminé</Button>
-          </div>
-        </div>
       ) : (
         <Button variant="success" className="w-full" onClick={() => setConfirming(true)}>Terminé este CV</Button>
+      )}
+      {confirming && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-ciruela/70 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-labelledby={`finish-${task.id}`}>
+          <div className="w-full max-w-sm rounded-3xl bg-blanco p-6 text-center shadow-2xl">
+            <p id={`finish-${task.id}`} className="font-display text-xl font-bold text-ciruela">¿Seguro que terminaste este CV?</p>
+            <p className="mt-2 text-sm text-piedra"><b className="text-ink">{task.pack_name}</b> de <b className="text-ink">{task.client_name}</b> (pedido #{task.order_number})</p>
+            <p className="mt-3 rounded-2xl bg-petalo-wash px-3 py-2 text-sm font-semibold text-rosa-deep">Le avisa a Vale que está listo para entregar y después no lo podés volver atrás.</p>
+            <div className="mt-5 space-y-2">
+              <Button variant="secondary" className="w-full" disabled={busy} onClick={() => setConfirming(false)}>No, todavía no terminé</Button>
+              <Button variant="success" className="w-full" busy={busy} disabled={!armed} onClick={() => move('terminado')}>{armed ? 'Sí, ya lo terminé' : 'Leé y confirmá…'}</Button>
+            </div>
+          </div>
+        </div>
       )}
       {flash.node}
     </div>
