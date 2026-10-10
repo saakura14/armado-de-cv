@@ -30,6 +30,8 @@ export type Order = {
   total: number
   customer_name: string | null
   customer_phone: string | null
+  /** Asked only when buying without an account (the anonymous session has no email of its own). */
+  customer_email?: string | null
   customer_note: string | null
   receipt_path: string | null
   receipt_uploaded_at: string | null

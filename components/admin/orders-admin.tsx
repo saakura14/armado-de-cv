@@ -234,6 +234,8 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
   const status = STATUS[order.status]
   const name = order.customer_name || buyer?.full_name || buyer?.email || 'Cliente'
   const phone = order.customer_phone || buyer?.phone || null
+  // Bought without an account: the email is on the order, not on a profile.
+  const email = order.customer_email || buyer?.email || null
   const firstName = name.split(' ')[0]
   const products = order.order_items.map((item) => item.product_name).join(' + ')
   const whatsapp = waLink(phone, `¡Hola ${firstName}! Te escribo por tu pedido #${order.number} de Armado de CV.`)
@@ -285,7 +287,7 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
       <div className="mt-2 flex items-end justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[15px] font-bold text-ink">{name}</p>
-          {(buyer?.email || phone) && <p className="truncate text-xs text-piedra">{buyer?.email}{buyer?.email && phone ? ' · ' : ''}{phone}</p>}
+          {(email || phone) && <p className="truncate text-xs text-piedra">{email}{email && phone ? ' · ' : ''}{phone}{order.customer_email && <span className="ml-1 rounded-full bg-papel px-1.5 py-0.5 text-[10px] font-semibold text-piedra">sin cuenta</span>}</p>}
         </div>
         <p className="shrink-0 font-display text-lg font-extrabold text-ciruela">{money(order.total)}</p>
       </div>
@@ -489,7 +491,7 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
   const searching = Boolean(term)
   const matches = exact ? orders.filter((order) => String(order.number) === term) : orders.filter((order) => {
     const buyer = order.user_id ? buyers[order.user_id] : undefined
-    return [String(order.number), order.customer_name, order.customer_phone, buyer?.email, buyer?.full_name, buyer?.phone].some((value) => value?.toLowerCase().includes(term))
+    return [String(order.number), order.customer_name, order.customer_phone, order.customer_email, buyer?.email, buyer?.full_name, buyer?.phone].some((value) => value?.toLowerCase().includes(term))
   })
   const shown = searching ? matches : sortForStage(stage, byStage[stage], reasons) as AdminOrder[]
 

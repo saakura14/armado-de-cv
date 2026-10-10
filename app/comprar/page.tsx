@@ -8,7 +8,7 @@ import { AuthPanel } from '@/components/auth-panel'
 import { clearPending, loadPending, type PendingOrder } from '@/lib/cart'
 import { formatARS, whatsappUrl, type Delivery } from '@/lib/catalog'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
-import { errorMessage, supabase } from '@/lib/supabase'
+import { SUPABASE_KEY, SUPABASE_URL, errorMessage, supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
 import { track } from '@/lib/pixel'
 import { countStep, landingOrigin } from '@/components/visit-tracker'
@@ -18,6 +18,19 @@ import { notifyAdmin } from '@/lib/push'
 const NOTE_FIELD: Partial<Record<Delivery, { label: string; placeholder: string }>> = {
   service: { label: 'Algo que quieras contarme (opcional)', placeholder: 'Rubro, puesto al que apuntás, colores que te gustan para el CV...' },
   session: { label: '¿Qué te gustaría trabajar en la sesión? (opcional)', placeholder: 'Por ejemplo: prepararme para una entrevista, ordenar mi búsqueda, definir hacia dónde ir...' },
+}
+
+/** Buying without an account works once "Allow anonymous sign-ins" is on in Supabase (Authentication → Sign In / Providers). */
+function useGuestCheckout() {
+  // null while the setting loads, so the page doesn't flash the account form first.
+  const [enabled, setEnabled] = useState<boolean | null>(null)
+  useEffect(() => {
+    fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_KEY } })
+      .then((response) => response.json())
+      .then((settings: { external?: { anonymous_users?: boolean } }) => setEnabled(Boolean(settings.external?.anonymous_users)))
+      .catch(() => setEnabled(false))
+  }, [])
+  return enabled
 }
 
 function Summary({ order }: { order: PendingOrder }) {
@@ -49,7 +62,11 @@ export default function CheckoutPage() {
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [note, setNote] = useState('')
+  const [email, setEmail] = useState('')
   const [accepted, setAccepted] = useState(false)
+  const guestEnabled = useGuestCheckout()
+  // Someone who'd rather sign in (to see the order from any device) can still do it.
+  const [wantsAccount, setWantsAccount] = useState(false)
   // Optional: news and new e-books by email (never pre-checked).
   const [news, setNews] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -73,12 +90,18 @@ export default function CheckoutPage() {
     event.preventDefault()
     if (!pending) return
     setBusy(true); setError('')
+    // Without an account: an anonymous session, so the order page, the card payment and the receipt upload work as usual.
+    const guest = !user || Boolean(user.is_anonymous)
+    if (!user) {
+      const { error: guestError } = await supabase.auth.signInAnonymously()
+      if (guestError) { setError(errorMessage(guestError)); setBusy(false); return }
+    }
     const { data, error: rpcError } = await supabase.rpc('create_order', {
-      p_items: pending.items ?? [pending.item], p_accept_terms: accepted, p_name: name, p_phone: phone, p_note: note,
+      p_items: pending.items ?? [pending.item], p_accept_terms: accepted, p_name: name, p_phone: phone, p_note: note, p_email: guest ? email : null,
     })
     if (rpcError) { setError(errorMessage(rpcError)); setBusy(false); return }
     track('Lead', { value: pending.total, currency: 'ARS', content_ids: [pending.item.product_id] })
-    if (news && user) await supabase.from('profiles').update({ marketing_opt_in: true, marketing_opt_in_at: new Date().toISOString() }).eq('id', user.id)
+    if (news && user && !guest) await supabase.from('profiles').update({ marketing_opt_in: true, marketing_opt_in_at: new Date().toISOString() }).eq('id', user.id)
     if (pending.linkToken) await supabase.rpc('claim_order_link', { p_token: pending.linkToken, p_order: data as string })
     notifyAdmin(data as string, 'new_order')
     // Tags the order with where the visit came from (ad link or the web), for the sales dashboard.
@@ -87,7 +110,7 @@ export default function CheckoutPage() {
     router.replace(`/cuenta/pedido/${data as string}`)
   }
 
-  if (pending === undefined || !ready) {
+  if (pending === undefined || !ready || (!user && guestEnabled === null)) {
     return <div className="flex min-h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-rosa" /></div>
   }
 
@@ -105,6 +128,11 @@ export default function CheckoutPage() {
   }
 
   const input = 'mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-3 text-base font-normal outline-none focus:border-rosa'
+  // CV packs and sessions can be bought without an account; e-books and courses live in "Mi cuenta", so they still need one.
+  const guestDelivery = pending.delivery === 'service' || pending.delivery === 'session'
+  const anonymous = Boolean(user?.is_anonymous)
+  const showForm = user ? !anonymous || guestDelivery : Boolean(guestEnabled) && guestDelivery && !wantsAccount
+  const askEmail = !user || anonymous
   return (
     <section className="bg-arena/40 px-4 py-10 sm:px-6 lg:py-16">
       <div className="mx-auto grid max-w-5xl items-start gap-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -115,10 +143,13 @@ export default function CheckoutPage() {
           )}
         </div>
 
-        {!user ? (
+        {!showForm ? (
           <div>
             <AuthPanel title="Casi listo" initialMode="signup" text="Creá tu cuenta (te lleva un minuto) o ingresá si ya tenés una. Ahí vas a ver el estado de tu compra y descargar tus e-books." />
-            {pending.delivery === 'service' && (
+            {guestEnabled && guestDelivery && wantsAccount && (
+              <button type="button" onClick={() => setWantsAccount(false)} className="mx-auto mt-4 block text-sm font-semibold text-rosa-deep underline">Volver a comprar sin crear cuenta</button>
+            )}
+            {pending.delivery === 'service' && !(guestEnabled && wantsAccount) && (
               <a href={whatsappUrl(`¡Hola! Quiero contratar ${pending.productName} (${formatARS(pending.total)}).`)} target="_blank" rel="noopener noreferrer" className="mx-auto mt-4 flex max-w-md items-center justify-center gap-2 text-sm font-semibold text-[#128c4a]">
                 <WhatsAppIcon className="h-4 w-4" />¿Preferís no crear cuenta? Pedilo por WhatsApp
               </a>
@@ -127,7 +158,11 @@ export default function CheckoutPage() {
         ) : (
           <form onSubmit={confirm} className="rounded-[28px] bg-white p-6 shadow-[0_22px_44px_-30px_rgba(67,32,44,0.55)] sm:p-8">
             <p className="font-script text-4xl leading-none text-rosa">Tus datos</p>
-            <p className="mt-2 text-sm text-piedra">Comprás como <b className="text-ink">{user.email}</b>.</p>
+            {askEmail ? (
+              <p className="mt-2 text-sm text-piedra">Sin crear cuenta: completá tus datos y listo. {!user && <>¿Ya tenés cuenta? <button type="button" onClick={() => setWantsAccount(true)} className="font-semibold text-rosa-deep underline">Ingresá</button>.</>}</p>
+            ) : (
+              <p className="mt-2 text-sm text-piedra">Comprás como <b className="text-ink">{user?.email}</b>.</p>
+            )}
             <div className="mt-5 space-y-4">
               <label className="block text-sm font-semibold text-ciruela">Nombre y apellido
                 <input required value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" className={input} />
@@ -135,6 +170,11 @@ export default function CheckoutPage() {
               <label className="block text-sm font-semibold text-ciruela">WhatsApp
                 <input required value={phone} onChange={(event) => setPhone(event.target.value)} type="tel" inputMode="tel" autoComplete="tel" placeholder="11 2345-6789" className={input} />
               </label>
+              {askEmail && (
+                <label className="block text-sm font-semibold text-ciruela">Mail
+                  <input required value={email} onChange={(event) => setEmail(event.target.value)} type="email" inputMode="email" autoComplete="email" maxLength={120} placeholder="tu@mail.com" className={input} />
+                </label>
+              )}
               {NOTE_FIELD[pending.delivery] && (
                 <label className="block text-sm font-semibold text-ciruela">{NOTE_FIELD[pending.delivery]!.label}
                   <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={3} placeholder={NOTE_FIELD[pending.delivery]!.placeholder} className={input} />
@@ -144,7 +184,7 @@ export default function CheckoutPage() {
                 <input type="checkbox" required checked={accepted} onChange={(event) => setAccepted(event.target.checked)} className="mt-1 accent-rosa" />
                 <span>Leí y acepto los <Link href="/terminos" target="_blank" className="font-semibold text-rosa-deep underline">términos y condiciones</Link> (incluida la política de cambios y devoluciones y, en Asesorías, el consentimiento informado) y la <Link href="/privacidad" target="_blank" className="font-semibold text-rosa-deep underline">política de privacidad</Link>.</span>
               </label>
-              {!profile?.marketing_opt_in && (
+              {!askEmail && !profile?.marketing_opt_in && (
                 <label className="flex cursor-pointer items-start gap-3 px-1 text-sm leading-relaxed text-ink">
                   <input type="checkbox" checked={news} onChange={(event) => setNews(event.target.checked)} className="mt-1 accent-rosa" />
                   <span>Quiero recibir por mail novedades y nuevos e-books para mi búsqueda (opcional; me doy de baja cuando quiera desde Mi cuenta).</span>
