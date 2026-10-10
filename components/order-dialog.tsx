@@ -77,7 +77,7 @@ function DigitalSummary({ product }: { product: Product }) {
       <div className="grid gap-2 sm:grid-cols-3">
         {[
           { icon: <FileText className="h-4 w-4" />, title: format, text: 'Para leer en el celu o imprimir' },
-          { icon: <Download className="h-4 w-4" />, title: 'Desde "Mi cuenta"', text: 'Apenas se confirma tu pago' },
+          { icon: <Download className="h-4 w-4" />, title: 'Al toque, sin cuenta', text: 'Te llega el link a tu mail al confirmar el pago' },
           { icon: <ShieldCheck className="h-4 w-4" />, title: 'Es tuyo', text: 'Lleva tu email en cada página' },
         ].map((item) => (
           <div key={item.title} className="flex items-center gap-3 rounded-2xl bg-papel px-3 py-2.5 sm:flex-col sm:items-start sm:gap-1.5">

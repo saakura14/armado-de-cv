@@ -128,8 +128,9 @@ export default function CheckoutPage() {
   }
 
   const input = 'mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-3 text-base font-normal outline-none focus:border-rosa'
-  // CV packs and sessions can be bought without an account; e-books and courses live in "Mi cuenta", so they still need one.
-  const guestDelivery = pending.delivery === 'service' || pending.delivery === 'session'
+  // CV packs, sessions and guides can be bought without an account (guides arrive by email with a private link);
+  // courses live in "Mi cuenta", so they still need one.
+  const guestDelivery = pending.delivery === 'service' || pending.delivery === 'session' || pending.delivery === 'digital'
   const anonymous = Boolean(user?.is_anonymous)
   const showForm = user ? !anonymous || guestDelivery : Boolean(guestEnabled) && guestDelivery && !wantsAccount
   const askEmail = !user || anonymous

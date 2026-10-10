@@ -44,7 +44,7 @@ export default function FreeChecklistPage() {
           <div className="mt-8 grid gap-5 sm:grid-cols-2">
             <div className="rounded-[28px] bg-white p-6 shadow-[0_22px_44px_-30px_rgba(67,32,44,0.55)]">
               <p className="font-display text-lg font-bold text-ciruela">Hacerlo vos, con mis guías</p>
-              <p className="mt-2 text-sm leading-relaxed text-piedra">El Kit con 4 guías (Portales, LinkedIn, CV a prueba de ATS y Búsqueda organizada) a $45.000, o cada guía por separado desde $12.000.</p>
+              <p className="mt-2 text-sm leading-relaxed text-piedra">El Kit con 4 guías (Portales, LinkedIn, CV a prueba de ATS y Búsqueda organizada) a $19.900, o cada guía por separado desde $5.900. Las descargás al toque, sin crear cuenta.</p>
               <Link href="/#guias" className="mt-5 inline-flex rounded-full border border-line px-5 py-2.5 font-display text-sm font-bold text-ciruela hover:border-ciruela">Ver las guías</Link>
             </div>
             <div className="rounded-[28px] bg-petalo-wash p-6">
