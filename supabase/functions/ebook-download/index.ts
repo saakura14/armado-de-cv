@@ -25,18 +25,37 @@ Deno.serve(async (req) => {
   })
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-  const { data: { user } } = await userClient.auth.getUser()
-  if (!user) return json(401, { error: 'Iniciá sesión para descargar' })
-
-  let ebookId = ''
-  try { ebookId = String((await req.json()).ebook_id ?? '') } catch { /* handled below */ }
+  let ebookId = '', token = ''
+  try { const body = await req.json(); ebookId = String(body.ebook_id ?? ''); token = String(body.token ?? '') } catch { /* handled below */ }
   if (!ebookId) return json(400, { error: 'Falta el e-book' })
 
-  // Access check runs with the buyer's own permissions (RLS).
-  const { data: access } = await userClient
-    .from('ebook_access').select('order_id').eq('ebook_id', ebookId).eq('user_id', user.id).maybeSingle()
-  const { data: isAdmin } = await userClient.rpc('is_admin')
-  if (!access && !isAdmin) return json(403, { error: 'No tenés acceso a este e-book' })
+  // Two ways in: the buyer's session (Mi cuenta), or the private link emailed to buyers without an account.
+  let access: { order_id: string | null } | null = null
+  let buyerEmail = ''
+  if (token) {
+    if (!/^[0-9a-f-]{36}$/i.test(token)) return json(400, { error: 'Link inválido' })
+    const { data: order } = await admin.from('orders').select('id, user_id, customer_email, payment_check').eq('download_token', token).maybeSingle()
+    if (!order || order.payment_check === 'rejected') return json(403, { error: 'Este link no es válido' })
+    const { data: row } = await admin.from('ebook_access').select('order_id').eq('order_id', order.id).eq('user_id', order.user_id).eq('ebook_id', ebookId).maybeSingle()
+    if (!row) return json(403, { error: 'Este link no incluye ese e-book' })
+    access = row
+    buyerEmail = order.customer_email ?? ''
+  } else {
+    const { data: { user } } = await userClient.auth.getUser()
+    if (!user) return json(401, { error: 'Iniciá sesión para descargar' })
+    // Access check runs with the buyer's own permissions (RLS).
+    const { data: row } = await userClient
+      .from('ebook_access').select('order_id').eq('ebook_id', ebookId).eq('user_id', user.id).maybeSingle()
+    const { data: isAdmin } = await userClient.rpc('is_admin')
+    if (!row && !isAdmin) return json(403, { error: 'No tenés acceso a este e-book' })
+    access = row
+    buyerEmail = user.email ?? user.id
+    // Bought without an account: the anonymous session has no email, the order has it.
+    if (!user.email && row?.order_id) {
+      const { data: order } = await admin.from('orders').select('customer_email').eq('id', row.order_id).maybeSingle()
+      buyerEmail = order?.customer_email ?? buyerEmail
+    }
+  }
 
   const { data: ebook } = await admin.from('ebooks').select('title, file_path').eq('id', ebookId).maybeSingle()
   if (!ebook?.file_path) return json(404, { error: 'Este e-book todavía no está disponible. Escribinos y te lo enviamos.' })
@@ -57,7 +76,7 @@ Deno.serve(async (req) => {
   // Word or other formats are delivered as they are.
   if (extension !== 'pdf') return new Response(bytes, { headers })
 
-  const email = printable(user.email ?? user.id)
+  const email = printable(buyerEmail)
   const line = `E-book adquirido por ${email}${orderNumber}`
 
   const pdf = await PDFDocument.load(bytes)

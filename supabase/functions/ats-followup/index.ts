@@ -36,7 +36,7 @@ const ars = (value: number) => '$' + value.toLocaleString('es-AR')
 
 type Lead = { id: string; name: string; email: string; score: number; issues: string[]; area: string | null; unsubscribe_token: string }
 
-function compose(lead: Lead, from: number | null, firstJob: number | null) {
+function compose(lead: Lead, from: number | null, firstJob: number | null, guide: number | null) {
   const name = lead.name.trim().split(/\s+/)[0]
   const first = escape(name)
   const area = lead.area && AREAS[lead.area] ? ` para <b>${AREAS[lead.area]}</b>` : ''
@@ -51,7 +51,7 @@ function compose(lead: Lead, from: number | null, firstJob: number | null) {
   const list = issues.length ? `<p style="margin:16px 0 6px;font-weight:700;color:#43202c">Lo que más le está restando:</p><ul style="margin:0;padding-left:20px;color:#3a2a30">${issues.map((issue) => `<li style="margin:4px 0">${escape(issue)}</li>`).join('')}</ul>` : ''
   const offer = good
     ? 'Con el <b>Pack Premium</b> reviso y potencio tu CV, y sumamos tu perfil de LinkedIn y la carta de presentación.'
-    : `Te armo dos CV a medida: uno moderno, para mandar por mail o entregar, y otro optimizado para ATS, que pasa los filtros. En 3 a 4 días hábiles${from ? `, desde ${ars(from)}` : ''}.${firstJob ? ` ¿Es tu primer trabajo? Tenés el <b>Pack Primer Empleo</b> a ${ars(firstJob)}.` : ''}`
+    : `Te armo dos CV a medida: uno moderno, para mandar por mail o entregar, y otro optimizado para ATS, que pasa los filtros. En 3 a 4 días hábiles${from ? `, desde ${ars(from)}` : ''}.${firstJob ? ` ¿Es tu primer trabajo? Tenés el <b>Pack Primer Empleo</b> a ${ars(firstJob)}.` : ''}${guide ? ` ¿Preferís corregirlo vos? La guía <b>CV a prueba de filtros ATS</b> sale ${ars(guide)} y la descargás al toque.` : ''}`
   const html = `<!doctype html><html lang="es"><body style="margin:0;background:#f5efd9;font-family:Arial,Helvetica,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5efd9;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:20px;overflow:hidden">
@@ -94,17 +94,19 @@ Deno.serve(async (request) => {
   if (!leads?.length) return json(200, { sent: 0 })
 
   // "Desde" for the two-CV offer; the first-job pack (one CV) is offered apart.
-  const { data: products } = await admin.from('products').select('id, price').eq('active', true).in('id', ['cv-simple', 'cv-medium', 'cv-premium', 'cv-primer-empleo'])
+  const { data: products } = await admin.from('products').select('id, price').eq('active', true).in('id', ['cv-simple', 'cv-medium', 'cv-premium', 'cv-primer-empleo', 'guia-ats'])
   const rows = (products ?? []) as { id: string; price: number }[]
-  const prices = rows.filter((product) => product.id !== 'cv-primer-empleo' && product.price > 0).map((product) => product.price)
+  const prices = rows.filter((product) => product.id.startsWith('cv-') && product.id !== 'cv-primer-empleo' && product.price > 0).map((product) => product.price)
   const from = prices.length ? Math.min(...prices) : null
   const firstJob = rows.find((product) => product.id === 'cv-primer-empleo')?.price ?? null
+  // The do-it-yourself option for people who won't pay for a pack.
+  const guide = rows.find((product) => product.id === 'guia-ats')?.price ?? null
   const sender = Deno.env.get('FOLLOWUP_FROM')?.trim() || 'Vale de Armado de CV <hola@armadodecv.com>'
 
   let sent = 0
   const failures: string[] = []
   for (const lead of leads as Lead[]) {
-    const mail = compose(lead, from, firstJob)
+    const mail = compose(lead, from, firstJob, guide)
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },

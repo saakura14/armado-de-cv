@@ -27,7 +27,7 @@ const promises = [
 
 const steps = [
   { title: 'Elegí', text: 'Un pack o una guía. Tocá "Lo quiero"; en los packs sumás idiomas, plataformas o entrega express y ves el total.' },
-  { title: 'Confirmá el pedido', text: 'Dejá tu nombre, WhatsApp y mail y aceptá las condiciones. En los packs de CV no hace falta crear cuenta.' },
+  { title: 'Confirmá el pedido', text: 'Dejá tu nombre, WhatsApp y mail y aceptá las condiciones. No hace falta crear cuenta.' },
   { title: 'Pagá', text: 'Por transferencia (subís el comprobante ahí mismo) o con tarjeta.' },
   { title: 'Recibí', text: 'Pack de CV: me escribís por WhatsApp con tu número de pedido y arranco. Guía: la descargás desde "Mi cuenta" apenas confirmo tu pago, sin escribirme.' },
 ]
