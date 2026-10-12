@@ -89,6 +89,17 @@ export async function getProducts(categories: Category[]): Promise<Product[]> {
   return (data as unknown as Row[]).map(toProduct)
 }
 
+/**
+ * "Los más elegidos": the CV products sold the most in the last 60 days (top_products), best first,
+ * topped up with the featured and first products of the catalog when there are fewer sales (`ranked` = how many come from sales).
+ */
+export async function getTopProducts(products: Product[], count = 3): Promise<{ products: Product[]; ranked: number }> {
+  const { data } = await supabase.rpc('top_products', { p_limit: count })
+  const sold = ((data as { product_id: string }[] | null) ?? []).flatMap((row) => products.filter((product) => product.id === row.product_id))
+  const rest = [...products].sort((a, b) => Number(b.popular) - Number(a.popular)).filter((product) => product.delivery === 'service' && !sold.includes(product))
+  return { products: [...sold, ...rest].slice(0, count), ranked: Math.min(sold.length, count) }
+}
+
 const ars = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
 export const formatARS = (value: number) => ars.format(value).replace(/\s/g, '')
 

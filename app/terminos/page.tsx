@@ -26,7 +26,7 @@ export default function TermsPage() {
       <Clause title="3. Packs de CV, LinkedIn y carga en plataformas">
         <ul>
           <li>Es <b>1 pack por persona y por rubro</b>. No es recomendable mezclar muchos rubros, porque el CV no va a funcionar con los filtros.</li>
-          <li>La demora es de <b>3 a 4 días hábiles</b>, contados desde que cuento con toda la información requerida. No trabajo fines de semana. Puedo adelantar trabajo, pero si te escribo un fin de semana y te molesta, avisame y lo tengo en cuenta.</li>
+          <li>La demora es de <b>3 a 4 días hábiles</b>, contados desde que cuento con toda la información requerida. No trabajo fines de semana ni feriados. Puedo adelantar trabajo, pero si te escribo un fin de semana y te molesta, avisame y lo tengo en cuenta.</li>
           <li>Si el pack se contrata <b>después de las 17 hs</b>, se comienza el día hábil siguiente por la tarde.</li>
           <li><b>Versión Express:</b> para recibir el pack dentro de las 24 hs hábiles se abona un extra al pack contratado. Tenés que avisarlo <b>antes de comenzar</b>.</li>
           <li><b>Horario puntual:</b> si necesitás el trabajo para un horario determinado, se cotiza por WhatsApp según disponibilidad antes de contratarlo.</li>
