@@ -1,12 +1,13 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, CheckCircle2, FileUp, Loader2, Lock, RotateCcw, XCircle } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { analyzeCv, formatYears, readPdf, type AtsResult } from '@/lib/ats-check'
 import { OTHER_AREA, ROLE_AREAS } from '@/lib/ats-roles'
-import { whatsappUrl } from '@/lib/catalog'
+import { getProducts, whatsappUrl, type Product } from '@/lib/catalog'
+import { ProductGrid } from '@/components/product-grid'
 import { track } from '@/lib/pixel'
 import { errorMessage, supabase } from '@/lib/supabase'
 
@@ -30,6 +31,17 @@ function Part({ label, hint, value }: { label: string; hint: string; value: numb
 }
 
 /** The candidate record the ATS fills from the CV: what the recruiter sees when opening the application. */
+/** The packs that fit the score, with price and "Lo quiero" right there (no trip to the home to look for them). */
+function PackOffer({ score }: { score: number }) {
+  const [packs, setPacks] = useState<Product[] | null>(null)
+  useEffect(() => {
+    const ids = score >= 85 ? ['cv-medium', 'cv-premium'] : ['cv-primer-empleo', 'cv-simple', 'cv-medium']
+    getProducts(['cv']).then((list) => setPacks(ids.flatMap((id) => list.filter((product) => product.id === id))))
+  }, [score])
+  if (!packs?.length) return null
+  return <ProductGrid products={packs} scroll />
+}
+
 function RecordCard({ result }: { result: AtsResult }) {
   const record = result.record!
   const row = (label: string, value: React.ReactNode, ok: boolean, warn?: string) => (
@@ -238,9 +250,10 @@ export function AtsTest() {
           <p className="mt-2 text-ink">{result.score >= 85
             ? 'Con el Pack Premium reviso y potencio tu CV, y sumás tu perfil de LinkedIn y la carta de presentación.'
             : 'Te armo dos CV: una versión moderna con foto, para mandar por mail o entregar, y otra optimizada para ATS, sin foto, que pasa los filtros. En 3 a 4 días hábiles.'}</p>
-          <p className="mt-2 text-sm text-piedra">Lo comprás acá mismo en la web en 2 minutos y pagás por transferencia.</p>
+          <p className="mt-2 text-sm text-piedra">Lo pedís acá mismo en 2 minutos, sin crear cuenta, y pagás por transferencia o con tarjeta.</p>
+          <PackOffer score={result.score} />
           <div className="mt-5 flex flex-wrap gap-3">
-            <Link href="/#precios" className="inline-flex min-h-12 items-center rounded-full bg-ciruela px-6 py-3 font-display text-sm font-bold text-white hover:bg-rosa">Ver packs y precios</Link>
+            <Link href="/#precios" className="inline-flex min-h-12 items-center rounded-full border-2 border-ciruela px-6 py-3 font-display text-sm font-bold text-ciruela hover:bg-white">Ver todos los packs</Link>
             <a href={sales} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-whatsapp px-6 py-3 font-display text-sm font-bold text-white hover:brightness-95"><WhatsAppIcon className="h-4 w-4" />Escribirle a Vale</a>
           </div>
         </div>
