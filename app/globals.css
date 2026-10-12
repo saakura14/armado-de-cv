@@ -146,3 +146,9 @@ body {
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 45%);
   mask-image: linear-gradient(to right, transparent 0, #000 45%);
 }
+
+/* Rows that scroll sideways without a visible bar (home section menu). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}

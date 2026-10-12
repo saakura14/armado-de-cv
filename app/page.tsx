@@ -5,7 +5,9 @@ import { ArrowRight, Camera, ClipboardCheck, Clock, FileSearch, Megaphone, Zap }
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { ProductGrid } from '@/components/product-grid'
 import { Faq, HowToBuy, SectionTitle } from '@/components/sections'
-import { CONTACT, formatARS, getProducts, whatsappUrl } from '@/lib/catalog'
+import { CONTACT, formatARS, getProducts, getTopProducts, whatsappUrl } from '@/lib/catalog'
+import { BeforeAfter } from '@/components/before-after'
+import { PackQuiz } from '@/components/pack-quiz'
 import { getFaqs } from '@/lib/faq'
 import { Testimonials } from '@/components/testimonials'
 import { pageMetadata } from '@/lib/seo'
@@ -15,7 +17,7 @@ export const metadata: Metadata = pageMetadata({ path: '/', description: 'Armado
 // Prices are edited from /admin; the page refreshes them every minute.
 export const revalidate = 60
 
-const DELIVERY_NOTE = 'Demora de cualquier pack: 3 a 4 días hábiles desde que tengo toda tu información (no trabajo fines de semana). Versión Express dentro de las 24 hs hábiles.'
+const DELIVERY_NOTE = 'Demora de cualquier pack: 3 a 4 días hábiles desde que tengo toda tu información (no trabajo fines de semana ni feriados). Versión Express dentro de las 24 hs hábiles.'
 
 // iconos.webp is a 2x2 sheet: people · info · payment · handshake
 const promises = [
@@ -29,8 +31,10 @@ const steps = [
   { title: 'Elegí', text: 'Un pack o una guía. Tocá "Lo quiero"; en los packs sumás idiomas, plataformas o entrega express y ves el total.' },
   { title: 'Confirmá el pedido', text: 'Dejá tu nombre, WhatsApp y mail y aceptá las condiciones. No hace falta crear cuenta.' },
   { title: 'Pagá', text: 'Por transferencia (subís el comprobante ahí mismo) o con tarjeta.' },
-  { title: 'Recibí', text: 'Pack de CV: me escribís por WhatsApp con tu número de pedido y arranco. Guía: la descargás desde "Mi cuenta" apenas confirmo tu pago, sin escribirme.' },
+  { title: 'Recibí', text: 'Pack de CV: me escribís por WhatsApp con tu número de pedido y arranco. Guía: apenas confirmo tu pago te llega el link de descarga por mail (y queda en "Mi cuenta" si tenés), sin escribirme.' },
 ]
+
+const RANKS = ['El más elegido', '2º más elegido', '3º más elegido']
 
 // "Ver packs · desde $X" quotes the cheapest CV work (packs and LinkedIn), not the 1 a 1 sessions listed in the same section.
 function packFrom(products: Awaited<ReturnType<typeof getProducts>>) {
@@ -41,6 +45,8 @@ function packFrom(products: Awaited<ReturnType<typeof getProducts>>) {
 export default async function Home() {
   const [cvProducts, guides, faqs] = await Promise.all([getProducts(['cv']), getProducts(['guias']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
   const extraPrice = (id: string) => cvProducts.flatMap((product) => product.extras).find((group) => group.id === id)?.unitPrice ?? 15000
+  const top = await getTopProducts(cvProducts)
+  const badges = Object.fromEntries(top.products.slice(0, top.ranked).map((product, index) => [product.id, RANKS[index]]))
   const price = { language: extraPrice('idiomas'), express: extraPrice('express'), from: packFrom(cvProducts) }
   return (
     <>
@@ -64,6 +70,15 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* The most ordered packs (last 60 days), first thing after the hero: a swipeable row on phones */}
+      <section id="elegidos" className="scroll-mt-32 bg-papel/50 px-4 py-12 sm:px-6 lg:py-16" aria-labelledby="elegidos-title">
+        <div className="mx-auto max-w-6xl">
+          <SectionTitle id="elegidos-title" script="Los más elegidos" title="Lo que más me piden" text="Elegí el tuyo y pedilo en 2 minutos, sin crear cuenta. Pagás por transferencia o con tarjeta." />
+          <ProductGrid products={top.products} badges={badges} scroll />
+          <p className="mt-2 text-center text-sm text-piedra"><a href="#que-pack" className="font-semibold text-rosa-deep hover:underline">¿No sabés cuál? Respondé 3 preguntas</a> · <a href="#precios" className="font-semibold text-rosa-deep hover:underline">Ver todos los packs</a></p>
+        </div>
+      </section>
+
       {/* Who does the work, right under the hero: people buy from people */}
       <section aria-label="Quién arma tu CV" className="px-4 py-8 sm:px-6">
         <div className="mx-auto flex max-w-3xl items-center gap-5 rounded-[28px] bg-papel p-5 sm:p-6">
@@ -74,6 +89,12 @@ export default async function Home() {
             <a href="#sobre-mi" className="mt-2 inline-flex items-center gap-1 font-display text-sm font-bold text-rosa-deep hover:underline">Conocé más sobre mí<ArrowRight className="h-4 w-4" /></a>
           </div>
         </div>
+      </section>
+
+      {/* Before and after with the real ATS score: the proof, right after who does it */}
+      <section id="antes-despues" className="scroll-mt-32 px-4 pb-16 pt-4 sm:px-6" aria-labelledby="antes-title">
+        <SectionTitle id="antes-title" script="Antes y después" title="El mismo CV, otro resultado" text="Así cambia un CV cuando lo armo: misma experiencia, contada para que la lea un sistema y la entienda un reclutador." />
+        <BeforeAfter />
       </section>
 
       {/* Promises */}
@@ -88,13 +109,19 @@ export default async function Home() {
         </ul>
       </section>
 
+      {/* Which pack: three questions and the one that fits, ready to order */}
+      <section id="que-pack" className="scroll-mt-32 bg-petalo-wash/60 px-4 py-16 sm:px-6" aria-labelledby="quiz-title">
+        <SectionTitle id="quiz-title" script="¿Qué pack necesito?" title="Te ayudo a elegir" text="Respondé hasta 3 preguntas y te digo cuál te sirve." />
+        <PackQuiz products={cvProducts} />
+      </section>
+
       {/* Packs */}
-      <section id="precios" className="scroll-mt-28 px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="cv-title">
+      <section id="precios" className="scroll-mt-32 px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="cv-title">
         <div className="mx-auto max-w-6xl">
           <SectionTitle id="cv-title" script="Catálogo" title="Packs de CV y LinkedIn" text="Cada pack incluye dos CV: uno con diseño moderno y otro optimizado para los filtros ATS que usan las empresas." />
           <ProductGrid products={cvProducts} tone="cv" />
           {/* Urgent orders: Express is picked in the order; a specific time is quoted by WhatsApp. */}
-          <div id="urgente" className="mt-14 scroll-mt-28 overflow-hidden rounded-[28px] bg-ciruela text-white shadow-[0_22px_44px_-30px_rgba(67,32,44,0.8)] md:grid md:grid-cols-2">
+          <div id="urgente" className="mt-14 scroll-mt-32 overflow-hidden rounded-[28px] bg-ciruela text-white shadow-[0_22px_44px_-30px_rgba(67,32,44,0.8)] md:grid md:grid-cols-2">
             <div className="p-6 sm:p-8">
               <p className="font-script text-4xl leading-none text-petalo">¿Lo necesitás urgente?</p>
               <p className="mt-4 flex items-center gap-2 font-display text-lg font-bold"><Zap className="h-5 w-5 text-petalo" />Versión Express: en 24 hs hábiles</p>
@@ -158,7 +185,7 @@ export default async function Home() {
 
       {/* Self-service guides (only shown once at least one is published) */}
       {guides.length > 0 && (
-        <section id="guias" className="scroll-mt-28 bg-arena/40 px-4 py-16 sm:px-6 lg:py-20" aria-labelledby="guias-title">
+        <section id="guias" className="scroll-mt-32 bg-arena/40 px-4 py-16 sm:px-6 lg:py-20" aria-labelledby="guias-title">
           <div className="mx-auto max-w-6xl">
             <SectionTitle id="guias-title" script="Guías" title="Para tu búsqueda laboral" text="E-books prácticos para aprovechar LinkedIn, los portales de empleo y los filtros ATS. Los descargás apenas confirmo tu pago." />
             <ProductGrid products={guides} tone="asesorias" scroll />
@@ -182,7 +209,7 @@ export default async function Home() {
       </section>
 
       {/* About */}
-      <section id="sobre-mi" className="scroll-mt-28 overflow-x-clip px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="sobre-title">
+      <section id="sobre-mi" className="scroll-mt-32 overflow-x-clip px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="sobre-title">
         <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-[0.85fr_1.15fr]">
           <div className="relative mx-auto w-full max-w-sm">
             <div className="absolute -inset-3 -z-10 rotate-2 rounded-[36px] bg-papel" aria-hidden="true" />
