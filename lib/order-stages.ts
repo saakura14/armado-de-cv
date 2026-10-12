@@ -5,7 +5,7 @@ import { deliveryDeadline } from './dashboard'
  * The orders board, in the order Vale works: each order is in one work stage.
  * "Hoy" and "Nuevos" are views across stages (what needs her today, and web orders not opened yet).
  */
-export type Stage = 'hoy' | 'nuevos' | 'cobrar' | 'arrancar' | 'proceso' | 'esperando' | 'entregados' | 'archivo'
+export type Stage = 'hoy' | 'nuevos' | 'cobrar' | 'arrancar' | 'proceso' | 'revisar' | 'equipo' | 'esperando' | 'entregados' | 'archivo'
 export type WorkStage = Exclude<Stage, 'hoy' | 'nuevos'>
 
 export const STAGES: { id: Stage; label: string; hint: string }[] = [
@@ -13,7 +13,9 @@ export const STAGES: { id: Stage; label: string; hint: string }[] = [
   { id: 'nuevos', label: 'Nuevos', hint: 'Pedidos de la web que todavía no abriste.' },
   { id: 'cobrar', label: 'Por cobrar', hint: 'Sin pagar, comprobantes por revisar y transferencias por verificar.' },
   { id: 'arrancar', label: 'Para arrancar', hint: 'Pagados y sin empezar. Primero los que vencen antes.' },
-  { id: 'proceso', label: 'En proceso', hint: 'Los que estás haciendo, ordenados por vencimiento.' },
+  { id: 'proceso', label: 'En proceso', hint: 'Los que estás haciendo vos, ordenados por vencimiento.' },
+  { id: 'revisar', label: 'Listos del equipo', hint: 'El equipo ya los terminó: revisalos y entregalos.' },
+  { id: 'equipo', label: 'En el equipo', hint: 'Los está armando el equipo. Cuando los termina pasan solos a "Listos del equipo".' },
   { id: 'esperando', label: 'Esperando al cliente', hint: 'El plazo está en pausa hasta que el cliente responda.' },
   { id: 'entregados', label: 'Entregados', hint: 'Entregados en los últimos 7 días.' },
   { id: 'archivo', label: 'Archivo', hint: 'Entregados anteriores, cancelados y pedidos de prueba.' },
@@ -36,6 +38,14 @@ export function toStage(filter: Stage | LegacyFilter): Stage {
 const WEEK = 7 * 24 * 60 * 60 * 1000
 const isTest = (order: Order) => order.number >= 90000
 
+/** Where the team is with an order: not involved, still building it, or every CV it got is finished. */
+export type TeamState = 'none' | 'working' | 'done'
+export function teamState(order: Order): TeamState {
+  const tasks = (order as Order & { team_tasks?: { status: string }[] }).team_tasks ?? []
+  if (!tasks.length) return 'none'
+  return tasks.some((task) => task.status !== 'terminado') ? 'working' : 'done'
+}
+
 /** The work stage an order is in right now. */
 export function stageOf(order: Order, now = Date.now()): WorkStage {
   if (order.status === 'cancelled' || isTest(order)) return 'archivo'
@@ -48,6 +58,10 @@ export function stageOf(order: Order, now = Date.now()): WorkStage {
     return now - at <= WEEK ? 'entregados' : 'archivo'
   }
   if (order.waiting_since) return 'esperando'
+  // CVs with the team are not Vale's to make: apart while they build them, then for her to check and deliver.
+  const team = teamState(order)
+  if (team === 'working') return 'equipo'
+  if (team === 'done') return 'revisar'
   return order.status === 'paid' ? 'arrancar' : 'proceso'
 }
 
@@ -75,9 +89,8 @@ export function todayReason(order: Order, unseen: boolean, now = new Date()): Re
     if (deadline && deadline.remaining < 0) return { label: `Atrasado ${-deadline.remaining} ${deadline.remaining === -1 ? 'día' : 'días'}`, tone: 'rojo', rank: 0 }
     if (deadline && deadline.remaining === 0) return { label: 'Vence hoy', tone: 'rojo', rank: 1 }
   }
-  // The team finished the CV: Vale checks it and delivers it.
-  const teamTasks = (order as Order & { team_tasks?: { status: string }[] }).team_tasks ?? []
-  if (order.status !== 'delivered' && teamTasks.length > 0 && teamTasks.some((task) => task.status === 'terminado')) return { label: 'CV del equipo listo', tone: 'naranja', rank: 2 }
+  // The team finished the CV: Vale checks it and delivers it (not while the client has to answer).
+  if (order.status !== 'delivered' && !order.waiting_since && teamState(order) === 'done') return { label: 'CV del equipo listo', tone: 'naranja', rank: 2 }
   if (order.payment_check === 'pending') return { label: 'Verificar transferencia', tone: 'naranja', rank: 2 }
   if (order.status === 'payment_review') return { label: 'Revisar comprobante', tone: 'naranja', rank: 2 }
   if (unseen) return { label: 'Nuevo', tone: 'rosa', rank: 3 }
@@ -100,7 +113,7 @@ export function sortForStage(stage: Stage, orders: Order[], reasons: Map<string,
   switch (stage) {
     case 'hoy': return list.sort((a, b) => (reasons.get(a.id)?.rank ?? 9) - (reasons.get(b.id)?.rank ?? 9) || dueTime(a) - dueTime(b) || time(a.created_at) - time(b.created_at))
     case 'cobrar': return list.sort((a, b) => Number(b.status === 'payment_review' || b.payment_check === 'pending') - Number(a.status === 'payment_review' || a.payment_check === 'pending') || time(a.created_at) - time(b.created_at))
-    case 'arrancar': case 'proceso': return list.sort((a, b) => dueTime(a) - dueTime(b) || time(a.paid_at) - time(b.paid_at))
+    case 'arrancar': case 'proceso': case 'revisar': case 'equipo': return list.sort((a, b) => dueTime(a) - dueTime(b) || time(a.paid_at) - time(b.paid_at))
     case 'esperando': return list.sort((a, b) => time(a.waiting_since) - time(b.waiting_since))
     case 'entregados': return list.sort((a, b) => time(b.delivered_at ?? b.paid_at) - time(a.delivered_at ?? a.paid_at))
     default: return list.sort((a, b) => time(b.created_at) - time(a.created_at))
@@ -115,7 +128,8 @@ export function moveTo(order: Order, target: Stage): Move | null {
   if (target === 'arrancar' && from === 'cobrar' && order.status !== 'delivered') return { kind: 'status', status: 'paid', confirm: 'paid' }
   if (target === 'proceso' && from === 'arrancar') return { kind: 'status', status: 'in_progress' }
   if (target === 'proceso' && from === 'esperando') return { kind: 'waiting', waiting: false }
-  if (target === 'esperando' && (from === 'arrancar' || from === 'proceso') && hasDeadline(order)) return { kind: 'waiting', waiting: true }
-  if (target === 'entregados' && (from === 'arrancar' || from === 'proceso' || from === 'esperando')) return { kind: 'status', status: 'delivered' }
+  const working = from === 'arrancar' || from === 'proceso' || from === 'revisar' || from === 'equipo'
+  if (target === 'esperando' && working && hasDeadline(order)) return { kind: 'waiting', waiting: true }
+  if (target === 'entregados' && (working || from === 'esperando')) return { kind: 'status', status: 'delivered' }
   return null
 }
