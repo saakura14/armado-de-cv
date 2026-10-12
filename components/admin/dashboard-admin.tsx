@@ -9,7 +9,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, needsCoordination, type Order } from '@/lib/orders'
 import { stageOf, type LegacyFilter, type Stage } from '@/lib/order-stages'
-import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, isTestOrder, monthKey, monthLabel, monthStats, salesByOrigin, salesInMonth, shiftMonth, shortMonthLabel, weeksOfMonth, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
+import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, nextDueText, isTestOrder, monthKey, monthLabel, monthStats, salesByOrigin, salesInMonth, shiftMonth, shortMonthLabel, weeksOfMonth, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass } from './ui'
 
@@ -39,7 +39,7 @@ export function DeadlineChip({ deadline }: { deadline: Deadline }) {
   if (deadline.waiting) return <span className="inline-flex items-center gap-1.5 rounded-full bg-papel px-3 py-1 font-display text-xs font-bold text-piedra"><Hourglass className="h-3.5 w-3.5" />Esperando al cliente</span>
   const { remaining } = deadline
   const late = remaining < 0
-  const text = late ? `Atrasado ${-remaining} ${remaining === -1 ? 'día hábil' : 'días hábiles'}` : remaining === 0 ? 'Vence hoy' : remaining === 1 ? 'Vence mañana' : `Quedan ${remaining} días hábiles`
+  const text = late ? `Atrasado ${-remaining} ${remaining === -1 ? 'día hábil' : 'días hábiles'}` : remaining === 0 ? 'Vence hoy' : remaining === 1 ? nextDueText(deadline.due) : `Quedan ${remaining} días hábiles`
   const tone = late ? 'bg-rosa text-white' : remaining === 0 ? 'bg-rosa/15 text-rosa-deep' : remaining === 1 ? 'bg-petalo-wash text-rosa-deep' : 'bg-arena text-ciruela'
   const Icon = late || remaining === 0 ? AlertTriangle : Clock
   return <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-xs font-bold ${tone}`}><Icon className="h-3.5 w-3.5" />{text}</span>
@@ -318,7 +318,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
               {tasks.length > upcoming.length && <button type="button" onClick={() => onOpen({ tab: 'pedidos', filter: 'activos' })} className="inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">Ver los {tasks.length}<ArrowRight className="h-4 w-4" /></button>}
             </div>
             <ul className="mt-1">{upcoming.map((task) => <TaskRow key={task.order.id} task={task} onOpen={() => onOpen(task.kind === 'sesion' ? { tab: 'sesiones' } : { tab: 'pedidos', order: task.order.number })} />)}</ul>
-            <p className="mt-2 text-xs text-piedra">Plazo: 4 días hábiles desde el pago (Express: 1). Después de las 17 hs o en fin de semana arranca el siguiente día hábil. No descuenta feriados.</p>
+            <p className="mt-2 text-xs text-piedra">Plazo: 4 días hábiles desde el pago (Express: 1). Después de las 17 hs, en fin de semana o feriado arranca el siguiente día hábil. Sábados, domingos y feriados no cuentan.</p>
           </div>
         )}
         {!loading && tasks.length === 0 && <p className="mt-4 rounded-2xl bg-white px-4 py-5 text-center text-piedra">No tenés pedidos pendientes. ¡Todo al día!</p>}

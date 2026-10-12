@@ -1,5 +1,6 @@
 // Numbers for the admin home: sales, revenue, visits, best sellers and delivery deadlines.
 import type { Order } from './orders'
+import { isDayOff } from './holidays'
 
 /** Test orders made from the admin account start at #90000 and never count as sales. */
 export const isTestOrder = (order: { number: number }) => order.number >= 90000
@@ -78,16 +79,15 @@ const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1
 export const monthLabel = (key: string) => capitalize(monthFormat.format(new Date(`${key}-01T00:00:00Z`)))
 export const shortMonthLabel = (key: string) => capitalize(shortMonthFormat.format(new Date(`${key}-01T00:00:00Z`)).replace('.', ''))
 
-// ---- Delivery deadlines (business days, weekends off; holidays are not counted) ----
+// ---- Delivery deadlines (business days: weekends and holidays off) ----
 
-const isWeekend = (day: Date) => day.getUTCDay() === 0 || day.getUTCDay() === 6
 
 function addBusinessDays(day: Date, count: number) {
   let result = day
   let added = 0
   while (added < count) {
     result = new Date(result.getTime() + DAY)
-    if (!isWeekend(result)) added++
+    if (!isDayOff(result)) added++
   }
   return result
 }
@@ -99,7 +99,7 @@ function businessDaysUntil(today: Date, deadline: Date) {
   let cursor = today
   while (cursor.getTime() !== deadline.getTime()) {
     cursor = new Date(cursor.getTime() + sign * DAY)
-    if (!isWeekend(cursor)) count += sign
+    if (!isDayOff(cursor)) count += sign
   }
   return count
 }
@@ -110,13 +110,13 @@ export type Deadline = { due: Date; remaining: number; express: boolean; waiting
 
 /**
  * Packs take up to 4 business days (Express: 1). The clock starts when the payment is confirmed;
- * after 5 pm or on a weekend it starts the next business day, as the pack conditions say.
+ * after 5 pm, on a weekend or on a holiday it starts the next business day, as the pack conditions say.
  * Days spent waiting for the customer (corrections, missing information) move the deadline; while waiting, the clock stops.
  */
 export function deliveryDeadline(order: Order, now = new Date()): Deadline | null {
   if (!order.paid_at) return null
   const { day, hour } = arDay(new Date(order.paid_at))
-  const start = isWeekend(day) || hour >= 17 ? addBusinessDays(day, 1) : day
+  const start = isDayOff(day) || hour >= 17 ? addBusinessDays(day, 1) : day
   const express = hasExpress(order)
   const waiting = Boolean(order.waiting_since)
   let due = addBusinessDays(start, (express ? 1 : 4) + (order.paused_days ?? 0))
@@ -131,6 +131,12 @@ export function deliveryDeadline(order: Order, now = new Date()): Deadline | nul
 
 const dueFormat = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
 export const formatDue = (due: Date) => dueFormat.format(due).replace(/\./g, '')
+
+const weekdayFormat = new Intl.DateTimeFormat('es-AR', { weekday: 'long', timeZone: 'UTC' })
+/** "Vence mañana" only when the next business day is really tomorrow; after a weekend or holiday, "Vence el lunes". */
+export function nextDueText(due: Date, now = new Date()) {
+  return due.getTime() - arDay(now).day.getTime() === DAY ? 'Vence mañana' : `Vence el ${weekdayFormat.format(due)}`
+}
 
 // ---- Monthly figures ----
 

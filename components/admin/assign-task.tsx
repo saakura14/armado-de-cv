@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Users, X } from 'lucide-react'
 import { deliveryDeadline } from '@/lib/dashboard'
+import { isDayOff } from '@/lib/holidays'
 import type { Order, OrderItem } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { PACKS_WITH_LETTER, TASK_STATUS, TEAM_PACKS, type TaskStatus, type TeamMember } from '@/lib/team'
@@ -17,7 +18,7 @@ function suggestedDue(order: Order) {
   const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
   if (!deadline) return ''
   let day = new Date(deadline.due.getTime() - DAY)
-  while (day.getUTCDay() === 0 || day.getUTCDay() === 6) day = new Date(day.getTime() - DAY)
+  while (isDayOff(day)) day = new Date(day.getTime() - DAY)
   const value = day.toISOString().slice(0, 10)
   return value < today ? today : value
 }

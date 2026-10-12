@@ -1,4 +1,5 @@
 import { monthKey, monthLabel } from './dashboard'
+import { isDayOff } from './holidays'
 
 /** Someone who builds the CVs in Canva from Vale's texts (signs in with Google at /equipo). */
 export type TeamMember = { id: string; email: string; name: string; rate: number; batch_size: number; active: boolean; user_id: string | null; created_at: string }
@@ -129,7 +130,7 @@ export function todayWork(tasks: TeamTask[], now = new Date()) {
   return { count: done.length, minutes: done.reduce((sum, task) => sum + (workMinutes(task) ?? 0), 0) }
 }
 
-/** Days in a row with at least one CV finished (weekends don't break it); today counts once something is finished. */
+/** Days in a row with at least one CV finished (weekends and holidays don't break it); today counts once something is finished. */
 export function streakDays(tasks: TeamTask[], now = new Date()) {
   const days = new Set(tasks.filter((task) => task.status === 'terminado' && task.finished_at).map((task) => arDay(task.finished_at!)))
   let cursor = new Date(`${arDay(now)}T12:00:00Z`)
@@ -138,9 +139,9 @@ export function streakDays(tasks: TeamTask[], now = new Date()) {
   let count = 0
   for (let guard = 0; guard < 400; guard++) {
     const key = cursor.toISOString().slice(0, 10)
-    const weekend = cursor.getUTCDay() === 0 || cursor.getUTCDay() === 6
+    const dayOff = isDayOff(cursor)
     if (days.has(key)) count++
-    else if (!weekend) break
+    else if (!dayOff) break
     cursor = new Date(cursor.getTime() - 864e5)
   }
   return count

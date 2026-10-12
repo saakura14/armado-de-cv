@@ -1,5 +1,5 @@
 import { pendingSessions, type Order, type OrderStatus } from './orders'
-import { deliveryDeadline } from './dashboard'
+import { deliveryDeadline, nextDueText } from './dashboard'
 
 /**
  * The orders board, in the order Vale works: each order is in one work stage.
@@ -96,7 +96,7 @@ export function todayReason(order: Order, unseen: boolean, now = new Date()): Re
   if (unseen) return { label: 'Nuevo', tone: 'rosa', rank: 3 }
   if (hasDeadline(order) && !order.waiting_since) {
     const deadline = deliveryDeadline(order, now)
-    if (deadline && deadline.remaining === 1) return { label: 'Vence mañana', tone: 'naranja', rank: 4 }
+    if (deadline && deadline.remaining === 1) return { label: nextDueText(deadline.due, now), tone: 'naranja', rank: 4 }
   }
   if (order.status === 'paid') return { label: 'Para arrancar', tone: 'arena', rank: 5 }
   if (order.status === 'delivered' && pendingSessions(order).some((session) => session.status === 'to_schedule')) return { label: 'Agendar la asesoría', tone: 'arena', rank: 5 }
