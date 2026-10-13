@@ -416,29 +416,35 @@ function ExpenseForm({ onSaved }: { onSaved: () => void }) {
   )
 }
 
-/** Until Meta is connected: the day's spend from Ads Manager, by hand (Meta's numbers replace it later). */
+/** Until Meta is connected: what Ads Manager shows as spent, for one day or a whole week (split evenly by day). */
 function ManualSpend({ onSaved }: { onSaved: () => void }) {
-  const [day, setDay] = useState(today())
+  const [from, setFrom] = useState(() => dayKey(new Date(Date.now() - 7 * 864e5)))
+  const [until, setUntil] = useState(() => dayKey(new Date(Date.now() - 864e5)))
   const [amount, setAmount] = useState('')
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
   async function save() {
     const spend = Number(amount.replace(',', '.'))
-    if (!(spend >= 0) || amount.trim() === '') { flash.show('error', 'Poné el gasto del día en dólares.'); return }
+    if (!(spend >= 0) || amount.trim() === '') { flash.show('error', 'Poné lo que gastaste en dólares.'); return }
+    if (until < from) { flash.show('error', 'La fecha "hasta" tiene que ser igual o posterior a "desde".'); return }
+    const days: string[] = []
+    for (let key = from; key <= until; key = new Date(new Date(`${key}T00:00:00Z`).getTime() + 864e5).toISOString().slice(0, 10)) days.push(key)
+    const perDay = Math.round((spend / days.length) * 100) / 100
     setBusy(true)
-    const { error } = await supabase.from('ad_spend').upsert({ day, campaign_id: 'manual', campaign_name: 'Cargado a mano', spend, currency: 'USD', source: 'manual', updated_at: new Date().toISOString() })
+    const { error } = await supabase.from('ad_spend').upsert(days.map((day) => ({ day, campaign_id: 'manual', campaign_name: 'Cargado a mano', spend: perDay, currency: 'USD', source: 'manual', updated_at: new Date().toISOString() })))
     setBusy(false)
     if (error) { flash.show('error', errorMessage(error)); return }
     setAmount('')
-    flash.show('ok', 'Gasto guardado.')
+    flash.show('ok', days.length > 1 ? `Guardado: ${days.length} días de US$${perDay.toFixed(2)}.` : 'Gasto guardado.')
     onSaved()
   }
   return (
     <div className="mt-4 rounded-2xl bg-papel/60 p-4">
-      <p className="text-sm font-semibold text-ink">Cargar el gasto de un día a mano</p>
-      <p className="text-xs text-piedra">Lo ves en el Administrador de anuncios, columna &quot;Importe gastado&quot;. Si cargás el mismo día otra vez, se reemplaza.</p>
+      <p className="text-sm font-semibold text-ink">Cargar el gasto a mano (un día o la semana entera)</p>
+      <p className="text-xs text-piedra">En el Administrador de anuncios elegí las fechas arriba a la derecha (por ejemplo &quot;Últimos 7 días&quot;) y copiá el total de la columna &quot;Importe gastado&quot;. Se reparte igual entre los días; si volvés a cargar los mismos días, se reemplaza.</p>
       <div className="mt-2 flex flex-wrap items-end gap-2">
-        <input type="date" value={day} onChange={(event) => setDay(event.target.value)} aria-label="Día" className={`${inputClass} mt-0 w-auto`} />
+        <label className="text-xs text-piedra">Desde<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className={`${inputClass} w-auto`} /></label>
+        <label className="text-xs text-piedra">Hasta<input type="date" value={until} onChange={(event) => setUntil(event.target.value)} className={`${inputClass} w-auto`} /></label>
         <input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" placeholder="US$ gastados" aria-label="Gasto en dólares" className={`${inputClass} mt-0 w-36`} />
         <Button busy={busy} onClick={save}>Guardar</Button>
       </div>
