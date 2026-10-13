@@ -13,7 +13,7 @@ import {
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, Field, cardClass, inputClass, useFlash } from './ui'
 
-type Data = { sales: AnalysisSale[]; ads: AdRow[]; fx: FxRow[]; team: TeamCostRow[]; expenses: Expense[] }
+export type Data = { sales: AnalysisSale[]; ads: AdRow[]; fx: FxRow[]; team: TeamCostRow[]; expenses: Expense[] }
 type MetaState = { connected: boolean | null; error: string; syncing: boolean }
 
 const number = new Intl.NumberFormat('es-AR')
@@ -21,6 +21,28 @@ const percent = new Intl.NumberFormat('es-AR', { style: 'percent', maximumFracti
 const usd = (value: number) => `US$${value.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const today = () => dayKey(new Date())
 const KINDS: { id: PeriodKind; label: string }[] = [{ id: 'dia', label: 'Día' }, { id: 'semana', label: 'Semana' }, { id: 'mes', label: 'Mes' }]
+
+/** Everything the money numbers need (Análisis and Ahorro share it). */
+export async function fetchAnalysisData(): Promise<{ data: Data; error: string }> {
+  const [sales, ads, fx, team, expenses] = await Promise.all([
+    supabase.from('orders').select(ANALYSIS_SALE_SELECT).not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000),
+    supabase.from('ad_spend').select('day, campaign_id, campaign_name, spend, conversations, clicks, impressions, currency, source').order('day'),
+    supabase.from('fx_rates').select('day, ars_per_usd').order('day'),
+    supabase.from('team_tasks').select('finished_at, rate, status'),
+    supabase.from('expenses').select('id, day, category, concept, amount, currency, monthly, until').order('day', { ascending: false }),
+  ])
+  const failed = sales.error ?? ads.error ?? fx.error ?? team.error ?? expenses.error
+  return {
+    error: failed ? errorMessage(failed) : '',
+    data: {
+      sales: (sales.data as unknown as AnalysisSale[] | null) ?? [],
+      ads: ((ads.data as AdRow[] | null) ?? []).map((row) => ({ ...row, spend: Number(row.spend) })),
+      fx: ((fx.data as FxRow[] | null) ?? []).map((row) => ({ ...row, ars_per_usd: Number(row.ars_per_usd) })),
+      team: (team.data as TeamCostRow[] | null) ?? [],
+      expenses: ((expenses.data as Expense[] | null) ?? []).map((row) => ({ ...row, amount: Number(row.amount) })),
+    },
+  }
+}
 
 /** Sales, Meta spend, the team and every other expense in one place: what came in, what went out and what was left. */
 export function AnalysisAdmin() {
@@ -31,24 +53,11 @@ export function AnalysisAdmin() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [sales, ads, fx, team, expenses] = await Promise.all([
-      supabase.from('orders').select(ANALYSIS_SALE_SELECT).not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000),
-      supabase.from('ad_spend').select('day, campaign_id, campaign_name, spend, conversations, clicks, impressions, currency, source').order('day'),
-      supabase.from('fx_rates').select('day, ars_per_usd').order('day'),
-      supabase.from('team_tasks').select('finished_at, rate, status'),
-      supabase.from('expenses').select('id, day, category, concept, amount, currency, monthly, until').order('day', { ascending: false }),
-    ])
-    const failed = sales.error ?? ads.error ?? fx.error ?? team.error ?? expenses.error
-    setError(failed ? errorMessage(failed) : '')
-    setData({
-      sales: (sales.data as unknown as AnalysisSale[] | null) ?? [],
-      ads: ((ads.data as AdRow[] | null) ?? []).map((row) => ({ ...row, spend: Number(row.spend) })),
-      fx: ((fx.data as FxRow[] | null) ?? []).map((row) => ({ ...row, ars_per_usd: Number(row.ars_per_usd) })),
-      team: (team.data as TeamCostRow[] | null) ?? [],
-      expenses: ((expenses.data as Expense[] | null) ?? []).map((row) => ({ ...row, amount: Number(row.amount) })),
-    })
+    const { data: loaded, error: failed } = await fetchAnalysisData()
+    setError(failed)
+    setData(loaded)
     setLoading(false)
-    return ((ads.data as AdRow[] | null) ?? []).some((row) => row.source === 'meta')
+    return loaded.ads.some((row) => row.source === 'meta')
   }, [])
 
   // Brings the latest spend from Meta (and today's dólar cripto); the first time, the last 90 days.
@@ -173,6 +182,8 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
           {period.kind !== 'dia' && <Breakdown title="Qué día de la semana" rows={parts.weekdays.map((row) => ({ label: row.label, detail: `${row.sales} ${row.sales === 1 ? 'venta' : 'ventas'}`, value: row.revenue, share: row.share }))} money={money} />}
         </div>
       )}
+
+      <WeeklyReview money={money} />
 
       {/* Campaigns */}
       <section className={cardClass} aria-labelledby="ads-title">
@@ -449,5 +460,79 @@ function ConnectSteps() {
         <li>Volvé a esta pestaña: trae solo los últimos 90 días.</li>
       </ol>
     </details>
+  )
+}
+
+type Review = {
+  week: string
+  created_at: string
+  advice: { kind: 'bajar' | 'pausar' | 'subir' | 'ok' | 'ventas' | 'conectar'; text: string }[]
+  stats: { since: string; until: string; cap: number; budget: number; spendUsd: number; spendArs: number; conversations: number; sales: number; revenue: number; campaigns: { id: string; name: string; spend: number; conversations: number; perConversation: number | null; budget: number | null; active: boolean }[] }
+}
+const ADVICE_TONE: Record<Review['advice'][number]['kind'], string> = {
+  bajar: 'bg-rosa text-white', pausar: 'bg-petalo-wash text-rosa-deep', subir: 'bg-whatsapp/15 text-whatsapp', ok: 'bg-whatsapp/15 text-whatsapp', ventas: 'bg-arena text-ciruela', conectar: 'bg-papel text-piedra',
+}
+const ADVICE_LABEL: Record<Review['advice'][number]['kind'], string> = { bajar: 'Bajar', pausar: 'Pausar', subir: 'Subir', ok: 'Bien', ventas: 'Ventas', conectar: 'Conectar' }
+
+/** Mondays at 9 the ads are reviewed (and the summary arrives as a notification); "Revisar ahora" runs it any day. */
+function WeeklyReview({ money }: { money: (value: number) => string }) {
+  const [review, setReview] = useState<Review | null>(null)
+  const [busy, setBusy] = useState(false)
+  const flash = useFlash()
+  const load = useCallback(async () => {
+    const { data } = await supabase.from('ad_reviews').select('week, created_at, advice, stats').order('week', { ascending: false }).limit(1).maybeSingle()
+    setReview((data as Review | null) ?? null)
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  async function runNow() {
+    setBusy(true)
+    const { error } = await supabase.functions.invoke('meta-ads', { body: { days: 7, review: true } })
+    setBusy(false)
+    if (error) { flash.show('error', errorMessage(error)); return }
+    load()
+  }
+
+  const active = review?.stats.campaigns.filter((row) => row.active) ?? []
+  return (
+    <section className={cardClass} aria-labelledby="review-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="review-title" className="font-display text-lg font-bold text-ciruela">Revisión semanal de anuncios</h2>
+          <p className="text-sm text-piedra">Todos los lunes a las 9 te llega al celu. Mira los últimos 7 días y te dice qué pausar, bajar o subir sin pasar tu tope.</p>
+        </div>
+        <Button variant="secondary" busy={busy} onClick={runNow}><RefreshCw className="h-4 w-4" />Revisar ahora</Button>
+      </div>
+      {!review ? <p className="mt-4 text-sm text-piedra">Todavía no hay revisiones.</p> : (
+        <>
+          <p className="mt-3 text-xs text-piedra">Del {review.stats.since.slice(8)}/{review.stats.since.slice(5, 7)} al {review.stats.until.slice(8)}/{review.stats.until.slice(5, 7)} (sin hoy) · revisado el {new Date(review.created_at).toLocaleString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' })}</p>
+          <ul className="mt-3 space-y-2">
+            {review.advice.map((item) => (
+              <li key={item.text} className="flex items-start gap-2 text-sm text-ink">
+                <span className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 font-display text-[10px] font-bold uppercase tracking-wider ${ADVICE_TONE[item.kind]}`}>{ADVICE_LABEL[item.kind]}</span>
+                <span>{item.text}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            <p><span className="block text-xs text-piedra">Gasto (7 días)</span><b className="tabular-nums">{usd(review.stats.spendUsd)}</b></p>
+            <p><span className="block text-xs text-piedra">Ventas (7 días)</span><b className="tabular-nums">{review.stats.sales} · {money(review.stats.revenue)}</b></p>
+            <p><span className="block text-xs text-piedra">Conversaciones</span><b className="tabular-nums">{review.stats.conversations}</b></p>
+            <p><span className="block text-xs text-piedra">Presupuesto activo</span><b className="tabular-nums">{review.stats.budget ? `${usd(review.stats.budget)} / ${usd(review.stats.cap)} por día` : '—'}</b></p>
+          </div>
+          {active.length > 0 && (
+            <ul className="mt-3 divide-y divide-line text-sm">
+              {active.map((row) => (
+                <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <span className="min-w-0 truncate text-ink">{row.name}</span>
+                  <span className="shrink-0 text-piedra">{row.budget ? `${usd(row.budget)}/día · ` : ''}{row.perConversation !== null ? `${usd(row.perConversation)} c/conversación` : 'sin conversaciones'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      {flash.node && <div className="mt-3">{flash.node}</div>}
+    </section>
   )
 }
