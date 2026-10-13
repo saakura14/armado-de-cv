@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Wallet, X } from 'lucide-react'
 import { TaskRow, TaskWorkspace } from '@/components/team-task-card'
-import { TeamGoals } from '@/components/team-goals'
+import { TeamCheer } from '@/components/team-cheer'
 import { TeamChat, TeamChatBubble, TeamChatWindow, useTeamUnread, type ChatTask } from '@/components/team-chat'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
@@ -267,8 +267,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
 
           {/* Money and history: beside the CVs on a tablet, under them on a phone. */}
           <aside className="space-y-4 @3xl:sticky @3xl:top-20">
-            {/* What he is saving up for, in his favorite style. */}
-            <TeamGoals member={member} tasks={tasks} preview={preview} />
+            {/* One of his favorite characters cheers him up, with what he made this month. */}
+            <TeamCheer pending={pending.length} today={todayDone.count} month={thisMonth?.earned ?? 0} count={batch.count} size={batch.size} />
             {/* His own marks, game style: streak of days, today's count and his best time per pack (no averages: those are Vale's). */}
             {records.length > 0 && (
               <section className={cardClass} aria-labelledby="marks-title">
