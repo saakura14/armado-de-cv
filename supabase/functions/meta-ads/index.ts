@@ -152,6 +152,8 @@ async function weeklyReview(admin: SupabaseClient, today: string, connected: boo
     admin.from('fx_rates').select('ars_per_usd').order('day', { ascending: false }).limit(1),
   ])
   const cap = Number(goal?.ad_cap_usd ?? 23)
+  // Budgets come from Meta (token) or from what Claude reads in Ads Manager each week (ad_campaigns either way).
+  const knowsBudgets = connected || (campaigns ?? []).length > 0
   const rate = Number(fx?.[0]?.ars_per_usd ?? 0)
 
   const byCampaign = new Map<string, CampaignWeek>()
@@ -179,7 +181,7 @@ async function weeklyReview(admin: SupabaseClient, today: string, connected: boo
   const best = ranked[0]
 
   const advice: Advice[] = []
-  if (!connected) advice.push({ kind: 'conectar', text: 'Meta no está conectado al panel: la revisión usa el gasto cargado a mano y no ve los presupuestos. Conectalo desde Análisis.' })
+  if (!knowsBudgets) advice.push({ kind: 'conectar', text: 'Meta no está conectado al panel: la revisión usa el gasto cargado a mano y no ve los presupuestos. Conectalo desde Análisis.' })
   if (budget > cap) {
     const worst = active.filter((row) => row.budget).sort((a, b) => (b.perConversation ?? Infinity) - (a.perConversation ?? Infinity))[0]
     advice.push({ kind: 'bajar', text: `Las campañas activas suman ${usd(budget)} por día y tu tope es ${usd(cap)}: bajá ${usd(budget - cap)}${worst ? `, empezando por "${worst.name}"` : ''}.` })
@@ -190,7 +192,7 @@ async function weeklyReview(admin: SupabaseClient, today: string, connected: boo
       advice.push({ kind: 'pausar', text: `Pausá o bajá "${row.name}": cada conversación cuesta ${usd(row.perConversation)}, contra ${usd(best.perConversation!)} de "${best.name}". Pasale ese presupuesto a la más barata.` })
     }
   }
-  if (best && connected && budget > 0 && budget < cap - 2 && !advice.some((item) => item.kind === 'pausar')) {
+  if (best && knowsBudgets && budget > 0 && budget < cap - 2 && !advice.some((item) => item.kind === 'pausar')) {
     advice.push({ kind: 'subir', text: `Te quedan ${usd(cap - budget)} por día dentro del tope: sumáselos a "${best.name}", la conversación más barata (${usd(best.perConversation!)}).` })
   }
   const sold = (sales ?? []).length
@@ -200,7 +202,7 @@ async function weeklyReview(admin: SupabaseClient, today: string, connected: boo
     else if (back < 2) advice.push({ kind: 'ventas', text: `Cada $1.000 en anuncios trajo ${ars(back * 1000)} en ventas: es poco margen. No subas presupuesto; priorizá cerrar las conversaciones que ya tenés.` })
     else advice.push({ kind: 'ok', text: `Cada $1.000 en anuncios trajo ${ars(back * 1000)} en ventas (${sold} ${sold === 1 ? 'venta' : 'ventas'}, costo por venta ${ars(spendArs / sold)}).` })
   }
-  if (connected && !advice.some((item) => item.kind === 'bajar' || item.kind === 'pausar' || item.kind === 'subir')) advice.unshift({ kind: 'ok', text: `Presupuestos en orden: ${usd(budget)} por día de un tope de ${usd(cap)}.` })
+  if (knowsBudgets && !advice.some((item) => item.kind === 'bajar' || item.kind === 'pausar' || item.kind === 'subir')) advice.unshift({ kind: 'ok', text: `Presupuestos en orden: ${usd(budget)} por día de un tope de ${usd(cap)}.` })
 
   const stats = { since, until: today, cap, budget, spendUsd, spendArs, conversations, sales: sold, revenue, rate, campaigns: list }
   // The week is named by its Monday.
