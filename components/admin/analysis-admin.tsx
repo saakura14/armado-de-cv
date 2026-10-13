@@ -7,7 +7,7 @@ import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { dayKey, monthLabel, shortMonthLabel } from '@/lib/dashboard'
 import {
-  ANALYSIS_SALE_SELECT, EXPENSE_CATEGORY, META_IVA, breakdowns, campaignsIn, dailySeries, expensesIn, monthMatrix, monthsSince, periodOf, resultOf, salesIn, shiftPeriod, strongPoints,
+  ANALYSIS_SALE_SELECT, EXPENSE_CATEGORY, breakdowns, campaignsIn, dailySeries, expensesIn, monthMatrix, monthsSince, periodOf, resultOf, salesIn, shiftPeriod, strongPoints,
   type AdRow, type AnalysisSale, type Expense, type ExpenseCategory, type FxRow, type Period, type PeriodKind, type TeamCostRow,
 } from '@/lib/analysis'
 import { errorMessage, supabase } from '@/lib/supabase'
@@ -125,7 +125,7 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
             <p className="font-display text-xs font-semibold uppercase tracking-wider text-white/70">Invertiste</p>
             <p className="mt-1 font-display text-3xl font-extrabold tabular-nums">{money(Math.round(result.invested))}</p>
             <ul className="mt-1 space-y-0.5 text-sm text-white/75">
-              <li>Meta: {money(Math.round(result.ads))}{result.adsUsd ? ` (${usd(result.adsUsd)} + IVA)` : ''}</li>
+              <li>Meta: {money(Math.round(result.ads))}{result.adsUsd ? ` (${usd(result.adsUsd)})` : ''}</li>
               <li>Equipo: {money(result.team)}{result.teamPacks ? ` (${result.teamPacks} ${result.teamPacks === 1 ? 'CV' : 'CVs'})` : ''}</li>
               <li>Otros gastos: {money(Math.round(result.other))}{period.kind !== 'mes' ? ' (sin los mensuales)' : ''}</li>
             </ul>
@@ -142,7 +142,7 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
       {/* Key numbers */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Ventas" value={number.format(result.sales)} note={`${previous.sales} ${previousIn}`} />
-        <Tile label="Gasto en Meta" value={result.adsUsd ? usd(result.adsUsd) : money(Math.round(result.ads))} note={result.ads ? `${money(Math.round(result.ads))} con IVA` : 'Sin gasto cargado'} />
+        <Tile label="Gasto en Meta" value={result.adsUsd ? usd(result.adsUsd) : money(Math.round(result.ads))} note={result.ads ? `${money(Math.round(result.ads))} en pesos` : 'Sin gasto cargado'} />
         <Tile label="Costo por venta" value={result.costPerSale !== null ? money(Math.round(result.costPerSale)) : '—'} note="Gasto en Meta ÷ ventas" />
         <Tile label="Conversaciones" value={number.format(result.conversations)} note={result.costPerConversation !== null ? `${usd(result.costPerConversation)} cada una` : 'De los anuncios de mensajes'} />
       </div>
@@ -181,7 +181,7 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
             <h2 id="ads-title" className="font-display text-lg font-bold text-ciruela">Anuncios de Meta</h2>
             <p className="text-sm text-piedra">
               {meta.connected === true ? 'Conectado: se actualiza solo cada 3 horas.' : meta.connected === false ? 'Todavía no está conectado: cargalo a mano o conectalo (abajo).' : 'Revisando la conexión…'}
-              {' '}En pesos con el dólar cripto del día (el que sigue ARQ) y el IVA ({percent.format(META_IVA)}).
+              {' '}En pesos con el dólar cripto del día (el que sigue ARQ).
             </p>
           </div>
           {meta.connected && <Button variant="secondary" busy={meta.syncing} onClick={onSync}><RefreshCw className="h-4 w-4" />Traer de Meta</Button>}
@@ -240,7 +240,7 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-xs text-piedra">Equipo: lo que paga cada CV terminado en ese mes (aunque se lo pagues después). Meta: con IVA, al dólar cripto del día. Los meses sin gasto cargado muestran la ganancia sin publicidad.</p>
+        <p className="mt-3 text-xs text-piedra">Equipo: lo que paga cada CV terminado en ese mes (aunque se lo pagues después). Meta: al dólar cripto del día. Los meses sin gasto cargado muestran la ganancia sin publicidad.</p>
       </section>
 
       {/* Every sale of the period */}
