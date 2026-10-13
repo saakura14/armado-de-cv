@@ -1,5 +1,5 @@
 // Meta ad spend for the "Análisis" tab: spend, conversations, clicks and impressions per day and campaign from the
-// Marketing API (Insights), plus the dólar tarjeta of the day (dolarapi.com) to compare spend with sales in pesos.
+// Marketing API (Insights), plus the dólar cripto of the day (dolarapi.com; she buys the dollars with ARQ, which follows it) to compare spend with sales in pesos.
 // Called every 3 hours by pg_cron (x-cron-key, last 3 days) and from the panel's "Actualizar" (admin session, up to
 // 90 days back). Secrets: META_ADS_TOKEN (a System User token with ads_read) and optionally META_AD_ACCOUNT.
 import { createClient } from 'npm:@supabase/supabase-js@2.57.4'
@@ -42,15 +42,15 @@ Deno.serve(async (request) => {
   const days = Math.min(Math.max(Math.round(Number(body.days) || 3), 1), 90)
   const today = arDate(Date.now())
 
-  // Dólar tarjeta: the rate the card is charged at. A failure here never stops the spend sync.
+  // Dólar cripto: close to what ARQ charges her for the dollars she pays Meta with. A failure never stops the sync.
   let rate: number | null = null
   try {
-    const response = await fetch('https://dolarapi.com/v1/dolares/tarjeta')
+    const response = await fetch('https://dolarapi.com/v1/dolares/cripto')
     if (response.ok) {
       const quote = await response.json() as { venta?: number }
       if (quote.venta && quote.venta > 0) {
         rate = quote.venta
-        await admin.from('fx_rates').upsert({ day: today, ars_per_usd: rate, source: 'dolarapi-tarjeta', updated_at: new Date().toISOString() })
+        await admin.from('fx_rates').upsert({ day: today, ars_per_usd: rate, source: 'dolarapi-cripto', updated_at: new Date().toISOString() })
       }
     }
   } catch { /* keep the last saved rate */ }

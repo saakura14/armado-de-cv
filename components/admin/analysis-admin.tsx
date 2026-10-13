@@ -51,7 +51,7 @@ export function AnalysisAdmin() {
     return ((ads.data as AdRow[] | null) ?? []).some((row) => row.source === 'meta')
   }, [])
 
-  // Brings the latest spend from Meta (and today's dólar tarjeta); the first time, the last 90 days.
+  // Brings the latest spend from Meta (and today's dólar cripto); the first time, the last 90 days.
   const sync = useCallback(async (days: number) => {
     setMeta((state) => ({ ...state, syncing: true, error: '' }))
     const { data: answer, error: failure } = await supabase.functions.invoke('meta-ads', { body: { days } })
@@ -181,7 +181,7 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
             <h2 id="ads-title" className="font-display text-lg font-bold text-ciruela">Anuncios de Meta</h2>
             <p className="text-sm text-piedra">
               {meta.connected === true ? 'Conectado: se actualiza solo cada 3 horas.' : meta.connected === false ? 'Todavía no está conectado: cargalo a mano o conectalo (abajo).' : 'Revisando la conexión…'}
-              {' '}En pesos con el dólar tarjeta del día y el IVA ({percent.format(META_IVA)}).
+              {' '}En pesos con el dólar cripto del día (el que sigue ARQ) y el IVA ({percent.format(META_IVA)}).
             </p>
           </div>
           {meta.connected && <Button variant="secondary" busy={meta.syncing} onClick={onSync}><RefreshCw className="h-4 w-4" />Traer de Meta</Button>}
@@ -240,7 +240,7 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-xs text-piedra">Equipo: lo que paga cada CV terminado en ese mes (aunque se lo pagues después). Meta: con IVA, al dólar tarjeta del día. Los meses sin gasto cargado muestran la ganancia sin publicidad.</p>
+        <p className="mt-3 text-xs text-piedra">Equipo: lo que paga cada CV terminado en ese mes (aunque se lo pagues después). Meta: con IVA, al dólar cripto del día. Los meses sin gasto cargado muestran la ganancia sin publicidad.</p>
       </section>
 
       {/* Every sale of the period */}
