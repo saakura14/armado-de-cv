@@ -23,7 +23,7 @@ Los reels se arman cuando llegue el video (ver abajo).
 
 ## Reels para publicidad
 
-Cinco fragmentos continuos de la entrevista, editados en formato entrevista: la cámara sigue a quien habla (detectado por la voz), en pantalla dividida se muestra el lado de quien habla, los cortes rápidos del video original se disimulan con un fundido tipo *morph cut* y cada reel termina con un fundido a la placa final. 1080×1920 desde el video original en 1080p. Afinado armonioso solo en Valeria; Sol aparece sin retoques. Subtítulos de Valeria en rosa y de Sol en amarillo; etiquetas con el nombre de cada una la primera vez que aparece.
+Cinco fragmentos continuos de la entrevista, editados en formato entrevista: la cámara sigue a quien habla (detectado por la voz), en pantalla dividida se muestra el lado de quien habla, los cortes rápidos del video original se disimulan con un fundido tipo *morph cut* y cada reel termina con un fundido a la placa final. En R1 se sacaron una frase repetida de Sol y un "por suerte" para evitar dos cambios de cámara de medio segundo. 1080×1920 desde el video original en 1080p. Afinado armonioso solo en Valeria; Sol aparece sin retoques. Subtítulos de Valeria en rosa y de Sol en amarillo; etiquetas con el nombre de cada una la primera vez que aparece.
 
 | Archivo | Tramo (YouTube) | Arranca con | Uso |
 |---|---|---|---|
@@ -37,69 +37,7 @@ Quién dijo qué (verificado con reconocimiento de voz): "hoja de ruta", "propó
 
 ### Textos de cada reel (Instagram)
 
-**R1 · ¿Pongo que soy mamá?**
-```
-¿Pongo en LinkedIn que soy mamá? 🤔
-
-Me lo preguntaron en Digitalizadas y mi respuesta fue clara: no hace falta. Hay datos sensibles que no te diferencian como profesional, y si tenés hijos o no es uno de ellos.
-
-Lo que sí suma: mostrar un poco de vos, sobre todo si sos emprendedora, siempre en función de tu valor.
-
-💬 ¿Vos lo ponías? Te leo.
-👉 ¿Querés que armemos tu LinkedIn? Escribime LINKEDIN por mensaje.
-
-#linkedin #maternidad #empleo #cv #marcapersonal #emprendedoras
-```
-
-**R2 · El ATS**
-```
-De 1.000 postulaciones, la empresa ve solo las que pasan sus filtros 👀
-
-Eso es el ATS: un sistema que usan más empresas de las que pensás para filtrar CV según el puesto. Por eso no sirve postularse por postular: hay que hacerlo con foco.
-
-Lo conté en mi entrevista en Digitalizadas.
-
-👉 ¿Tu CV pasa el filtro? Escribime CV por mensaje o al WhatsApp 11 5106-0953 y lo vemos.
-
-#ats #cv #busquedalaboral #empleo #recursoshumanos #trabajo
-```
-
-**R3 · El error de poner todo**
-```
-El error que más veo en los CV: poner TODO 😅
-
-Gastronomía, psicología, corporativo, emprendimiento… todo junto. Tu CV es tu ruta de vida, pero necesita foco: centralizá en lo que buscás hoy y vas a llegar a más empresas y a más clientes.
-
-👉 Guardalo para tu próxima actualización de CV.
-
-#cv #curriculum #empleo #busquedalaboral #tips
-```
-
-**R4 · Titular = filtro ATS**
-```
-Tu titular de LinkedIn es tu filtro ATS 🎯
-
-Elegí 3 o 4 palabras con tus habilidades más fuertes (hard skills). Ese va a ser tu filtro: tu ATS. Y para todo lo demás, tenés el Acerca de.
-
-Lo conté en Digitalizadas 🎙️
-
-👉 ¿Querés que revisemos el tuyo? Escribime LINKEDIN por mensaje.
-
-#linkedin #marcapersonal #ats #empleo #titular
-```
-
-**R5 · LinkedIn es para todas**
-```
-LinkedIn es para todas 💼
-
-Lo dijo Sol en Digitalizadas y lo firmo: abogadas, médicas, contadoras, dueñas de negocio, emprendedoras, independientes o corpo. Muchas dicen que es difícil, pero no: si te cuesta, me escribís y te ayudo.
-
-Y te atiendo yo, siempre 💬
-
-👉 WhatsApp 11 5106-0953 o escribime LINKEDIN por mensaje.
-
-#linkedin #emprendedoras #mujeresquetrabajan #empleo #marcapersonal
-```
+Los textos de R1 a R5 están en `docs/calendario-octubre-2026.md`, reescritos a partir del punto de dolor de cada reel y con una palabra clave para escribir por mensaje.
 
 **R6 · Sección Servicios** (pendiente de edición, tramo 42:18 – 42:59)
 ```
@@ -170,30 +108,6 @@ Si este post te sirvió, ya sabés qué hacer 😉 ♻️
 
 ---
 
-## Publicidad en Meta
+## Calendario y publicidad
 
-- **Objetivo:** Mensajes (WhatsApp e Instagram Direct), para que la conversación llegue directo a Vale.
-- **Público:** Argentina, 22 a 45 años, intereses en búsqueda de empleo, LinkedIn, recursos humanos y emprendimiento.
-- **Prueba:** R1 y R2 en paralelo, US$ 8 por día cada uno durante 4 días. Se queda el que tenga el costo por mensaje más bajo, hasta el tope de **US$ 23 por día**.
-- **Remarketing:** R5 para quienes vieron más del 50% de R1 o R2.
-- **Ubicaciones:** solo Instagram (Reels, Feed e Historias).
-
----
-
-## Calendario
-
-| Fecha | Instagram | LinkedIn personal |
-|---|---|---|
-| Vie 16/10 | Historia: anuncio + link a la entrevista | |
-| Sáb 17/10 | Historia: caja de preguntas | |
-| Dom 18/10 | Carrusel | |
-| Lun 19/10 | R1 · ¿Pongo que soy mamá? | |
-| Mar 20/10 | Arranca la publicidad (R1 y R2) | Post 1 |
-| Mié 21/10 | R2 · ATS + historia encuesta | |
-| Vie 23/10 | R3 · Error de poner todo | |
-| Lun 26/10 | R4 · Titular = filtro ATS | |
-| Mar 27/10 | | Post 2 |
-| Mié 28/10 | R5 · LinkedIn es para todas | |
-| Vie 30/10 | R6 · Sección Servicios (pendiente de edición) | |
-
-Horario: 20:00, igual que el resto de las publicaciones.
+Las fechas, los textos de los reels enfocados en los puntos de dolor, las respuestas guardadas para los mensajes y la publicidad están en `docs/calendario-octubre-2026.md`.
