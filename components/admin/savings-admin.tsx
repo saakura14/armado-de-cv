@@ -47,11 +47,12 @@ export function SavingsAdmin() {
       <div className="flex justify-end"><HideMoneyButton /></div>
       {error && <p className="rounded-2xl bg-petalo-wash px-4 py-3 text-sm font-semibold text-rosa-deep">{error}</p>}
 
-      <section className="rounded-[32px] bg-ciruela p-6 text-white">
-        <p className="flex items-center gap-2 font-display text-xs font-semibold uppercase tracking-wider text-white/70"><PiggyBank className="h-4 w-4" />Tu meta</p>
+      <section className="overflow-hidden rounded-[32px] bg-ciruela p-6 text-white">
+        <p className="flex items-center gap-2 font-display text-xs font-semibold uppercase tracking-wider text-white/70"><PiggyBank className="h-4 w-4" />Tu auto 🚗</p>
         <p className="mt-1 font-display text-4xl font-extrabold tabular-nums">{money(saved)} <span className="text-lg font-bold text-white/70">de {money(target)}</span></p>
-        <div className="mt-4 h-3 rounded-full bg-white/15"><div className="h-3 rounded-full bg-petalo" style={{ width: `${Math.min((saved / target) * 100, 100)}%` }} /></div>
-        <p className="mt-3 text-sm text-white/80">
+        <Road progress={Math.min(saved / target, 1)} />
+        <p className="mt-2 font-script text-3xl leading-tight text-petalo">{motivation(saved / target)}</p>
+        <p className="mt-2 text-sm text-white/80">
           {saved >= target ? '¡Llegaste! 🎉' : <>Te faltan <b>{money(left)}</b> ({Math.round((saved / target) * 100)}% hecho).{monthsToGoal !== null && <> Si seguís ahorrando como hasta ahora ({money(Math.round(pace))} por mes), llegás en {monthsToGoal} {monthsToGoal === 1 ? 'mes' : 'meses'}, para {monthFormat.format(new Date(`${shiftMonth(current, monthsToGoal)}-01T00:00:00Z`))}.</>}</>}
         </p>
       </section>
@@ -155,5 +156,40 @@ function TargetForm({ target, onSaved }: { target: number; onSaved: () => void }
       </div>
       {flash.node && <div className="mt-2">{flash.node}</div>}
     </details>
+  )
+}
+
+/** A phrase for where she is on the way to the car. */
+function motivation(progress: number) {
+  if (progress >= 1) return '¡Lo lograste! Ahora andá a buscar tu auto 🔑'
+  if (progress >= 0.9) return 'Ya se siente el olor a auto nuevo. ¡Último tramo!'
+  if (progress >= 0.75) return 'Falta poquito: andá eligiendo el color.'
+  if (progress >= 0.5) return '¡Mitad del camino! Lo que empezó como idea ya es medio auto.'
+  if (progress >= 0.25) return 'Un cuarto del camino: cada CV que entregás es un kilómetro más.'
+  if (progress > 0) return 'Arrancaste. Cada peso que separás te acerca a manejarlo.'
+  return 'Tu auto te espera al final del camino. Cargá tu primer ahorro y arrancamos.'
+}
+
+/** The road to the car: the little car moves with what's saved, the flag is the goal. */
+function Road({ progress }: { progress: number }) {
+  const left = `calc(${progress * 100}% - ${progress * 56}px)`
+  return (
+    <div className="relative mt-5 h-20" role="img" aria-label={`Llevás el ${Math.round(progress * 100)}% del camino a tu auto`}>
+      {/* Road with dashed center line */}
+      <div className="absolute inset-x-0 bottom-2 h-6 rounded-full bg-white/15">
+        <div className="absolute inset-y-0 left-0 rounded-full bg-petalo/40" style={{ width: `${progress * 100}%` }} />
+        <div className="absolute inset-x-3 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-white/40" />
+      </div>
+      {/* Finish flag */}
+      <span className="absolute -top-1 right-0 text-3xl" aria-hidden="true">🏁</span>
+      {/* The car, slightly bouncing */}
+      <svg viewBox="0 0 64 32" className="absolute bottom-4 h-10 w-14 animate-[bounce_2s_ease-in-out_infinite] drop-shadow-lg transition-[left] duration-1000" style={{ left }} aria-hidden="true">
+        <path d="M6 22 L9 13 Q11 9 16 9 L38 9 Q43 9 46 13 L51 18 L58 19 Q61 20 61 23 L61 25 L4 25 Q3 23 6 22 Z" fill="#e8959b" />
+        <path d="M14 18 L17 12 L28 12 L28 18 Z M31 12 L39 12 Q42 12 44 15 L46 18 L31 18 Z" fill="#fbeaec" opacity="0.9" />
+        <circle cx="16" cy="25" r="5" fill="#43202c" /><circle cx="16" cy="25" r="2" fill="#f5efd9" />
+        <circle cx="48" cy="25" r="5" fill="#43202c" /><circle cx="48" cy="25" r="2" fill="#f5efd9" />
+        <circle cx="58.5" cy="21" r="1.5" fill="#f5efd9" />
+      </svg>
+    </div>
   )
 }
