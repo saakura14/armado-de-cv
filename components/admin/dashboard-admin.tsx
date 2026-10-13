@@ -14,7 +14,7 @@ import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass } from './ui'
 
 /** Where "Ver" and the status counters take you: a tab, optionally a filter or a single order. */
-export type OpenTarget = { tab: 'pedidos' | 'sesiones'; filter?: Stage | LegacyFilter; order?: number }
+export type OpenTarget = { tab: 'pedidos' | 'sesiones' | 'analisis'; filter?: Stage | LegacyFilter; order?: number }
 
 type Task = { order: Order; kind: 'pago' | 'verificar' | 'entrega' | 'sesion'; deadline: Deadline | null }
 
@@ -330,6 +330,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="stats-title" className="font-display text-lg font-bold text-ciruela">Cómo viene el mes</h2>
           <div className="flex items-center gap-2">
+          <button type="button" onClick={() => onOpen({ tab: 'analisis' })} className="inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">Gastos y ganancia<ArrowRight className="h-4 w-4" /></button>
           <HideMoneyButton />
           <select value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Mes" className="rounded-full border border-line bg-white px-4 py-2 font-display text-sm font-semibold text-ciruela">
             {months.map((key) => <option key={key} value={key}>{monthLabel(key)}</option>)}

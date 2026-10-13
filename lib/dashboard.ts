@@ -63,6 +63,11 @@ function arDay(moment: Date) {
   return { day: new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate())), hour: shifted.getUTCHours() }
 }
 
+/** 'YYYY-MM-DD' of a moment in Argentina. */
+export function dayKey(value: string | Date) {
+  return arDay(new Date(value)).day.toISOString().slice(0, 10)
+}
+
 /** 'YYYY-MM' of a moment in Argentina. */
 export function monthKey(value: string | Date) {
   return arDay(new Date(value)).day.toISOString().slice(0, 7)

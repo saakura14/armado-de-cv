@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, BookOpen, CreditCard, ExternalLink, FileSearch, Home, Loader2, HelpCircle, LogOut, Menu, PlayCircle, ShoppingBag, Star, Tag, UserRound, Users, Video, X } from 'lucide-react'
+import { ArrowRight, BarChart3, BookOpen, CreditCard, ExternalLink, FileSearch, Home, Loader2, HelpCircle, LogOut, Menu, PlayCircle, ShoppingBag, Star, Tag, UserRound, Users, Video, X } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { Avatar } from '@/components/avatar'
 import { AppSetup } from '@/components/admin/app-setup'
@@ -11,6 +11,7 @@ import { AdminTeamChat } from '@/components/team-chat'
 import { WhatsappSaleDialog } from '@/components/admin/whatsapp-sale-dialog'
 import { UpdateBanner } from '@/components/admin/update-banner'
 import { AuthPanel } from '@/components/auth-panel'
+import { AnalysisAdmin } from '@/components/admin/analysis-admin'
 import { AtsAdmin } from '@/components/admin/ats-admin'
 import { CoursesAdmin } from '@/components/admin/courses-admin'
 import { DashboardAdmin, type OpenTarget } from '@/components/admin/dashboard-admin'
@@ -33,6 +34,7 @@ const TABS = [
   { id: 'inicio', label: 'Inicio', short: 'Inicio', icon: Home },
   { id: 'pedidos', label: 'Pedidos', short: 'Pedidos', icon: ShoppingBag },
   { id: 'sesiones', label: 'Sesiones', short: 'Sesiones', icon: Video },
+  { id: 'analisis', label: 'Análisis', short: 'Análisis', icon: BarChart3 },
   { id: 'equipo', label: 'Equipo', short: 'Equipo', icon: Users },
   { id: 'test-ats', label: 'Test ATS', short: 'Test ATS', icon: FileSearch },
   { id: 'productos', label: 'Packs y precios', short: 'Precios', icon: Tag },
@@ -161,6 +163,7 @@ export default function AdminPage() {
 
   const openFromHome = useCallback((target: OpenTarget) => {
     if (target.tab === 'sesiones') { select('sesiones'); return }
+    if (target.tab === 'analisis') { select('analisis'); return }
     select('pedidos', target.order ? { filter: 'todos', search: `#${target.order}` } : { filter: target.filter ?? 'activos', search: '' })
   }, [select])
 
@@ -228,6 +231,7 @@ export default function AdminPage() {
           )}
           {tab === 'pedidos' && <OrdersAdmin key={`${ordersView?.filter}-${ordersView?.search}`} initialFilter={ordersView?.filter} initialSearch={ordersView?.search} />}
           {tab === 'sesiones' && <SessionsAdmin />}
+          {tab === 'analisis' && <AnalysisAdmin />}
           {tab === 'equipo' && <TeamAdmin />}
           {tab === 'test-ats' && <AtsAdmin />}
           {tab === 'productos' && <ProductsAdmin />}
