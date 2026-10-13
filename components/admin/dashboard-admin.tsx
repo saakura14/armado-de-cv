@@ -8,7 +8,7 @@ import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, needsCoordination, type Order } from '@/lib/orders'
-import { stageOf, type LegacyFilter, type Stage } from '@/lib/order-stages'
+import { missingData, stageOf, type LegacyFilter, type Stage } from '@/lib/order-stages'
 import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, nextDueText, isTestOrder, monthKey, monthLabel, monthStats, salesByOrigin, salesInMonth, shiftMonth, shortMonthLabel, weeksOfMonth, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass } from './ui'
@@ -31,7 +31,7 @@ function toTasks(orders: Order[]): Task[] {
     if (service) return { order, kind: 'entrega', deadline: deliveryDeadline(order) }
     return { order, kind: 'sesion', deadline: null }
   }).filter((task) => (task.kind !== 'sesion' || needsCoordination(task.order)) && stageOf(task.order) !== 'equipo')
-  const rank = (task: Task) => (task.kind === 'pago' || task.kind === 'verificar' ? -100 : task.deadline?.waiting ? 60 : task.deadline ? task.deadline.remaining : 50)
+  const rank = (task: Task) => (task.kind === 'pago' || task.kind === 'verificar' ? -100 : task.deadline?.waiting || missingData(task.order) ? 60 : task.deadline ? task.deadline.remaining : 50)
   return tasks.sort((a, b) => rank(a) - rank(b))
 }
 
@@ -61,6 +61,7 @@ function TaskRow({ task, onOpen }: { task: Task; onOpen: () => void }) {
         {kind === 'pago' && <span className="inline-flex items-center gap-1.5 rounded-full bg-petalo-wash px-3 py-1 font-display text-xs font-bold text-rosa-deep"><FileCheck2 className="h-3.5 w-3.5" />Revisar comprobante</span>}
         {kind === 'verificar' && <span className="inline-flex items-center gap-1.5 rounded-full bg-petalo-wash px-3 py-1 font-display text-xs font-bold text-rosa-deep"><FileCheck2 className="h-3.5 w-3.5" />Verificar transferencia</span>}
         {kind === 'sesion' && <span className="inline-flex items-center gap-1.5 rounded-full bg-arena px-3 py-1 font-display text-xs font-bold text-ciruela"><CalendarClock className="h-3.5 w-3.5" />Agendar sesión</span>}
+        {kind === 'entrega' && missingData(order) && <span className="inline-flex items-center gap-1.5 rounded-full bg-papel px-3 py-1 font-display text-xs font-bold text-piedra"><Hourglass className="h-3.5 w-3.5" />Faltan los datos</span>}
         {deadline && (
           <>
             {deadline.express && <span className="inline-flex items-center gap-1 rounded-full bg-ciruela px-2.5 py-1 font-display text-[11px] font-bold text-white"><Zap className="h-3 w-3" />Express</span>}
