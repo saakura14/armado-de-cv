@@ -18,7 +18,7 @@ drop policy if exists "Solo la administradora" on public.ad_spend;
 create policy "Solo la administradora" on public.ad_spend for all to authenticated
   using ((select public.is_admin())) with check ((select public.is_admin()));
 
--- Pesos per dollar (dólar tarjeta, what the card is charged) per day, to compare spend and sales in pesos.
+-- Pesos per dollar per day (dólar cripto, close to what ARQ charges), to compare spend and sales in pesos.
 create table if not exists public.fx_rates (
   day date primary key,
   ars_per_usd numeric(12,2) not null check (ars_per_usd > 0),
