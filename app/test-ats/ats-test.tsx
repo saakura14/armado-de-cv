@@ -35,8 +35,9 @@ function Part({ label, hint, value }: { label: string; hint: string; value: numb
 function PackOffer({ score }: { score: number }) {
   const [packs, setPacks] = useState<Product[] | null>(null)
   useEffect(() => {
-    const ids = score >= 85 ? ['cv-medium', 'cv-premium'] : ['cv-primer-empleo', 'cv-simple', 'cv-medium']
-    getProducts(['cv']).then((list) => setPacks(ids.flatMap((id) => list.filter((product) => product.id === id))))
+    // Below 85 the guide goes last: the do-it-yourself option for whoever won't pay for a pack.
+    const ids = score >= 85 ? ['cv-medium', 'cv-premium'] : ['cv-primer-empleo', 'cv-simple', 'cv-medium', 'guia-ats']
+    getProducts(['cv', 'guias']).then((list) => setPacks(ids.flatMap((id) => list.filter((product) => product.id === id))))
   }, [score])
   if (!packs?.length) return null
   return <ProductGrid products={packs} scroll />

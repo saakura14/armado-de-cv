@@ -31,3 +31,7 @@ verify_jwt = false
 [functions.ebook-mail]
 # Called only by pg_cron with the private key from Vault (x-cron-key), no session. Secret: RESEND_API_KEY.
 verify_jwt = false
+
+[functions.order-mail]
+# Called only by pg_cron with the private key from Vault (x-cron-key), no session. Secret: RESEND_API_KEY.
+verify_jwt = false
