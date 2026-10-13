@@ -10,7 +10,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, pendingSessions, type Order, type OrderStatus } from '@/lib/orders'
 import { deliveryDeadline, formatDue } from '@/lib/dashboard'
-import { STAGES, kindsOf, missingData, moveTo, sortForStage, stageOf, toStage, todayReason, type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
+import { STAGES, kindsOf, missingData, moveTo, sortForStage, stageOf, teamState, toStage, todayReason, type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
 import { DeadlineChip } from './dashboard-admin'
 import { OrderLinkDialog } from './order-link-dialog'
 import { TeamRow, type OrderTask } from './assign-task'
@@ -272,8 +272,9 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
   const template = order.status === 'pending_payment'
     ? { label: 'Recordar el pago', text: `¡Hola ${firstName}! Vi tu pedido #${order.number} (${products}) por ${formatARS(order.total)}. ¿Pudiste hacer la transferencia? Acá tenés los datos para pagar: https://armadodecv.com/cuenta/pedido/${order.id}\nCuando transfieras, mandame el comprobante por acá y arranco. Si tenés alguna duda, te ayudo.` }
     : service && (order.status === 'paid' || order.status === 'in_progress')
-      // Once the data arrived there is nothing to ask: a plain WhatsApp button.
-      ? noData ? { label: 'Pedir los datos', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, pasame tu CV actual (si tenés) y contame a qué puesto o rubro apuntás. Apenas tenga todo, empieza a correr el plazo de entrega.` } : null
+      // Ask for the data while it's missing; once the team finished it, the message that goes with the files; else plain WhatsApp.
+      ? noData ? { label: 'Pedir los datos', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, pasame tu CV actual (si tenés) y contame a qué puesto o rubro apuntás. Apenas tenga todo, empieza a correr el plazo de entrega.` }
+        : teamState(order) === 'done' ? { label: 'Avisar que está listo', text: `¡Hola ${firstName}! Tu CV ya está listo 🙌 Te paso los archivos por acá. Revisalo con calma y, si querés algún ajuste, decime y lo corregimos.` } : null
       : session && (order.status === 'paid' || order.status === 'in_progress')
         ? { label: 'Coordinar la sesión', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 ¿Qué días y horarios te quedan cómodos para la sesión por Google Meet?` }
       // CV + session: once the CV is delivered, the session comes next.

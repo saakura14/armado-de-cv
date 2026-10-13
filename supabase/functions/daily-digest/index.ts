@@ -6,10 +6,13 @@ import webpush from 'npm:web-push@3.6.7'
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
-// ---- Same deadline rules as lib/dashboard.ts (4 business days, Express 1, after 5 pm or weekends start the next business day) ----
+// ---- Same deadline rules as lib/dashboard.ts (4 business days, Express 1, from the day the customer's data arrived;
+// after 5 pm, weekends or holidays start the next business day) ----
 const AR_OFFSET = 3 * 60 * 60 * 1000
 const DAY = 24 * 60 * 60 * 1000
-const isWeekend = (day: Date) => day.getUTCDay() === 0 || day.getUTCDay() === 6
+// National holidays (public.holidays), loaded on every run.
+let holidays = new Set<string>()
+const isWeekend = (day: Date) => day.getUTCDay() === 0 || day.getUTCDay() === 6 || holidays.has(day.toISOString().slice(0, 10))
 function arDay(moment: Date) {
   const shifted = new Date(moment.getTime() - AR_OFFSET)
   return { day: new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate())), hour: shifted.getUTCHours() }
@@ -27,10 +30,11 @@ function businessDaysUntil(today: Date, deadline: Date) {
   while (cursor.getTime() !== deadline.getTime()) { cursor = new Date(cursor.getTime() + sign * DAY); if (!isWeekend(cursor)) count += sign }
   return count
 }
-type DeadlineOrder = { paid_at: string | null; waiting_since: string | null; paused_days: number | null; order_items: { extras: { group_id: string }[] }[] }
+type DeadlineOrder = { paid_at: string | null; data_received_at: string | null; waiting_since: string | null; paused_days: number | null; order_items: { extras: { group_id: string }[] }[] }
 function remainingDays(order: DeadlineOrder, now: Date) {
-  if (!order.paid_at) return null
-  const { day, hour } = arDay(new Date(order.paid_at))
+  // No clock until the customer sent everything.
+  if (!order.paid_at || !order.data_received_at) return null
+  const { day, hour } = arDay(new Date(order.data_received_at))
   const start = isWeekend(day) || hour >= 17 ? addBusinessDays(day, 1) : day
   const express = order.order_items.some((item) => (item.extras ?? []).some((extra) => extra.group_id === 'express'))
   const due = addBusinessDays(start, (express ? 1 : 4) + (order.paused_days ?? 0))
@@ -45,25 +49,29 @@ Deno.serve(async (request) => {
   const { data: key } = await admin.rpc('cron_key')
   if (!key || request.headers.get('x-cron-key') !== key) return json(401, { error: 'No autorizado' })
 
+  const { data: holidayRows } = await admin.from('holidays').select('day')
+  holidays = new Set((holidayRows ?? []).map((row) => String(row.day)))
   const now = new Date()
   const today = arDay(now).day.toISOString().slice(0, 10)
   const messages: { userIds: string[]; title: string; body: string; url: string }[] = []
 
   // ---- Vale ----
   const [{ data: orders }, { data: readyTasks }, { data: admins }, { data: sessions }] = await Promise.all([
-    admin.from('orders').select('id, status, payment_check, created_at, paid_at, waiting_since, paused_days, order_items(extras, products(delivery))').lt('number', 90000).neq('status', 'cancelled').neq('status', 'delivered'),
+    admin.from('orders').select('id, status, payment_check, created_at, paid_at, data_received_at, waiting_since, paused_days, order_items(extras, products(delivery))').lt('number', 90000).neq('status', 'cancelled').neq('status', 'delivered'),
     admin.from('team_tasks').select('order_id, orders!inner(status)').eq('status', 'terminado').neq('orders.status', 'delivered'),
     admin.from('profiles').select('id').eq('role', 'admin'),
     // Same rule as lib/sessions.ts: a session bought with a CV waits until the CV is delivered.
     admin.from('sessions').select('orders(status, order_items(products(delivery)))').eq('status', 'to_schedule'),
   ])
-  let late = 0, dueToday = 0, review = 0, unpaid = 0, stalled = 0
+  let late = 0, dueToday = 0, review = 0, unpaid = 0, stalled = 0, noData = 0
   for (const order of (orders ?? []) as (DeadlineOrder & { status: string; payment_check: string | null; created_at: string; order_items: { extras: { group_id: string }[]; products: { delivery: string } | null }[] })[]) {
     if (order.payment_check === 'pending' || order.status === 'payment_review') review++
     if (order.status === 'pending_payment' && now.getTime() - new Date(order.created_at).getTime() > DAY) unpaid++
     // Waiting for the customer for over a week: time to write to them.
     if (order.waiting_since && now.getTime() - new Date(order.waiting_since).getTime() > 7 * DAY) stalled++
     const service = order.order_items.some((item) => item.products?.delivery === 'service')
+    // Paid CVs still without the customer's CV and puesto after 2 days: time to ask again.
+    if (service && (order.status === 'paid' || order.status === 'in_progress') && !order.data_received_at && order.paid_at && now.getTime() - new Date(order.paid_at).getTime() > 2 * DAY) noData++
     if (service && (order.status === 'paid' || order.status === 'in_progress') && !order.waiting_since) {
       const remaining = remainingDays(order, now)
       if (remaining !== null && remaining < 0) late++
@@ -80,8 +88,9 @@ Deno.serve(async (request) => {
     unpaid && plural(unpaid, 'pedido sin pagar hace más de un día', 'pedidos sin pagar hace más de un día'),
     toSchedule && plural(toSchedule, 'sesión para agendar', 'sesiones para agendar'),
     stalled && plural(stalled, 'cliente que no responde hace más de una semana', 'clientes que no responden hace más de una semana'),
+    noData && plural(noData, 'cliente pagó y no mandó los datos', 'clientes pagaron y no mandaron los datos'),
   ].filter(Boolean) as string[]
-  if (parts.length) messages.push({ userIds: (admins ?? []).map((row) => row.id), title: late || dueToday ? '☀️ Buen día, Vale: hoy hay entregas' : '☀️ Buen día, Vale', body: `${parts.join(' · ')}.`, url: late || dueToday || teamReady || review || unpaid || stalled ? '/admin#pedidos' : '/admin#sesiones' })
+  if (parts.length) messages.push({ userIds: (admins ?? []).map((row) => row.id), title: late || dueToday ? '☀️ Buen día, Vale: hoy hay entregas' : '☀️ Buen día, Vale', body: `${parts.join(' · ')}.`, url: late || dueToday || teamReady || review || unpaid || stalled || noData ? '/admin#pedidos' : '/admin#sesiones' })
 
   // ---- Team ----
   const { data: members } = await admin.from('team_members').select('id, name, user_id').eq('active', true).not('user_id', 'is', null)

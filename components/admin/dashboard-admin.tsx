@@ -319,7 +319,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
               {tasks.length > upcoming.length && <button type="button" onClick={() => onOpen({ tab: 'pedidos', filter: 'activos' })} className="inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">Ver los {tasks.length}<ArrowRight className="h-4 w-4" /></button>}
             </div>
             <ul className="mt-1">{upcoming.map((task) => <TaskRow key={task.order.id} task={task} onOpen={() => onOpen(task.kind === 'sesion' ? { tab: 'sesiones' } : { tab: 'pedidos', order: task.order.number })} />)}</ul>
-            <p className="mt-2 text-xs text-piedra">Plazo: 4 días hábiles desde el pago (Express: 1). Después de las 17 hs, en fin de semana o feriado arranca el siguiente día hábil. Sábados, domingos y feriados no cuentan.</p>
+            <p className="mt-2 text-xs text-piedra">Plazo: 4 días hábiles desde que el cliente te mandó los datos (Express: 1). Después de las 17 hs, en fin de semana o feriado arranca el siguiente día hábil. Sábados, domingos y feriados no cuentan.</p>
           </div>
         )}
         {!loading && tasks.length === 0 && <p className="mt-4 rounded-2xl bg-white px-4 py-5 text-center text-piedra">No tenés pedidos pendientes. ¡Todo al día!</p>}
