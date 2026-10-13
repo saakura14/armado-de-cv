@@ -22,7 +22,7 @@ const THEMES: Record<ThemeId, {
   queen: {
     name: '👑 Rock', title: 'Gira hacia', card: 'bg-[radial-gradient(120%_90%_at_80%_0%,#5b2a86_0%,#2a1240_45%,#140a1f_100%)]',
     accent: 'text-[#f6c945]', bar: 'bg-[linear-gradient(90deg,#f6c945,#ff8a3d,#ff4f7b)]', track: 'bg-white/10', soft: 'text-white/70', chip: 'bg-[#f6c945] text-[#2a1240]',
-    progress: 'Del recital', done: (label) => `¡Ovación de pie! ${label}: ¡a buscarlas! 👑`,
+    progress: 'Juntado', done: (label) => `¡Ovación de pie! ${label}: ¡a buscarlas! 👑`,
     lines: [
       (left) => `🎤 Cada CV es un tema más del recital. Faltan ${left} para el bis.`,
       (left) => `🎸 El estadio está lleno: ${left} CVs más y salís a saludar.`,
