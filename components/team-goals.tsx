@@ -134,7 +134,7 @@ export function TeamGoals({ member, tasks, preview }: { member: TeamMember; task
   async function add() {
     const amount = Number(form.amount.replace(/\D/g, ''))
     if (!form.label.trim() || !amount) { setError('Poné qué querés y cuánto sale.'); return }
-    const position = Math.max(-1, ...goals.map((goal) => goal.position)) + 1
+    const position = Math.max(-1, ...(goals ?? []).map((goal) => goal.position)) + 1
     if (await save(supabase.from('team_goals').insert({ member_id: member.id, position, label: form.label.trim(), emoji: form.emoji, amount }))) { setAdding(false); setForm({ label: '', emoji: '👟', amount: '' }) }
   }
   async function changeAmount(goal: Goal, value: string) {
