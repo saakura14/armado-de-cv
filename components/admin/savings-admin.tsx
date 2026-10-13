@@ -20,7 +20,7 @@ const monthFormat = new Intl.DateTimeFormat('es-AR', { month: 'long', year: 'num
 export function SavingsAdmin() {
   const { money } = useHideMoney()
   const [data, setData] = useState<Data | null>(null)
-  const [goal, setGoal] = useState<Goal>({ target: 10000000, save_share: 60, live_share: 25, ad_cap_usd: 23 })
+  const [goal, setGoal] = useState<Goal>({ target: 10000000, save_share: 45, live_share: 40, ad_cap_usd: 23 })
   const [moves, setMoves] = useState<Move[]>([])
   const [error, setError] = useState('')
 
@@ -88,7 +88,7 @@ export function SavingsAdmin() {
         <p className="text-sm text-piedra">Ganancia hasta hoy: <b className="text-ink">{money(Math.round(month.profit))}</b> (facturado menos Meta, equipo y gastos). Si sigue así, cierra en {money(Math.round(projected))}.</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <Share label="Ahorro" share={goal.save_share} value={toSaveNow} note={savedThisMonth ? `Ya transferiste ${money(savedThisMonth)}` : 'Todavía no transferiste'} strong money={money} />
-          <Share label="Para vos" share={goal.live_share} value={Math.max(month.profit * (goal.live_share / 100), 0)} note="Salidas, gustos, lo que quieras" money={money} />
+          <Share label="Para vos" share={goal.live_share} value={Math.max(month.profit * (goal.live_share / 100), 0)} note="Para vivir: día a día, salidas, gustos" money={money} />
           <Share label="Colchón del negocio" share={keep} value={Math.max(month.profit * (keep / 100), 0)} note="Meses flojos, imprevistos, reinversión" money={money} />
         </div>
         {toSaveNow - savedThisMonth > 0 && <p className="mt-3 rounded-2xl bg-whatsapp/10 px-4 py-3 text-sm text-ink">👉 Este mes te toca pasar <b>{money(Math.round(toSaveNow - savedThisMonth))}</b> más a la cuenta de ahorro.</p>}
@@ -99,12 +99,12 @@ export function SavingsAdmin() {
       <section className={cardClass} aria-labelledby="plan-title">
         <h2 id="plan-title" className="font-display text-lg font-bold text-ciruela">El plan</h2>
         <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-ink">
-          <li><b>Primero te pagás el ahorro.</b> Tu sueldo cubre los gastos fijos, así que la ganancia del emprendimiento puede ir casi toda a la meta. Cada lunes, con la revisión de anuncios, pasá el {goal.save_share}% de lo que ganaste esa semana a una cuenta aparte que no uses para el día a día.</li>
-          <li><b>Para vos, sin culpa:</b> el {goal.live_share}% es para vivir (salidas, gustos, regalos). Si lo tenés asignado, no lo vas a sacar del ahorro.</li>
+          <li><b>Primero te pagás el ahorro.</b> Tu sueldo cubre los gastos fijos y con el emprendimiento también vivís, así que el ahorro sale de lo que ganás, pero antes de gastarlo: cada lunes, con la revisión de anuncios, pasá el {goal.save_share}% de lo que ganaste esa semana a una cuenta aparte que no uses para el día a día.</li>
+          <li><b>Para vivir, sin culpa:</b> el {goal.live_share}% es tuyo para el día a día, salidas y gustos. Tenerlo asignado evita que lo saques del ahorro.</li>
           <li><b>Colchón del negocio:</b> el {keep}% queda en el emprendimiento para los meses flojos, Canva, el equipo o una campaña que funcione.</li>
           <li><b>Anuncios con techo:</b> nunca más de US${goal.ad_cap_usd} por día. Si la revisión del lunes dice que el retorno es bajo, no subas presupuesto: mejorá cómo cerrás los mensajes.</li>
           <li><b>Todo gasto, cargado:</b> si un gasto no está en Análisis, la ganancia que ves es mentira y el ahorro también.</li>
-          <li><b>Mes flojo, mismo porcentaje:</b> si ganás menos, ahorrás menos, pero no cortás la costumbre.</li>
+          <li><b>Mes flojo, ahorrá algo igual:</b> si un mes necesitás más para vivir, bajá el porcentaje ese mes, pero no lo cortes: aunque sea un 20%, la costumbre es lo que te lleva a la meta. Cuando un mes viene mejor, subilo.</li>
           <li><b>Fin de mes:</b> mirá "Mes a mes" en Análisis y la tabla de abajo. Si te atrasaste, subí unos puntos el ahorro el mes siguiente.</li>
         </ol>
         <p className="mt-3 text-xs text-piedra">Dónde guardar la plata (cuenta remunerada, dólares, plazo fijo u otra opción) lo elegís vos; no te puedo recomendar inversiones. Lo importante es que esté separada de la cuenta del día a día.</p>
