@@ -31,3 +31,8 @@ verify_jwt = false
 [functions.ebook-mail]
 # Called only by pg_cron with the private key from Vault (x-cron-key), no session. Secret: RESEND_API_KEY.
 verify_jwt = false
+
+[functions.meta-ads]
+# Called by pg_cron with the private key from Vault (x-cron-key), or from the panel with the admin session (checked
+# inside). Secrets: META_ADS_TOKEN (System User token with ads_read), optionally META_AD_ACCOUNT.
+verify_jwt = false
