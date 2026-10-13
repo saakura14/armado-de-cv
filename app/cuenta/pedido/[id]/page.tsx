@@ -134,7 +134,7 @@ export default function OrderPage() {
             ? '¡Tu CV está entregado! Ahora sigue tu sesión por Google Meet: el día y el link los ves en Mi cuenta.'
             : status.text}</p>
           {order.admin_note && <p className="mt-2 rounded-xl bg-papel px-3 py-2 text-sm text-ink">{order.admin_note}</p>}
-          {user.is_anonymous && <p className="mt-3 rounded-xl bg-papel px-3 py-2 text-xs leading-relaxed text-piedra">Compraste sin crear cuenta: este pedido queda guardado en este celular. Si cambiás de celu, escribime por WhatsApp con tu número de pedido (#{order.number}) y lo seguimos por ahí.</p>}
+          {user.is_anonymous && <p className="mt-3 rounded-xl bg-papel px-3 py-2 text-xs leading-relaxed text-piedra">Compraste sin crear cuenta: este pedido queda guardado en este celular.{order.order_items.some((item) => item.products?.delivery === 'digital') ? ' Apenas se confirme el pago te mando a tu mail el link para descargar tus guías desde cualquier dispositivo.' : ''} Si cambiás de celu, escribime por WhatsApp con tu número de pedido (#{order.number}) y lo seguimos por ahí.</p>}
         </div>
 
         {cardNotice && (

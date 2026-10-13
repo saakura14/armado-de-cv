@@ -8,6 +8,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { whatsappUrl } from '@/lib/catalog'
 import { useSession } from '@/lib/use-session'
 import { Avatar } from '@/components/avatar'
+import { HomeMenu } from '@/components/home-menu'
 
 export const SECTIONS = [
   { href: '/', label: 'Armado de CV' },
@@ -51,6 +52,7 @@ function SectionTabs({ variant }: { variant: 'desktop' | 'mobile' }) {
 export function SiteHeader() {
   const pathname = usePathname()
   const asesorias = isAsesorias(pathname)
+  const home = activeSection(pathname) === '/'
   const { user, isAdmin, avatarUrl } = useSession()
   return (
     <header className="sticky top-0 z-40 border-b border-line/70 bg-blanco/90 pt-[env(safe-area-inset-top)] backdrop-blur">
@@ -72,7 +74,10 @@ export function SiteHeader() {
           </a>
         </div>
       </div>
-      <div className="border-t border-line/60 md:hidden"><SectionTabs variant="mobile" /></div>
+      {/* On the home, the row is the menu of its sections (with Asesorías at the end on phones). */}
+      {home ? (
+        <div className="border-t border-line/60 bg-papel/60"><HomeMenu /></div>
+      ) : <div className="border-t border-line/60 md:hidden"><SectionTabs variant="mobile" /></div>}
     </header>
   )
 }

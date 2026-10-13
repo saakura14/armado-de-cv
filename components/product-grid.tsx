@@ -11,7 +11,8 @@ import { OrderDialog } from './order-dialog'
 const featuredLabel = (product: Product) => (product.category === 'guias' && product.ebooks.length > 1 ? 'Mejor precio' : 'Recomendado')
 
 /** With `scroll`, phones get a swipeable row instead of a tall stack; on wider screens the cards wrap with the last row centered. */
-export function ProductGrid({ products, tone = 'cv', scroll = false }: { products: Product[]; tone?: 'cv' | 'asesorias'; scroll?: boolean }) {
+/** `badges` puts a label on specific cards (e.g. "El más elegido"), over the default featured one. */
+export function ProductGrid({ products, tone = 'cv', scroll = false, badges }: { products: Product[]; tone?: 'cv' | 'asesorias'; scroll?: boolean; badges?: Record<string, string> }) {
   const [selected, setSelected] = useState<Product | null>(null)
   const close = useCallback(() => setSelected(null), [])
   const card = tone === 'cv' ? 'bg-papel' : 'bg-white'
@@ -31,8 +32,8 @@ export function ProductGrid({ products, tone = 'cv', scroll = false }: { product
         ? '-mx-4 mt-2 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-8 pt-12 sm:-mx-6 sm:px-6 md:mx-0 md:mt-14 md:flex-wrap md:justify-center md:snap-none md:gap-x-6 md:gap-y-14 md:overflow-visible md:px-0 md:pb-0 md:pt-0'
         : wrap ? 'mt-14 flex flex-col gap-y-14 md:flex-row md:flex-wrap md:justify-center md:gap-x-6' : `mt-14 grid gap-x-6 gap-y-14 ${columns}`}>
         {products.map((product) => (
-          <article key={product.id} className={`group relative flex flex-col rounded-[28px] ${scroll ? 'w-[84%] shrink-0 snap-center sm:w-[60%] md:w-[calc(50%-12px)] xl:w-[calc(25%-18px)]' : wrap ? 'md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]' : ''} ${card} p-6 pt-11 shadow-[0_22px_44px_-30px_rgba(67,32,44,0.55)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_60px_-30px_rgba(67,32,44,0.7)] ${product.popular ? 'ring-2 ring-rosa' : ''}`}>
-            {product.popular && <span className="absolute left-6 top-0 -translate-y-1/2 rounded-full bg-rosa px-3 py-1 font-display text-[11px] font-bold uppercase tracking-wider text-white">{featuredLabel(product)}</span>}
+          <article key={product.id} className={`group relative flex flex-col rounded-[28px] ${scroll ? 'w-[84%] shrink-0 snap-center sm:w-[60%] md:w-[calc(50%-12px)] xl:w-[calc(25%-18px)]' : wrap ? 'md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]' : ''} ${card} p-6 pt-11 shadow-[0_22px_44px_-30px_rgba(67,32,44,0.55)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_60px_-30px_rgba(67,32,44,0.7)] ${badges?.[product.id] || product.popular ? 'ring-2 ring-rosa' : ''}`}>
+            {(badges?.[product.id] || product.popular) && <span className="absolute left-6 top-0 -translate-y-1/2 rounded-full bg-rosa px-3 py-1 font-display text-[11px] font-bold uppercase tracking-wider text-white">{badges?.[product.id] ?? featuredLabel(product)}</span>}
             <div className={`absolute -top-8 right-5 flex h-[92px] w-[92px] flex-col items-center justify-center rounded-full border-[7px] ${ring} bg-white text-center shadow-sm`}>
               <span className="font-display text-[17px] font-extrabold leading-none text-ciruela">{formatARS(product.price)}</span>
               {product.priceNote && <span className="mt-0.5 font-display text-[11px] font-semibold text-piedra">{product.priceNote}</span>}

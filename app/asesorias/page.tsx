@@ -21,7 +21,7 @@ const topics = [
 
 const steps = [
   { title: 'Elegí', text: 'Un e-book, un pack o el test vocacional. Tocá "Lo quiero".' },
-  { title: 'Confirmá el pedido', text: 'Dejá tus datos y aceptá las condiciones y el consentimiento informado. Las sesiones no piden cuenta; los e-books sí, para descargarlos cuando quieras.' },
+  { title: 'Confirmá el pedido', text: 'Dejá tus datos y aceptá las condiciones y el consentimiento informado. No hace falta crear cuenta: los e-books te llegan por mail.' },
   { title: 'Pagá', text: 'Por transferencia (subís el comprobante ahí mismo) o con tarjeta.' },
   { title: 'Recibí tu material', text: 'Los e-books se habilitan en "Mi cuenta" al confirmar el pago; las sesiones por Meet se coordinan con turno.' },
 ]

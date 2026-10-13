@@ -8,12 +8,13 @@ import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, needsCoordination, type Order } from '@/lib/orders'
-import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, isTestOrder, monthKey, monthLabel, monthStats, salesByOrigin, salesInMonth, shiftMonth, shortMonthLabel, weeksOfMonth, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
+import { stageOf, type LegacyFilter, type Stage } from '@/lib/order-stages'
+import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, nextDueText, isTestOrder, monthKey, monthLabel, monthStats, salesByOrigin, salesInMonth, shiftMonth, shortMonthLabel, weeksOfMonth, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass } from './ui'
 
 /** Where "Ver" and the status counters take you: a tab, optionally a filter or a single order. */
-export type OpenTarget = { tab: 'pedidos' | 'sesiones'; filter?: 'gestionar' | 'in_progress' | 'delivered' | 'activos' | 'pending_payment'; order?: number }
+export type OpenTarget = { tab: 'pedidos' | 'sesiones'; filter?: Stage | LegacyFilter; order?: number }
 
 type Task = { order: Order; kind: 'pago' | 'verificar' | 'entrega' | 'sesion'; deadline: Deadline | null }
 
@@ -21,7 +22,7 @@ const PAGES: Record<string, string> = { '/': 'Inicio (Armado de CV)', '/asesoria
 const number = new Intl.NumberFormat('es-AR')
 const percent = new Intl.NumberFormat('es-AR', { style: 'percent', maximumFractionDigits: 1 })
 
-/** Orders that need something from Vale, most urgent first. */
+/** Orders that need something from Vale, most urgent first (CVs the team is still building come back once it finishes). */
 function toTasks(orders: Order[]): Task[] {
   const tasks = orders.map((order): Task => {
     if (order.status === 'payment_review') return { order, kind: 'pago', deadline: null }
@@ -29,7 +30,7 @@ function toTasks(orders: Order[]): Task[] {
     const service = order.order_items.some((item) => item.products?.delivery === 'service')
     if (service) return { order, kind: 'entrega', deadline: deliveryDeadline(order) }
     return { order, kind: 'sesion', deadline: null }
-  }).filter((task) => task.kind !== 'sesion' || needsCoordination(task.order))
+  }).filter((task) => (task.kind !== 'sesion' || needsCoordination(task.order)) && stageOf(task.order) !== 'equipo')
   const rank = (task: Task) => (task.kind === 'pago' || task.kind === 'verificar' ? -100 : task.deadline?.waiting ? 60 : task.deadline ? task.deadline.remaining : 50)
   return tasks.sort((a, b) => rank(a) - rank(b))
 }
@@ -38,7 +39,7 @@ export function DeadlineChip({ deadline }: { deadline: Deadline }) {
   if (deadline.waiting) return <span className="inline-flex items-center gap-1.5 rounded-full bg-papel px-3 py-1 font-display text-xs font-bold text-piedra"><Hourglass className="h-3.5 w-3.5" />Esperando al cliente</span>
   const { remaining } = deadline
   const late = remaining < 0
-  const text = late ? `Atrasado ${-remaining} ${remaining === -1 ? 'día hábil' : 'días hábiles'}` : remaining === 0 ? 'Vence hoy' : remaining === 1 ? 'Vence mañana' : `Quedan ${remaining} días hábiles`
+  const text = late ? `Atrasado ${-remaining} ${remaining === -1 ? 'día hábil' : 'días hábiles'}` : remaining === 0 ? 'Vence hoy' : remaining === 1 ? nextDueText(deadline.due) : `Quedan ${remaining} días hábiles`
   const tone = late ? 'bg-rosa text-white' : remaining === 0 ? 'bg-rosa/15 text-rosa-deep' : remaining === 1 ? 'bg-petalo-wash text-rosa-deep' : 'bg-arena text-ciruela'
   const Icon = late || remaining === 0 ? AlertTriangle : Clock
   return <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-xs font-bold ${tone}`}><Icon className="h-3.5 w-3.5" />{text}</span>
@@ -146,7 +147,7 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
   const load = useCallback(async () => {
     setLoading(true)
     const [open, paid, traffic, sessions, steps, created, delivered, unpaid, fresh] = await Promise.all([
-      supabase.from('orders').select(ORDER_SELECT).or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending').order('created_at'),
+      supabase.from('orders').select(`${ORDER_SELECT}, team_tasks(status)`).or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending').order('created_at'),
       supabase.from('orders').select(SALE_SELECT).not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000),
       supabase.from('site_visits').select('day, path, visits, views').order('day'),
       countSessionsToSchedule(),
@@ -180,7 +181,7 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
   useEffect(() => {
     let timer: number | undefined
     const soon = () => { window.clearTimeout(timer); timer = window.setTimeout(load, 700) }
-    const channel = supabase.channel('admin-home').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, soon).subscribe()
+    const channel = supabase.channel('admin-home').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, soon).subscribe()
     const onVisible = () => { if (document.visibilityState === 'visible') soon() }
     document.addEventListener('visibilitychange', onVisible)
     return () => { window.clearTimeout(timer); supabase.removeChannel(channel); document.removeEventListener('visibilitychange', onVisible) }
@@ -234,10 +235,15 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
 
   const deliveries = tasks.filter((task) => task.kind === 'entrega')
   const urgent = deliveries.filter((task) => task.deadline && !task.deadline.waiting && task.deadline.remaining <= 1).length
-  // Status counters: to manage (payment to check or not started), in progress, delivered.
-  const toManage = data.orders.filter((order) => order.status === 'payment_review' || order.status === 'paid' || order.payment_check === 'pending')
-  const reviews = toManage.filter((order) => order.status === 'payment_review' || order.payment_check === 'pending').length
-  const inProgress = data.orders.filter((order) => order.status === 'in_progress').length
+  // Status counters by who has the work: Vale, the team building it, or the team done and Vale checking it.
+  const stages = data.orders.map((order) => stageOf(order))
+  const count = (stage: Stage) => stages.filter((value) => value === stage).length
+  const toStart = count('arrancar')
+  const mine = toStart + count('proceso')
+  const teamDone = count('revisar')
+  const teamWorking = count('equipo')
+  const waiting = count('esperando')
+  const reviews = count('cobrar')
   const deliveredMonth = data.delivered.filter((at) => monthKey(at) === current).length
   const upcoming = tasks.slice(0, 3)
 
@@ -261,7 +267,10 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
         <p className="font-script text-5xl leading-none text-petalo">{greeting?.title ?? `Hola, ${firstName}`}</p>
         <p className="mt-3 max-w-xl text-lg leading-relaxed text-white/90">{greeting?.line ?? ' '}</p>
         <p className="mt-5 flex flex-wrap gap-x-5 gap-y-1 text-sm text-white/75">
-          <span>{deliveries.length} {deliveries.length === 1 ? 'pedido para entregar' : 'pedidos para entregar'}</span>
+          <span>{mine} para hacer vos</span>
+          {teamDone > 0 && <span>{teamDone} {teamDone === 1 ? 'listo' : 'listos'} del equipo para revisar</span>}
+          {teamWorking > 0 && <span>{teamWorking} en el equipo</span>}
+          {waiting > 0 && <span>{waiting} esperando al cliente</span>}
           {urgent > 0 && <span className="font-semibold text-petalo">{urgent} {urgent === 1 ? 'vence' : 'vencen'} hoy o mañana</span>}
           {sessionsToSchedule > 0 && <span>{sessionsToSchedule} {sessionsToSchedule === 1 ? 'sesión para agendar' : 'sesiones para agendar'}</span>}
         </p>
@@ -281,11 +290,19 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
             <ArrowRight className="h-4 w-4 shrink-0" />
           </button>
         )}
-        <div className="mt-3 grid grid-cols-3 gap-3">
-          <StatusTile label="A gestionar" value={toManage.length} tone="rosa" note={reviews ? `${reviews} ${reviews === 1 ? 'pago' : 'pagos'} por revisar` : urgent ? `${urgent} ${urgent === 1 ? 'vence' : 'vencen'} pronto` : 'Pagados, sin empezar'} onClick={() => onOpen({ tab: 'pedidos', filter: 'gestionar' })} />
-          <StatusTile label="En proceso" value={inProgress} tone="arena" note="Trabajando en ellos" onClick={() => onOpen({ tab: 'pedidos', filter: 'in_progress' })} />
+        {reviews > 0 && (
+          <button type="button" onClick={() => onOpen({ tab: 'pedidos', filter: 'cobrar' })} className="mt-3 flex w-full items-center justify-between gap-3 rounded-2xl bg-petalo-wash px-4 py-3 text-left text-sm text-rosa-deep">
+            <span className="flex items-center gap-2"><FileCheck2 className="h-4 w-4 shrink-0" /><span><b>{reviews} {reviews === 1 ? 'pago por revisar' : 'pagos por revisar'}</b>: comprobantes o transferencias para confirmar.</span></span>
+            <ArrowRight className="h-4 w-4 shrink-0" />
+          </button>
+        )}
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatusTile label="Para hacer vos" value={mine} tone="rosa" note={urgent ? `${urgent} ${urgent === 1 ? 'vence' : 'vencen'} pronto` : toStart ? `${toStart} sin empezar` : 'Nada pendiente'} onClick={() => onOpen({ tab: 'pedidos', filter: toStart || !mine ? 'arrancar' : 'proceso' })} />
+          <StatusTile label="Listos del equipo" value={teamDone} tone="arena" note={teamDone ? 'Revisalos y entregalos' : 'Nada para revisar'} onClick={() => onOpen({ tab: 'pedidos', filter: 'revisar' })} />
+          <StatusTile label="En el equipo" value={teamWorking} tone="arena" note={teamWorking ? 'Los están armando' : 'Ninguno asignado'} onClick={() => onOpen({ tab: 'pedidos', filter: 'equipo' })} />
           <StatusTile label="Entregados" value={deliveredMonth} tone="verde" note={`Este mes · ${data.delivered.length} en total`} onClick={() => onOpen({ tab: 'pedidos', filter: 'delivered' })} />
         </div>
+        {waiting > 0 && <button type="button" onClick={() => onOpen({ tab: 'pedidos', filter: 'esperando' })} className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-piedra hover:text-ciruela"><Hourglass className="h-4 w-4" />{waiting} {waiting === 1 ? 'pedido esperando' : 'pedidos esperando'} al cliente (el plazo está en pausa)<ArrowRight className="h-4 w-4" /></button>}
 
         {data.unpaid > 0 && (
           <button type="button" onClick={() => onOpen({ tab: 'pedidos', filter: 'pending_payment' })} className="mt-3 flex w-full items-center justify-between gap-3 rounded-2xl bg-petalo-wash px-4 py-3 text-left text-sm text-rosa-deep">
@@ -301,7 +318,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
               {tasks.length > upcoming.length && <button type="button" onClick={() => onOpen({ tab: 'pedidos', filter: 'activos' })} className="inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">Ver los {tasks.length}<ArrowRight className="h-4 w-4" /></button>}
             </div>
             <ul className="mt-1">{upcoming.map((task) => <TaskRow key={task.order.id} task={task} onOpen={() => onOpen(task.kind === 'sesion' ? { tab: 'sesiones' } : { tab: 'pedidos', order: task.order.number })} />)}</ul>
-            <p className="mt-2 text-xs text-piedra">Plazo: 4 días hábiles desde el pago (Express: 1). Después de las 17 hs o en fin de semana arranca el siguiente día hábil. No descuenta feriados.</p>
+            <p className="mt-2 text-xs text-piedra">Plazo: 4 días hábiles desde el pago (Express: 1). Después de las 17 hs, en fin de semana o feriado arranca el siguiente día hábil. Sábados, domingos y feriados no cuentan.</p>
           </div>
         )}
         {!loading && tasks.length === 0 && <p className="mt-4 rounded-2xl bg-white px-4 py-5 text-center text-piedra">No tenés pedidos pendientes. ¡Todo al día!</p>}
@@ -391,7 +408,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
             <span className="font-display text-2xl font-extrabold tabular-nums text-ciruela">{number.format(webSales + whatsappSales)}</span>
           </div>
         </div>
-        <p className="mt-3 text-xs text-piedra">En la web, el porcentaje es sobre el paso anterior. Si mucha gente llega a comprar pero no confirma, el freno está en crear la cuenta o en los datos.</p>
+        <p className="mt-3 text-xs text-piedra">En la web, el porcentaje es sobre el paso anterior. Si mucha gente llega a comprar pero no confirma, el freno está en los datos o en el pago.</p>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
