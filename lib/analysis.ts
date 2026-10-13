@@ -16,8 +16,6 @@ export const EXPENSE_CATEGORY: Record<ExpenseCategory, string> = {
   publicidad: 'Otra publicidad', herramientas: 'Herramientas y apps', servicios: 'Servicios (web, dominio, mails)', impuestos: 'Impuestos y monotributo', equipo: 'Equipo (extra)', otros: 'Otros',
 }
 
-/** Meta bills Argentine ad accounts with 21% IVA on top of the spend it reports. */
-export const META_IVA = 0.21
 
 // ---- Periods (Argentine calendar, end exclusive) ----
 
@@ -61,10 +59,10 @@ export function rateFor(day: string, fx: FxRow[]) {
   return rate ?? fx[0]?.ars_per_usd ?? null
 }
 
-/** Meta spend in pesos (IVA included), from the account currency. */
+/** Meta spend in pesos, from the account currency. She pays in dollars bought with ARQ (no IVA on the charge). */
 export function adPesos(row: AdRow, fx: FxRow[]) {
   const rate = row.currency === 'ARS' ? 1 : rateFor(row.day, fx) ?? 0
-  return row.spend * rate * (1 + META_IVA)
+  return row.spend * rate
 }
 
 /** Expenses that fall in the period: one-off ones by date; monthly ones once per month they run (only in month view). */
