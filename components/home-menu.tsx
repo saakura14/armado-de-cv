@@ -9,6 +9,7 @@ const ITEMS = [
   { id: 'antes-despues', label: 'Antes y después' },
   { id: 'que-pack', label: '¿Qué pack necesito?' },
   { id: 'test', label: 'Test ATS gratis', href: '/test-ats' },
+  { id: 'etapas', label: 'Guías por etapa' },
   { id: 'guias', label: 'Guías' },
   { id: 'como-comprar', label: 'Cómo comprar' },
   { id: 'preguntas', label: 'Preguntas' },

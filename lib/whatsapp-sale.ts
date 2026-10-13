@@ -37,7 +37,7 @@ export function matchProduct(text: string, products: SaleProduct[], skip: Set<st
     const tokens = wordsOf(product.name).filter((token) => token.length >= 3 && !NOISE.has(token))
     const hits = tokens.filter((token) => words.has(token)).length
     if (!hits) continue
-    const score = hits + hits / Math.max(tokens.length, 1) + (wantsGuide && product.category === 'guias' ? 0.25 : 0)
+    const score = hits + hits / Math.max(tokens.length, 1) + (wantsGuide && (product.category === 'guias' || product.category === 'etapas') ? 0.25 : 0)
     const better = !best || score > best.score || (score === best.score && product.category === 'cv' && best.product.category !== 'cv')
     if (better) best = { product, score }
   }

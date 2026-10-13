@@ -43,7 +43,7 @@ function packFrom(products: Awaited<ReturnType<typeof getProducts>>) {
 }
 
 export default async function Home() {
-  const [cvProducts, guides, faqs] = await Promise.all([getProducts(['cv']), getProducts(['guias']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
+  const [cvProducts, guides, stageGuides, faqs] = await Promise.all([getProducts(['cv']), getProducts(['guias']), getProducts(['etapas']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
   const extraPrice = (id: string) => cvProducts.flatMap((product) => product.extras).find((group) => group.id === id)?.unitPrice ?? 15000
   const top = await getTopProducts(cvProducts)
   const badges = Object.fromEntries(top.products.slice(0, top.ranked).map((product, index) => [product.id, RANKS[index]]))
@@ -156,6 +156,16 @@ export default async function Home() {
           <Testimonials />
         </div>
       </section>
+
+      {/* Guides by age stage: their own section, apart from the other guides */}
+      {stageGuides.length > 0 && (
+        <section id="etapas" className="scroll-mt-32 bg-petalo-wash/60 px-4 py-16 sm:px-6 lg:py-20" aria-labelledby="etapas-title">
+          <div className="mx-auto max-w-6xl">
+            <SectionTitle id="etapas-title" script="Según tu etapa" title="Guías para buscar trabajo a los 20, 30, 40 y 50+" text="Cada etapa tiene sus desafíos. Elegí la guía de tu momento: qué buscan las empresas a tu edad, cómo armar tu CV, dónde buscar, cómo responder en la entrevista y un plan de 30 días. Te llega por mail, sin crear cuenta." />
+            <ProductGrid products={stageGuides} tone="asesorias" scroll />
+          </div>
+        </section>
+      )}
 
       {/* Free ATS test: the CV is analyzed in the browser and the result offers the packs */}
       <section className="px-4 pb-8 sm:px-6">
