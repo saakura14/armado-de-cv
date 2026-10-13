@@ -27,8 +27,8 @@ create policy "Solo la administradora" on public.ad_reviews for all to authentic
 create table if not exists public.savings_goal (
   id integer primary key default 1 check (id = 1),
   target numeric(14,2) not null default 10000000,
-  save_share integer not null default 60 check (save_share between 0 and 100),
-  live_share integer not null default 25 check (live_share between 0 and 100),
+  save_share integer not null default 45 check (save_share between 0 and 100),
+  live_share integer not null default 40 check (live_share between 0 and 100),
   ad_cap_usd numeric(8,2) not null default 23,
   updated_at timestamptz not null default now(),
   check (save_share + live_share <= 100)
