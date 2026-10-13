@@ -152,7 +152,7 @@ Tipos de entrega (`delivery`):
 | Entregado | "¡Listo! Tu pedido está entregado." |
 | Cancelado | Solo lo cancela la administración. |
 
-Además, "**Esperando al cliente**" pausa el plazo de entrega y al retomar suma los días hábiles esperados.
+Además, "**Esperando al cliente**" pausa el plazo de entrega y al retomar suma los días hábiles esperados. En los CVs, el plazo **arranca cuando Vale tiene los datos** (`orders.data_received_at`), no al confirmar el pago: hasta entonces el pedido está en "Esperando al cliente" con "Faltan los datos" y el botón **Ya tengo los datos** lo arranca (también "Pasar a En proceso" o asignarlo al equipo). "Todavía faltan datos" lo vuelve a cero.
 
 En el panel, los pedidos se ordenan por **etapas** (`lib/order-stages.ts`): **Hoy** (lo que necesita atención: nuevos, pagos a revisar, recordatorios, entregas que vencen, CV del equipo listo), **Nuevos**, **Por cobrar**, **Para arrancar**, **En proceso** (los que hace Vale), **Listos del equipo** (el equipo terminó todos sus CVs: revisar y entregar), **En el equipo** (algún CV asignado sin terminar), **Esperando al cliente**, **Entregados** (últimos 7 días) y **Archivo**. Cada pedido muestra el motivo ("Atrasado 2 días", "Vence hoy", "CV del equipo listo", "Revisar comprobante", "Recordar el pago"…).
 
@@ -355,6 +355,7 @@ Historial completo en `supabase/migrations/` (se aplica en orden; nunca se edita
 | `create_order` · `submit_receipt` | Cliente | Crea el pedido recalculando precios / asocia el comprobante. |
 | `set_my_order_origin` | Cliente | Marca si su pedido vino de un anuncio. |
 | `admin_set_order_status` · `admin_set_waiting` · `admin_set_order_origin` | Admin | Estados (aprobar el pago libera todo), pausa del plazo y origen. |
+| `admin_set_data_received` · `admin_delete_order` | Admin | Arranca (o vuelve a cero) el plazo cuando llegan los datos del cliente; elimina una venta repetida escribiendo su número (no si tiene pago con tarjeta). |
 | `admin_record_sale` · `admin_update_whatsapp_sale` · `admin_update_whatsapp_sale_items` | Admin | Ventas por WhatsApp. |
 | `get_order_link` · `claim_order_link` | Todos / Cliente | Links de pedido. |
 | `admin_update_session` · `admin_review_instant_payment` | Admin | Sesiones y pagos al instante. |
@@ -571,3 +572,4 @@ Revisión del 05/10/2026 con los datos propios (visitas y embudo desde el 28/09)
 | 12/10 | **Test ATS**: al ver el detalle aparecen los packs que le sirven según el puntaje (Primer Empleo, Simple y Medium; con 85 o más, Medium y Premium) con precio y "Lo quiero" ahí mismo, además de WhatsApp |
 | 12/10 | **Inicio más dinámico**: menú de secciones con chips debajo del encabezado (marca la sección en pantalla; en el celu reemplaza las pestañas y suma Asesorías), **Los más elegidos** después del hero (`top_products`: lo más vendido en 60 días, con "El más elegido"), **Antes y después** deslizable con el puntaje ATS real 40 → 94 (CV ficticio de Lucía Fernández, versión moderna o ATS) y **¿Qué pack necesito?** (hasta 3 preguntas y el pack listo para pedir). Plazos: "no trabajo fines de semana ni feriados" en el inicio y en los términos |
 | 13/10 | **Guías por etapa** (20, 30, 40 y 50+): categoría nueva `etapas` (sección propia "Según tu etapa" en el inicio y en el menú, editable en Admin → Productos), productos `guia-etapa-20/30/40/50` a $12.000 con e-books `etapa-*` (PDF en el bucket privado, fuente en armado-de-cv-ebooks 12 a 15). Se compran sin cuenta y el link llega por mail |
+| 13/10 | **Plazo desde los datos**: en los CVs el plazo de entrega corre desde que Vale tiene el CV y el puesto del cliente (botón "Ya tengo los datos", columna `data_received_at`; los pedidos anteriores quedaron con la fecha del pago). **Eliminar venta repetida** en Más opciones: pide escribir el número del pedido y lo saca de las métricas |

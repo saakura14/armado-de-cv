@@ -36,6 +36,7 @@ export function toStage(filter: Stage | LegacyFilter): Stage {
 }
 
 const WEEK = 7 * 24 * 60 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000
 const isTest = (order: Order) => order.number >= 90000
 
 /** Where the team is with an order: not involved, still building it, or every CV it got is finished. */
@@ -62,6 +63,8 @@ export function stageOf(order: Order, now = Date.now()): WorkStage {
   const team = teamState(order)
   if (team === 'working') return 'equipo'
   if (team === 'done') return 'revisar'
+  // Paid but the customer hasn't sent their CV and puesto yet: the clock hasn't started.
+  if (missingData(order)) return 'esperando'
   return order.status === 'paid' ? 'arrancar' : 'proceso'
 }
 
@@ -79,6 +82,9 @@ export function kindsOf(order: Order): Kind[] {
 }
 
 const hasDeadline = (order: Order) => order.order_items.some((item) => item.products?.delivery === 'service') && (order.status === 'paid' || order.status === 'in_progress')
+
+/** A CV order paid but still without the customer's data: no clock until Vale has everything ("Ya tengo los datos"). */
+export const missingData = (order: Order) => hasDeadline(order) && !order.data_received_at && teamState(order) === 'none'
 
 /** Why an order shows up in "Hoy", from most to least urgent (null = it can wait). */
 export type Reason = { label: string; tone: 'rojo' | 'naranja' | 'rosa' | 'arena'; rank: number }
@@ -98,6 +104,8 @@ export function todayReason(order: Order, unseen: boolean, now = new Date()): Re
     const deadline = deliveryDeadline(order, now)
     if (deadline && deadline.remaining === 1) return { label: nextDueText(deadline.due, now), tone: 'naranja', rank: 4 }
   }
+  // Ask for the data the day it's paid; then it waits quietly in "Esperando al cliente".
+  if (missingData(order)) return now.getTime() - time(order.paid_at) < DAY_MS ? { label: 'Pedir los datos', tone: 'arena', rank: 5 } : null
   if (order.status === 'paid') return { label: 'Para arrancar', tone: 'arena', rank: 5 }
   if (order.status === 'delivered' && pendingSessions(order).some((session) => session.status === 'to_schedule')) return { label: 'Agendar la asesoría', tone: 'arena', rank: 5 }
   if (order.status === 'pending_payment' && now.getTime() - new Date(order.created_at).getTime() > 24 * 60 * 60 * 1000) return { label: 'Recordar el pago', tone: 'arena', rank: 6 }
@@ -114,19 +122,24 @@ export function sortForStage(stage: Stage, orders: Order[], reasons: Map<string,
     case 'hoy': return list.sort((a, b) => (reasons.get(a.id)?.rank ?? 9) - (reasons.get(b.id)?.rank ?? 9) || dueTime(a) - dueTime(b) || time(a.created_at) - time(b.created_at))
     case 'cobrar': return list.sort((a, b) => Number(b.status === 'payment_review' || b.payment_check === 'pending') - Number(a.status === 'payment_review' || a.payment_check === 'pending') || time(a.created_at) - time(b.created_at))
     case 'arrancar': case 'proceso': case 'revisar': case 'equipo': return list.sort((a, b) => dueTime(a) - dueTime(b) || time(a.paid_at) - time(b.paid_at))
-    case 'esperando': return list.sort((a, b) => time(a.waiting_since) - time(b.waiting_since))
+    case 'esperando': return list.sort((a, b) => time(a.waiting_since ?? a.paid_at) - time(b.waiting_since ?? b.paid_at))
     case 'entregados': return list.sort((a, b) => time(b.delivered_at ?? b.paid_at) - time(a.delivered_at ?? a.paid_at))
     default: return list.sort((a, b) => time(b.created_at) - time(a.created_at))
   }
 }
 
 /** What dragging a card onto a stage does; null when that move has to be done from the card. */
-export type Move = { kind: 'status'; status: OrderStatus; confirm?: string } | { kind: 'waiting'; waiting: boolean }
+export type Move = { kind: 'status'; status: OrderStatus; confirm?: string } | { kind: 'waiting'; waiting: boolean } | { kind: 'data' }
 export function moveTo(order: Order, target: Stage): Move | null {
   const from = stageOf(order)
   if (from === target) return null
   if (target === 'arrancar' && from === 'cobrar' && order.status !== 'delivered') return { kind: 'status', status: 'paid', confirm: 'paid' }
   if (target === 'proceso' && from === 'arrancar') return { kind: 'status', status: 'in_progress' }
+  // Out of "Esperando" without data yet: dropping it means the data arrived (the clock starts today).
+  if (from === 'esperando' && missingData(order)) {
+    if (target === 'proceso') return order.status === 'paid' ? { kind: 'status', status: 'in_progress' } : { kind: 'data' }
+    if (target === 'arrancar' && order.status === 'paid') return { kind: 'data' }
+  }
   if (target === 'proceso' && from === 'esperando') return { kind: 'waiting', waiting: false }
   const working = from === 'arrancar' || from === 'proceso' || from === 'revisar' || from === 'equipo'
   if (target === 'esperando' && working && hasDeadline(order)) return { kind: 'waiting', waiting: true }
