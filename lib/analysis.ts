@@ -182,10 +182,11 @@ export function strongPoints(sales: AnalysisSale[], result: Result, campaigns: R
   if (!sales.length) return []
   const { products, channels, origins, weekdays, extras } = breakdowns(sales)
   const points: string[] = []
-  const top = products[0]
-  if (top) points.push(`${top.name} es lo que más vende: ${top.units} ${top.units === 1 ? 'venta' : 'ventas'} y el ${top.share}% de lo facturado.`)
-  const byUnits = [...products].sort((a, b) => b.units - a.units)[0]
-  if (byUnits && byUnits.name !== top?.name) points.push(`${byUnits.name} es el que más sale en cantidad (${byUnits.units}).`)
+  // Products come sorted by units: the first one sells the most; the one that brings the most money may be another.
+  const byUnits = products[0]
+  const byMoney = [...products].sort((a, b) => b.revenue - a.revenue)[0]
+  if (byUnits) points.push(`${byUnits.name} es lo que más sale: ${byUnits.units} ${byUnits.units === 1 ? 'venta' : 'ventas'} (${byUnits.share}% de lo facturado).`)
+  if (byMoney && byMoney.name !== byUnits?.name) points.push(`${byMoney.name} es lo que más plata trae: ${money(byMoney.revenue)} (${byMoney.share}%).`)
   if (channels[0]) points.push(`${channels[0].label} trae el ${channels[0].share}% de las ventas en plata.`)
   const known = origins.filter((row) => row.label !== 'Sin dato')
   if (known[0]) points.push(`El origen que más vende es ${known[0].label.toLowerCase()} (${known[0].sales} ${known[0].sales === 1 ? 'venta' : 'ventas'}).`)
