@@ -489,13 +489,13 @@ function ConnectSteps() {
 type Review = {
   week: string
   created_at: string
-  advice: { kind: 'bajar' | 'pausar' | 'subir' | 'ok' | 'ventas' | 'conectar'; text: string }[]
+  advice: { kind: 'semaforo' | 'bajar' | 'pausar' | 'subir' | 'ok' | 'ventas' | 'conectar'; text: string }[]
   stats: { since: string; until: string; cap: number; budget: number; spendUsd: number; spendArs: number; conversations: number; sales: number; revenue: number; campaigns: { id: string; name: string; spend: number; conversations: number; perConversation: number | null; budget: number | null; active: boolean }[] }
 }
 const ADVICE_TONE: Record<Review['advice'][number]['kind'], string> = {
-  bajar: 'bg-rosa text-white', pausar: 'bg-petalo-wash text-rosa-deep', subir: 'bg-whatsapp/15 text-whatsapp', ok: 'bg-whatsapp/15 text-whatsapp', ventas: 'bg-arena text-ciruela', conectar: 'bg-papel text-piedra',
+  semaforo: 'bg-ciruela text-white', bajar: 'bg-rosa text-white', pausar: 'bg-petalo-wash text-rosa-deep', subir: 'bg-whatsapp/15 text-whatsapp', ok: 'bg-whatsapp/15 text-whatsapp', ventas: 'bg-arena text-ciruela', conectar: 'bg-papel text-piedra',
 }
-const ADVICE_LABEL: Record<Review['advice'][number]['kind'], string> = { bajar: 'Bajar', pausar: 'Pausar', subir: 'Subir', ok: 'Bien', ventas: 'Ventas', conectar: 'Conectar' }
+const ADVICE_LABEL: Record<Review['advice'][number]['kind'], string> = { semaforo: 'Semáforo', bajar: 'Bajar', pausar: 'Pausar', subir: 'Subir', ok: 'Bien', ventas: 'Ventas', conectar: 'Conectar' }
 
 /** Mondays at 9 the ads are reviewed (and the summary arrives as a notification); "Revisar ahora" runs it any day. */
 function WeeklyReview({ money }: { money: (value: number) => string }) {
