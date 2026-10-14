@@ -29,7 +29,7 @@ export function TaskStart({ task, onChanged }: { task: { id: string; order_numbe
   async function reset() {
     if (!window.confirm(`¿Reiniciar${task.order_number ? ` el CV del pedido #${task.order_number}` : ' este CV'}? Vuelve a "Para hacer" y el tiempo arranca de nuevo cuando toque "Empezar".`)) return
     setBusy(true)
-    const { error: resetError } = await supabase.from('team_tasks').update({ status: 'asignado', started_at: null }).eq('id', task.id).eq('status', 'haciendo')
+    const { error: resetError } = await supabase.from('team_tasks').update({ status: 'asignado', started_at: null, progress: {}, progress_at: null }).eq('id', task.id).eq('status', 'haciendo')
     setBusy(false)
     if (resetError) { setError(errorMessage(resetError)); return }
     setError('')

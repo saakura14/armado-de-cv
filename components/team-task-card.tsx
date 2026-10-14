@@ -260,7 +260,7 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
 }
 
 /** The texts of a task, in order: CV moderno, CV ATS and the letter when there is one. */
-function sectionsOf(task: TeamTask) {
+export function sectionsOf(task: Pick<TeamTask, 'cv_modern' | 'cv_ats' | 'has_letter' | 'letter'>) {
   const list: { id: string; label: string; text: string; whole?: boolean }[] = [
     { id: 'moderno', label: 'CV moderno', text: task.cv_modern },
     { id: 'ats', label: 'CV ATS', text: task.cv_ats },
@@ -274,7 +274,7 @@ function sectionsOf(task: TeamTask) {
  * Tabs for each text, the big "Copiar siguiente" at the bottom, and "Empecé"/"Terminé" at the end.
  * Canva can't be shown inside the panel (Canva doesn't allow it), so there is a button to open it.
  */
-export function TaskWorkspace({ task, actions, onClose, onAsk, onStart }: { task: TeamTask; actions?: React.ReactNode; onClose: () => void; onAsk?: () => void; onStart?: () => void }) {
+export function TaskWorkspace({ task, actions, onClose, onAsk, onStart, onProgress }: { task: TeamTask; actions?: React.ReactNode; onClose: () => void; onAsk?: () => void; onStart?: () => void; onProgress?: (progress: Record<string, [number, number]>) => void }) {
   const sections = sectionsOf(task)
   const [tab, setTab] = useState(sections[0].id)
   const [progress, setProgress] = useState<Record<string, [number, number]>>({})
@@ -284,6 +284,13 @@ export function TaskWorkspace({ task, actions, onClose, onAsk, onStart }: { task
   const due = dueLabel(task.due_on)
   const report = useCallback((id: string) => (done: number, total: number) => setProgress((current) => (current[id]?.[0] === done && current[id]?.[1] === total ? current : { ...current, [id]: [done, total] })), [])
   const reporters = useMemo(() => Object.fromEntries(sections.map((section) => [section.id, report(section.id)])), [report, sections.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // What he copied goes to Vale's panel a moment after he stops (once every text reported its count).
+  useEffect(() => {
+    if (!onProgress || Object.keys(progress).length < sections.length) return
+    const timer = window.setTimeout(() => onProgress(progress), 1500)
+    return () => window.clearTimeout(timer)
+  }, [progress, onProgress, sections.length])
 
   // The phone's back button closes the work mode instead of leaving the screen.
   useEffect(() => {
