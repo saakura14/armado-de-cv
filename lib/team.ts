@@ -38,7 +38,9 @@ export type TeamPayment = { id: string; member_id: string; kind: 'pago' | 'adela
 export const TASK_SELECT = 'id, member_id, order_id, order_item_id, order_number, client_name, pack_name, cv_modern, cv_ats, has_letter, letter, notes, due_on, status, rate, assigned_at, started_at, finished_at, design_url, paid_in, progress, progress_at'
 
 /** Only the CV packs are made by the team (LinkedIn, platforms, sessions and corrections stay with Vale). */
-export const TEAM_PACKS = ['cv-simple', 'cv-medium', 'cv-premium']
+export const TEAM_PACKS = ['cv-primer-empleo', 'cv-simple', 'cv-medium', 'cv-premium']
+/** Packs with only the ATS CV (no modern design): the first job pack. */
+export const ATS_ONLY_PACKS = ['cv-primer-empleo']
 /** Packs that come with a cover letter. */
 export const PACKS_WITH_LETTER = ['cv-medium', 'cv-premium']
 
