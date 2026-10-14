@@ -106,7 +106,7 @@ function Figure({ id }: { id: CharacterId }) {
 /** His favorite characters cheer him up: a phrase that changes, what he made this month and how close the next payment is. */
 export function TeamCheer(mood: Mood) {
   return (
-    <CheerCard characters={CHARACTERS} storageKey="acv-cheer-character" mood={mood} label="Este mes juntaste" value={formatARS(mood.month)}
-      side={<>Cobro: <b className="text-white">{mood.count}/{mood.size}</b></>} progress={mood.count / Math.max(mood.size, 1)} progressLabel="Próximo cobro" />
+    <CheerCard characters={CHARACTERS} storageKey="acv-cheer-character" mood={mood} 
+      meter={{ label: 'Este mes juntaste', value: formatARS(mood.month), side: <>Cobro: <b className="text-white">{mood.count}/{mood.size}</b></>, progress: mood.count / Math.max(mood.size, 1), progressLabel: 'Próximo cobro' }} />
   )
 }
