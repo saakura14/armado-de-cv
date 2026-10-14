@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { CheerCard, type Character } from '@/components/cheer-card'
 import { formatARS } from '@/lib/catalog'
 
@@ -108,5 +109,35 @@ export function TeamCheer(mood: Mood) {
   return (
     <CheerCard characters={CHARACTERS} storageKey="acv-cheer-character" mood={mood} 
       meter={{ label: 'Este mes juntaste', value: formatARS(mood.month), side: <>Cobro: <b className="text-white">{mood.count}/{mood.size}</b></>, progress: mood.count / Math.max(mood.size, 1), progressLabel: 'Próximo cobro' }} />
+  )
+}
+
+const CELEBRATION: Record<CharacterId, { title: string; text: (count: number) => string }> = {
+  freddie: { title: '¡Eeeeee-oh!', text: (count) => `¡${count} CVs, darling! El estadio entero está de pie aplaudiéndote. ¡Sos una leyenda! 👑🎤` },
+  snake: { title: 'MISIÓN CUMPLIDA ★', text: (count) => `${count} objetivos completados sin que nadie te detecte. Rango: leyenda. ¿Te hice esperar, eh? Extracción con el cobro asegurada. 📦` },
+  ezio: { title: 'Sincronización 100%', text: (count) => `${count} CVs completados. La Hermandad celebra tu trabajo: ¡salto de fe hacia tu cobro! 🦅` },
+}
+const CONFETTI = ['#f6c945', '#ff4f7b', '#7dffa8', '#6fb6ff', '#ffffff', '#ff8a3d']
+
+/** Full screen party when he completes the CVs of a payment: his character jumps, confetti falls and it congratulates him. */
+export function TeamCelebration({ count, onClose }: { count: number; onClose: () => void }) {
+  const [id, setId] = useState<CharacterId>('freddie')
+  useEffect(() => { try { const saved = localStorage.getItem('acv-cheer-character'); if (saved && saved in CHARACTERS) setId(saved as CharacterId) } catch { /* private mode */ } }, [])
+  const look = CHARACTERS[id]
+  const words = CELEBRATION[id]
+  return (
+    <div className={`fixed inset-0 z-[80] flex flex-col items-center justify-center overflow-hidden p-6 text-center text-white ${look.card}`} role="dialog" aria-modal="true" aria-label="¡Felicitaciones!">
+      {look.overlay && <div className={`pointer-events-none absolute inset-0 ${look.overlay}`} />}
+      {/* Confetti */}
+      {Array.from({ length: 42 }, (_, index) => (
+        <span key={index} aria-hidden className="pointer-events-none absolute top-[-5%] block h-3 w-2 animate-[confetti-fall_linear_infinite] rounded-sm motion-reduce:hidden"
+          style={{ left: `${(index * 37) % 100}%`, background: CONFETTI[index % CONFETTI.length], animationDuration: `${2.6 + (index % 7) * 0.45}s`, animationDelay: `${(index % 11) * 0.25}s` }} />
+      ))}
+      <p className={`relative font-display text-3xl font-extrabold tracking-wide ${look.accent}`}>{words.title}</p>
+      <div className="relative mt-4 h-64 w-48 animate-[cheer-bounce_1.1s_ease-in-out_infinite] motion-reduce:animate-none">{look.figure}</div>
+      <p className={`relative mt-4 max-w-sm animate-[goal-in_0.6s_ease-out] rounded-3xl px-5 py-4 text-lg font-bold leading-snug shadow-2xl ${look.bubble}`}>{words.text(count)}</p>
+      <p className="relative mt-3 text-sm text-white/80">¡Completaste los {count} CVs de este cobro! 🎉</p>
+      <button type="button" onClick={onClose} className={`relative mt-6 rounded-full px-8 py-3 font-display text-base font-extrabold shadow-lg ${look.chip}`}>¡Gracias! 🙌</button>
+    </div>
   )
 }
