@@ -1,8 +1,10 @@
 // Meta ads for the "Análisis" tab: spend, conversations, clicks and impressions per day and campaign (Insights), each
 // campaign's status and daily budget, and the dólar cripto of the day (dolarapi.com; she buys the dollars with ARQ,
 // which follows it) to compare spend with sales in pesos. On Mondays ({ weekly: true }) it also writes the weekly
-// review (what to pause, lower or raise within her daily cap) and sends it to Vale as a push notification.
-// Called by pg_cron (x-cron-key) every 3 hours and on Mondays, and from the panel (admin session, up to 90 days back).
+// review (what to pause, lower or raise within her daily cap, and the traffic light: how much to spend per day given the
+// sales that came from ads) and sends it to Vale as a push notification. On Thursdays ({ brake: true }) it checks the
+// week so far and warns her to drop to US$15 if the ads are not selling.
+// Called by pg_cron (x-cron-key) every 3 hours, on Mondays and Thursdays, and from the panel (admin session, up to 90 days back).
 // Secrets: META_ADS_TOKEN (a System User token with ads_read) and optionally META_AD_ACCOUNT.
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.57.4'
 import webpush from 'npm:web-push@3.6.7'
@@ -25,6 +27,21 @@ const ars = (value: number) => '$' + Math.round(value).toLocaleString('es-AR')
 
 type Insight = { campaign_id: string; campaign_name: string; date_start: string; spend?: string; clicks?: string; impressions?: string; account_currency?: string; actions?: { action_type: string; value: string }[] }
 type Campaign = { id: string; name: string; effective_status: string; daily_budget?: string; adsets?: { data: { daily_budget?: string; effective_status: string }[] } }
+
+// Traffic light: Meta may take at most this much per sale that came from an ad (about half of a $50.000 ticket), so a
+// daily budget is only worth it when the last 7 days brought enough ad sales to pay for it.
+const MAX_COST_PER_AD_SALE = 25000
+const LEVELS = [23, 15, 10]
+// Trial month: alternating weeks (Monday to Sunday) at US$23 and US$15, to see whether 15 sells as much as 23.
+const TRIAL = [
+  { from: '2026-10-19', until: '2026-10-25', usd: 23 },
+  { from: '2026-10-26', until: '2026-11-01', usd: 15 },
+  { from: '2026-11-02', until: '2026-11-08', usd: 23 },
+  { from: '2026-11-09', until: '2026-11-15', usd: 15 },
+]
+// Ad sales needed in 7 days for a daily budget to pay for itself.
+const needed = (level: number, rate: number) => Math.ceil((level * 7 * rate) / MAX_COST_PER_AD_SALE)
+const LIGHT: Record<number, string> = { 23: '🟢', 15: '🟡', 10: '🔴' }
 
 /** Every page of a Graph API list. */
 async function graphList<T>(first: string, token: string): Promise<T[]> {
@@ -58,7 +75,7 @@ Deno.serve(async (request) => {
   }
   if (!allowed) return json(401, { error: 'No autorizado' })
 
-  const body = await request.json().catch(() => ({})) as { days?: number; weekly?: boolean; review?: boolean }
+  const body = await request.json().catch(() => ({})) as { days?: number; weekly?: boolean; review?: boolean; brake?: boolean }
   const days = Math.min(Math.max(Math.round(Number(body.days) || 3), 1), 90)
   const today = arDate(Date.now())
 
@@ -88,9 +105,11 @@ Deno.serve(async (request) => {
 
   // The weekly review works with whatever spend is loaded (from Meta or by hand).
   const review = body.weekly || body.review ? await weeklyReview(admin, today, Boolean(token), body.weekly === true) : null
+  // Thursday: the week so far.
+  const brake = body.brake ? await midweekBrake(admin, today) : null
 
   if (syncError) return json(502, { connected: true, error: syncError, rate, review })
-  return json(200, { connected: Boolean(token), rate, ...(synced ?? {}), review })
+  return json(200, { connected: Boolean(token), rate, ...(synced ?? {}), review, brake })
 })
 
 async function sync(admin: SupabaseClient, token: string, account: string, days: number, today: string) {
@@ -139,7 +158,7 @@ async function sync(admin: SupabaseClient, token: string, account: string, days:
 }
 
 type CampaignWeek = { id: string; name: string; spend: number; conversations: number; perConversation: number | null; budget: number | null; active: boolean }
-type Advice = { kind: 'bajar' | 'pausar' | 'subir' | 'ok' | 'ventas' | 'conectar'; text: string }
+type Advice = { kind: 'semaforo' | 'bajar' | 'pausar' | 'subir' | 'ok' | 'ventas' | 'conectar'; text: string }
 
 /** Last 7 full days: spend, sales and what to change so the money goes where conversations are cheapest, within the cap. */
 async function weeklyReview(admin: SupabaseClient, today: string, connected: boolean, notify: boolean) {
@@ -147,7 +166,7 @@ async function weeklyReview(admin: SupabaseClient, today: string, connected: boo
   const [{ data: spend }, { data: campaigns }, { data: sales }, { data: goal }, { data: fx }] = await Promise.all([
     admin.from('ad_spend').select('campaign_id, campaign_name, spend, conversations').gte('day', since).lt('day', today),
     admin.from('ad_campaigns').select('id, name, status, daily_budget'),
-    admin.from('orders').select('total').not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000).gte('paid_at', `${since}T03:00:00Z`).lt('paid_at', `${today}T03:00:00Z`),
+    admin.from('orders').select('total, origin').not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000).gte('paid_at', `${since}T03:00:00Z`).lt('paid_at', `${today}T03:00:00Z`),
     admin.from('savings_goal').select('ad_cap_usd').eq('id', 1).maybeSingle(),
     admin.from('fx_rates').select('ars_per_usd').order('day', { ascending: false }).limit(1),
   ])
@@ -204,13 +223,62 @@ async function weeklyReview(admin: SupabaseClient, today: string, connected: boo
   }
   if (knowsBudgets && !advice.some((item) => item.kind === 'bajar' || item.kind === 'pausar' || item.kind === 'subir')) advice.unshift({ kind: 'ok', text: `Presupuestos en orden: ${usd(budget)} por día de un tope de ${usd(cap)}.` })
 
-  const stats = { since, until: today, cap, budget, spendUsd, spendArs, conversations, sales: sold, revenue, rate, campaigns: list }
+  // The traffic light goes first: it is the decision of the week.
+  const light = await trafficLight(admin, today, sales ?? [], rate)
+  advice.unshift({ kind: 'semaforo', text: light.text })
+
+  const stats = { since, until: today, cap, budget, spendUsd, spendArs, conversations, sales: sold, revenue, rate, campaigns: list, adSales: light.adSales, level: light.level, trial: light.trial }
   // The week is named by its Monday.
   const week = arDate(Date.now() - ((new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7) * DAY)
   await admin.from('ad_reviews').upsert({ week, stats, advice, created_at: new Date().toISOString() })
 
-  if (notify) await pushToAdmins(admin, '📊 Revisión semanal de anuncios', advice.slice(0, 2).map((item) => item.text).join(' '), '/admin#analisis')
+  if (notify) await pushToAdmins(admin, '📊 Revisión semanal de anuncios', advice.slice(0, 3).map((item) => item.text).join(' '), '/admin#analisis')
   return { week, stats, advice }
+}
+
+/** The traffic light for next week, from the sales that came from ads in the last 7 days (origin "anuncio"). During the trial
+ *  month the week's budget is fixed; after it, the light decides, and the first review after it compares 23 with 15. */
+async function trafficLight(admin: SupabaseClient, today: string, sales: { total: number; origin: string | null }[], rate: number) {
+  const adSales = sales.filter((sale) => sale.origin === 'anuncio').length
+  const level = rate > 0 ? LEVELS.find((value) => adSales >= needed(value, rate)) ?? 10 : 15
+  const counted = `${adSales} ${adSales === 1 ? 'venta' : 'ventas'} de anuncio en 7 días`
+  const week = TRIAL.findIndex((row) => today >= row.from && today <= row.until)
+  if (week >= 0) {
+    const target = TRIAL[week].usd
+    return { adSales, level, trial: week + 1, text: `Semana de prueba ${week + 1} de 4: esta semana el presupuesto va a US$${target} por día (sumando todas las campañas). Con ${counted}, el semáforo marcaría ${LIGHT[level]} US$${level}.` }
+  }
+  const last = TRIAL[TRIAL.length - 1]
+  if (today > last.until && today <= arDate(new Date(`${last.until}T12:00:00Z`).getTime() + 8 * DAY)) {
+    // Trial over: ad sales of the weeks at 23 against the weeks at 15.
+    const { data: orders } = await admin.from('orders').select('paid_at').eq('origin', 'anuncio').not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000).gte('paid_at', `${TRIAL[0].from}T03:00:00Z`)
+    const per = (usdLevel: number) => (orders ?? []).filter((order) => {
+      const day = arDate(new Date(order.paid_at).getTime())
+      return TRIAL.some((row) => row.usd === usdLevel && day >= row.from && day <= row.until)
+    }).length
+    const high = per(23)
+    const low = per(15)
+    const verdict = high === 0
+      ? 'Con tan pocas ventas de anuncio todavía no se puede comparar.'
+      : low >= high * 0.8
+        ? `A US$15 se vendió casi lo mismo (${Math.round((low / high) * 100)}%): conviene quedarse en 15 y usar la diferencia para empujar los posts que peguen.`
+        : 'A US$23 se vendió bastante más: conviene volver a 23 mientras el semáforo dé verde.'
+    return { adSales, level, trial: 0, text: `Prueba terminada: semanas a US$23, ${high} ventas de anuncio; semanas a US$15, ${low}. ${verdict}` }
+  }
+  const advice = level === 23 ? 'seguí en US$23 por día' : level === 15 ? 'bajá a US$15 por día' : 'bajá a US$10 por día y dejá solo la campaña más barata'
+  return { adSales, level, trial: 0, text: `${LIGHT[level]} Semáforo: ${counted} (para US$23 hacen falta ${needed(23, rate)}, para US$15, ${needed(15, rate)}): ${advice}.` }
+}
+
+/** Thursday: if this week runs at US$23 and the ads brought fewer than 3 sales since Monday, drop to 15 until Monday. */
+async function midweekBrake(admin: SupabaseClient, today: string) {
+  const monday = arDate(Date.now() - ((new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7) * DAY)
+  const trial = TRIAL.find((row) => today >= row.from && today <= row.until)
+  const { data: review } = await admin.from('ad_reviews').select('stats').eq('week', monday).maybeSingle()
+  const target = trial?.usd ?? Number((review?.stats as { level?: number } | null)?.level ?? 23)
+  const { count } = await admin.from('orders').select('id', { count: 'exact', head: true }).eq('origin', 'anuncio').not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000).gte('paid_at', `${monday}T03:00:00Z`)
+  const adSales = count ?? 0
+  if (target < 23 || adSales >= 3) return { target, adSales, warned: false }
+  await pushToAdmins(admin, '🟡 Freno de anuncios', `Van ${adSales} ${adSales === 1 ? 'venta' : 'ventas'} de anuncio desde el lunes: bajá a US$15 por día hasta el lunes. Cargá el origen de cada venta para que la cuenta sea justa.`, '/admin#analisis')
+  return { target, adSales, warned: true }
 }
 
 async function pushToAdmins(admin: SupabaseClient, title: string, body: string, url: string) {
