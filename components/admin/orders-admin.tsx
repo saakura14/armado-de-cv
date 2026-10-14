@@ -97,6 +97,8 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
     return <button type="button" onClick={() => setOpen(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-rosa-deep hover:underline"><Pencil className="h-3.5 w-3.5" />Editar venta</button>
   }
   const lines = totalOf(items)
+  // Something was added to what she had already charged for.
+  const added = items.length > initialItems.length
   return (
     <div className="mt-3 rounded-2xl border border-rosa/40 bg-petalo-wash/60 p-4">
       <p className="font-display text-sm font-bold text-ciruela">Editar venta por WhatsApp</p>
@@ -106,8 +108,16 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
         <label className="col-span-2 text-xs font-semibold uppercase tracking-wider text-piedra sm:col-span-1">Cliente<input value={name} onChange={(event) => setName(event.target.value)} className={inputClass} /></label>
         <label className="col-span-2 text-xs font-semibold uppercase tracking-wider text-piedra sm:col-span-1">WhatsApp<input type="tel" inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className={inputClass} /></label>
         <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Fecha de pago<input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={inputClass} /></label>
-        <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Cobraste<input inputMode="numeric" value={total} onChange={(event) => { setTotal(event.target.value.replace(/\D/g, '')); setTotalTouched(true) }} className={inputClass} /></label>
+        <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Total cobrado (todo el pedido)<input inputMode="numeric" value={total} onChange={(event) => { setTotal(event.target.value.replace(/\D/g, '')); setTotalTouched(true) }} className={inputClass} /></label>
       </div>
+      {/* Adding something sold later: the amount is the whole order, not just the new item. */}
+      {added && Number(total) < order.total && (
+        <p className="mt-2 rounded-xl bg-rosa/10 px-3 py-2 text-xs font-semibold text-rosa-deep">
+          Ojo: el total quedó menor que lo que ya habías cobrado ({formatARS(order.total)}). Va el total de todo: {formatARS(order.total)} + lo que cobraste por lo nuevo.
+          {Number(total) > 0 && <> <button type="button" className="underline" onClick={() => { setTotal(String(order.total + Number(total))); setTotalTouched(true) }}>Usar {formatARS(order.total + Number(total))}</button></>}
+        </p>
+      )}
+      {added && <p className="mt-2 text-xs text-piedra">Si lo nuevo lo vendiste otro día, conviene cargarlo como venta nueva: así cuenta en el mes en que lo cobraste.</p>}
       {lines > 0 && lines !== Number(total) && <p className="mt-2 text-xs text-piedra">Según los precios de lo que compró: {formatARS(lines)}. <button type="button" className="font-semibold text-rosa-deep hover:underline" onClick={() => { setTotal(String(lines)); setTotalTouched(false) }}>usar ese</button></p>}
       {itemsChanged && items.some((item) => item.extras.some((extra) => extra.groupId === 'express')) && <p className="mt-2 text-xs font-semibold text-ciruela">Con Express, el plazo pasa a 24 hs hábiles desde la fecha de pago.</p>}
       <div className="mt-3 flex flex-wrap gap-2">
