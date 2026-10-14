@@ -303,7 +303,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
               <h2 id="batch-title" className="font-display text-base font-bold text-ciruela">Tu próximo cobro</h2>
               <p className="mt-1 font-display text-2xl font-extrabold text-ciruela">{batch.count}<span className="text-sm text-piedra"> de {batch.size} CVs</span></p>
               <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${batch.count >= batch.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(batch.count / batch.size, 1) * 100}%` }} /></div>
-              <p className="mt-2 text-xs leading-snug text-piedra">{batch.count} {batch.count === 1 ? 'CV' : 'CVs'} × {formatARS(member.rate)}{batch.advances ? ` − ${formatARS(batch.advances)} de adelanto` : ''} = <b className="text-ink">{formatARS(batch.owed)}</b></p>
+              <p className="mt-2 text-xs leading-snug text-piedra">{batch.unpaid.every((task) => task.rate === member.rate) ? `${batch.count} ${batch.count === 1 ? 'CV' : 'CVs'} × ${formatARS(member.rate)}` : `${batch.count} ${batch.count === 1 ? 'CV' : 'CVs'} (${formatARS(batch.earned)})`}{batch.advances ? ` − ${formatARS(batch.advances)} de adelanto` : ''} = <b className="text-ink">{formatARS(batch.owed)}</b></p>
             </section>
 
             <section className={cardClass} aria-labelledby="months-title">

@@ -261,8 +261,9 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
 
 /** The texts of a task, in order: CV moderno, CV ATS and the letter when there is one. */
 export function sectionsOf(task: Pick<TeamTask, 'cv_modern' | 'cv_ats' | 'has_letter' | 'letter'>) {
+  // The first job pack has only the ATS CV: no modern text, no tab for it.
   const list: { id: string; label: string; text: string; whole?: boolean }[] = [
-    { id: 'moderno', label: 'CV moderno', text: task.cv_modern },
+    ...(task.cv_modern.trim() ? [{ id: 'moderno', label: 'CV moderno', text: task.cv_modern }] : []),
     { id: 'ats', label: 'CV ATS', text: task.cv_ats },
   ]
   if (task.has_letter && task.letter) list.push({ id: 'carta', label: 'Carta', text: task.letter, whole: true })
@@ -405,7 +406,7 @@ export function TaskTexts({ task }: { task: TeamTask }) {
   return (
     <div className="space-y-2">
       {task.notes && <p className="rounded-xl bg-papel px-3 py-2 text-sm text-ink"><b>Notas de Vale:</b> {task.notes}</p>}
-      <CopyBlock storageKey={`${task.id}-moderno`} label="CV moderno" text={task.cv_modern} />
+      {task.cv_modern.trim() && <CopyBlock storageKey={`${task.id}-moderno`} label="CV moderno" text={task.cv_modern} />}
       <CopyBlock storageKey={`${task.id}-ats`} label="CV ATS" text={task.cv_ats} />
       {task.has_letter && task.letter && <CopyBlock storageKey={`${task.id}-carta`} label="Carta de presentación" text={task.letter} whole />}
       {task.has_letter && !task.letter && <p className="px-1 text-xs font-semibold text-rosa-deep">Lleva carta: el texto te lo pasa Vale.</p>}

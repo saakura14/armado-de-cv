@@ -6,7 +6,7 @@ import { deliveryDeadline } from '@/lib/dashboard'
 import { isDayOff } from '@/lib/holidays'
 import type { Order, OrderItem } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
-import { PACKS_WITH_LETTER, TASK_STATUS, TEAM_PACKS, type TaskStatus, type TeamMember } from '@/lib/team'
+import { ATS_ONLY_PACKS, PACKS_WITH_LETTER, TASK_STATUS, TEAM_PACKS, type TaskStatus, type TeamMember } from '@/lib/team'
 import { TaskStart } from './task-start'
 import { Button, Field, inputClass, useFlash } from './ui'
 
@@ -30,7 +30,11 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
   const [memberId, setMemberId] = useState('')
   const [modern, setModern] = useState('')
   const [ats, setAts] = useState('')
+  // The first job pack is only the ATS CV: no modern text and no letter.
+  const atsOnly = ATS_ONLY_PACKS.includes(item.product_id)
   const [hasLetter, setHasLetter] = useState(PACKS_WITH_LETTER.includes(item.product_id))
+  // What she pays for this CV: the member's rate unless she changes it (e.g. less for a single ATS CV).
+  const [rate, setRate] = useState('')
   const [letter, setLetter] = useState('')
   const [notes, setNotes] = useState('')
   const [due, setDue] = useState(() => suggestedDue(order))
@@ -42,6 +46,7 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
       const list = (data as TeamMember[] | null) ?? []
       setMembers(list)
       setMemberId((current) => current || list[0]?.id || '')
+      setRate((current) => current || String(list[0]?.rate ?? ''))
     })
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
@@ -56,8 +61,8 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
     const { data, error } = await supabase.from('team_tasks').insert({
       member_id: member.id, order_id: order.id, order_item_id: item.id, order_number: order.number,
       client_name: firstName, pack_name: item.product_name,
-      cv_modern: modern.trim(), cv_ats: ats.trim(), has_letter: hasLetter, letter: hasLetter ? letter.trim() || null : null,
-      notes: notes.trim() || null, due_on: due || null, rate: member.rate,
+      cv_modern: atsOnly ? '' : modern.trim(), cv_ats: ats.trim(), has_letter: !atsOnly && hasLetter, letter: !atsOnly && hasLetter ? letter.trim() || null : null,
+      notes: notes.trim() || null, due_on: due || null, rate: rate === '' ? member.rate : Number(rate),
     }).select('id').single()
     setBusy(false)
     if (error) { flash.show('error', /duplicate|unique/i.test(error.message) ? 'Este pack ya está asignado.' : errorMessage(error)); return }
@@ -67,7 +72,7 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
     onClose()
   }
 
-  const ready = memberId && modern.trim() && ats.trim()
+  const ready = memberId && (atsOnly || modern.trim()) && ats.trim()
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="assign-title" onClick={onClose}>
       <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-2xl sm:rounded-[28px]" onClick={(event) => event.stopPropagation()}>
@@ -85,10 +90,12 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
               <select value={memberId} onChange={(event) => setMemberId(event.target.value)} className={inputClass}>{members.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select>
             </Field>
           )}
-          <Field label="Texto del CV moderno"><textarea value={modern} onChange={(event) => setModern(event.target.value)} rows={7} placeholder="Pegá el texto tal cual se lo mandabas por WhatsApp" className={inputClass} /></Field>
-          <Field label="Texto del CV ATS"><textarea value={ats} onChange={(event) => setAts(event.target.value)} rows={7} className={inputClass} /></Field>
-          <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={hasLetter} onChange={(event) => setHasLetter(event.target.checked)} className="accent-rosa" />Lleva carta de presentación</label>
-          {hasLetter && <Field label="Texto de la carta (opcional)"><textarea value={letter} onChange={(event) => setLetter(event.target.value)} rows={5} className={inputClass} /></Field>}
+          {atsOnly && <p className="rounded-2xl bg-papel px-4 py-3 text-sm text-ink"><b>Pack Primer Empleo:</b> lleva solo el CV ATS (sin diseño moderno ni carta).</p>}
+          {!atsOnly && <Field label="Texto del CV moderno"><textarea value={modern} onChange={(event) => setModern(event.target.value)} rows={7} placeholder="Pegá el texto tal cual se lo mandabas por WhatsApp" className={inputClass} /></Field>}
+          <Field label="Texto del CV ATS"><textarea value={ats} onChange={(event) => setAts(event.target.value)} rows={atsOnly ? 10 : 7} placeholder={atsOnly ? 'Pegá el texto tal cual se lo mandabas por WhatsApp' : undefined} className={inputClass} /></Field>
+          {!atsOnly && <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={hasLetter} onChange={(event) => setHasLetter(event.target.checked)} className="accent-rosa" />Lleva carta de presentación</label>}
+          {!atsOnly && hasLetter && <Field label="Texto de la carta (opcional)"><textarea value={letter} onChange={(event) => setLetter(event.target.value)} rows={5} className={inputClass} /></Field>}
+          <Field label="Le pagás por este CV"><input inputMode="numeric" value={rate} onChange={(event) => setRate(event.target.value.replace(/\D/g, ''))} className={inputClass} /></Field>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Para cuándo"><input type="date" value={due} onChange={(event) => setDue(event.target.value)} className={inputClass} /></Field>
             <Field label="Notas (colores, foto, rubro…)"><input value={notes} onChange={(event) => setNotes(event.target.value)} className={inputClass} /></Field>
