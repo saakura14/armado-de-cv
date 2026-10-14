@@ -76,6 +76,26 @@ export function AnalysisAdmin() {
     })()
   }, [load, sync])
 
+  // A sale loaded (or edited, delivered, deleted), an expense or spend: the numbers update by themselves, without the
+  // loading state, and again when the panel comes back to the front.
+  useEffect(() => {
+    let timer: number | undefined
+    const quiet = async () => {
+      const { data: loaded, error: failed } = await fetchAnalysisData()
+      setError(failed)
+      setData(loaded)
+    }
+    const soon = () => { window.clearTimeout(timer); timer = window.setTimeout(quiet, 800) }
+    const channel = supabase.channel('admin-analysis')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, soon)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, soon)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_spend' }, soon)
+      .subscribe()
+    const onVisible = () => { if (document.visibilityState === 'visible') soon() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { window.clearTimeout(timer); supabase.removeChannel(channel); document.removeEventListener('visibilitychange', onVisible) }
+  }, [])
+
   return <AnalysisView data={data} loading={loading} error={error} meta={meta} onReload={load} onSync={async () => { if (await sync(7)) load() }} />
 }
 
