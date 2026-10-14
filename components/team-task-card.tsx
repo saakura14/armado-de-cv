@@ -418,10 +418,13 @@ export function TaskTexts({ task }: { task: TeamTask }) {
  * One CV in a list, in a single compact line: who, which pack, for when and how much was copied, with one button on the right.
  * The colored edge tells the state at a glance (grey to do, pink in progress, green finished).
  * `onOpen` makes the line open the work mode; otherwise `children` unfold under it.
+ * `reported` (Vale's panel): the share he reported from his work mode, instead of what was copied on this device.
  */
-export function TaskRow({ task, action, onOpen, children }: { task: TeamTask; action?: React.ReactNode; onOpen?: () => void; children?: React.ReactNode }) {
+export function TaskRow({ task, action, onOpen, children, reported }: { task: TeamTask; action?: React.ReactNode; onOpen?: () => void; children?: React.ReactNode; reported?: number | null }) {
   const [expanded, setExpanded] = useState(false)
-  const progress = useTaskProgress(task)
+  // In Vale's panel the bar shows what the team member reported, not what was copied on her own device (her tests).
+  const local = useTaskProgress(task)
+  const progress = reported === undefined ? local : reported ?? 0
   const due = task.status !== 'terminado' ? dueLabel(task.due_on) : null
   const edge = task.status === 'terminado' ? 'bg-whatsapp' : task.status === 'haciendo' ? 'bg-rosa' : 'bg-line'
   const toggle = onOpen ?? (children ? () => setExpanded((value) => !value) : undefined)

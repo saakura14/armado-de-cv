@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Wallet, X } from 'lucide-react'
-import { TaskRow, TaskWorkspace } from '@/components/team-task-card'
+import { TaskRow, TaskTexts, TaskWorkspace } from '@/components/team-task-card'
+import { progressShare } from '@/components/admin/task-progress'
 import { TeamCelebration, TeamCheer } from '@/components/team-cheer'
 import { TeamChat, TeamChatBubble, TeamChatWindow, useTeamUnread, type ChatTask } from '@/components/team-chat'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
@@ -90,6 +91,17 @@ function TaskActions({ task, preview, onChanged, onFinished }: { task: TeamTask;
         </div>
       )}
       {flash.node}
+    </div>
+  )
+}
+
+/** A finished CV, unfolded: what Vale wrote for it, the Canva design and the texts, to look back at it. */
+function FinishedDetail({ task }: { task: TeamTask }) {
+  return (
+    <div className="space-y-2">
+      {!task.notes && <p className="rounded-xl bg-papel px-3 py-2 text-sm text-piedra">Este CV no tenía notas de Vale.</p>}
+      {task.design_url && <a href={task.design_url} target="_blank" rel="noreferrer" className="inline-block text-sm font-semibold text-rosa-deep hover:underline">Ver tu diseño en Canva</a>}
+      <TaskTexts task={task} />
     </div>
   )
 }
@@ -266,7 +278,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
                     <p className="mb-1.5 px-1 font-display text-[11px] font-bold uppercase tracking-wider text-piedra">{group.title} · {group.items.length}</p>
                     <ul className="grid items-start gap-2 @5xl:grid-cols-2">
                       {group.items.map((task) => (
-                        <TaskRow key={task.id} task={task} onOpen={() => openTask(task)}
+                        <TaskRow key={task.id} task={task} reported={preview ? progressShare(task) : undefined} onOpen={() => openTask(task)}
                           action={<button type="button" onClick={() => openTask(task)} className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3.5 font-display text-xs font-bold text-white ${task.status === 'haciendo' ? 'bg-rosa hover:bg-rosa-deep' : 'bg-ciruela hover:bg-rosa'}`}>{task.status === 'haciendo' ? 'Seguir' : 'Empezar'}<ChevronRight className="h-4 w-4" /></button>} />
                       ))}
                     </ul>
@@ -275,7 +287,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
               </div>
             ) : (
               <ul className="mt-3 grid items-start gap-2 @5xl:grid-cols-2">
-                {list.map((task) => <TaskRow key={task.id} task={task} action={<span className="shrink-0 text-right text-[11px] leading-tight text-piedra">{formatDate(task.finished_at!, true)}{workMinutes(task) !== null ? ` · ⏱ ${formatMinutes(workMinutes(task)!)}` : ''}<br /><b className={task.paid_in ? 'text-whatsapp' : 'text-ciruela'}>{task.paid_in ? 'cobrado' : 'a cobrar'}</b></span>} />)}
+                {list.map((task) => <TaskRow key={task.id} task={task} action={<span className="shrink-0 text-right text-[11px] leading-tight text-piedra">{formatDate(task.finished_at!, true)}{workMinutes(task) !== null ? ` · ⏱ ${formatMinutes(workMinutes(task)!)}` : ''}<br /><b className={task.paid_in ? 'text-whatsapp' : 'text-ciruela'}>{task.paid_in ? 'cobrado' : 'a cobrar'}</b></span>}><FinishedDetail task={task} /></TaskRow>)}
               </ul>
             )}
           </section>
