@@ -10,7 +10,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, pendingSessions, type Order, type OrderStatus } from '@/lib/orders'
 import { deliveryDeadline, formatDue } from '@/lib/dashboard'
-import { STAGES, kindsOf, missingData, moveTo, sortForStage, stageOf, toStage, todayReason, type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
+import { STAGES, kindsOf, missingData, moveTo, sortForStage, stageOf, teamState, toStage, todayReason,type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
 import { DeadlineChip } from './dashboard-admin'
 import { OrderLinkDialog } from './order-link-dialog'
 import { TeamRow, type OrderTask } from './assign-task'
@@ -264,7 +264,11 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
     else window.open(data.signedUrl, '_blank', 'noopener')
   }
 
-  const status = STATUS[order.status]
+  // A CV with the team says so on the card: building it, or finished and waiting for her to check it.
+  const team = order.status === 'paid' || order.status === 'in_progress' ? teamState(order) : 'none'
+  const status = team === 'working' ? { label: 'En proceso por el equipo', tone: 'bg-rosa text-white' }
+    : team === 'done' ? { label: 'Listo del equipo', tone: 'bg-whatsapp/15 text-whatsapp' }
+    : STATUS[order.status]
   const name = order.customer_name || buyer?.full_name || buyer?.email || 'Cliente'
   const phone = order.customer_phone || buyer?.phone || null
   // Bought without an account: the email is on the order, not on a profile.
