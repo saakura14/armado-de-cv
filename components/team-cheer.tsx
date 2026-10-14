@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { CheerCard, type Character } from '@/components/cheer-card'
 import { formatARS } from '@/lib/catalog'
 
 type Mood = { pending: number; today: number; month: number; count: number; size: number }
@@ -10,12 +10,9 @@ type CharacterId = 'freddie' | 'snake' | 'ezio'
  * A character he likes cheers him up with phrases in its own style (written here, no song lyrics). The drawings are
  * original silhouettes, not photos or game art. Colors are fixed so the card looks the same in light and dark.
  */
-const CHARACTERS: Record<CharacterId, {
-  name: string; card: string; accent: string; bar: string; chip: string; bubble: string
-  lines: (mood: Mood) => string[]
-}> = {
+const CHARACTERS: Record<CharacterId, Character<Mood>> = {
   freddie: {
-    name: '👑 Freddie', card: 'bg-[radial-gradient(120%_90%_at_20%_0%,#5b2a86_0%,#2a1240_45%,#140a1f_100%)]',
+    name: '👑 Freddie', figure: <Figure id="freddie" />, card: 'bg-[radial-gradient(120%_90%_at_20%_0%,#5b2a86_0%,#2a1240_45%,#140a1f_100%)]',
     accent: 'text-[#f6c945]', bar: 'bg-[linear-gradient(90deg,#f6c945,#ff8a3d,#ff4f7b)]', chip: 'bg-[#f6c945] text-[#2a1240]', bubble: 'bg-[#fff7dc] text-[#2a1240]',
     lines: ({ pending, today, month }) => [
       '¡Eeeeee-oh! 🎤 El público pide otro CV.',
@@ -27,7 +24,7 @@ const CHARACTERS: Record<CharacterId, {
     ],
   },
   snake: {
-    name: '❗ Snake', card: 'bg-[linear-gradient(180deg,#0d1f14_0%,#07130c_100%)]',
+    name: '❗ Snake', figure: <Figure id="snake" />, overlay: 'bg-[repeating-linear-gradient(0deg,rgba(125,255,168,0.06)_0_1px,transparent_1px_3px)]', card: 'bg-[linear-gradient(180deg,#0d1f14_0%,#07130c_100%)]',
     accent: 'text-[#7dffa8]', bar: 'bg-[linear-gradient(90deg,#3ddc84,#b6ff6a)]', chip: 'bg-[#7dffa8] text-[#07130c]', bubble: 'bg-[#0f2d1b] text-[#c9ffd9] ring-1 ring-[#7dffa8]/50 font-mono',
     lines: ({ pending, today, month }) => [
       '¿Te hice esperar, eh? Vamos con el próximo CV.',
@@ -39,7 +36,7 @@ const CHARACTERS: Record<CharacterId, {
     ],
   },
   ezio: {
-    name: '🦅 Ezio', card: 'bg-[linear-gradient(160deg,#2b2b2e_0%,#151517_60%,#3a0d0d_100%)]',
+    name: '🦅 Ezio', figure: <Figure id="ezio" />, card: 'bg-[linear-gradient(160deg,#2b2b2e_0%,#151517_60%,#3a0d0d_100%)]',
     accent: 'text-[#ff5a4e]', bar: 'bg-[linear-gradient(90deg,#e8e4da,#ff5a4e)]', chip: 'bg-[#e8e4da] text-[#151517]', bubble: 'bg-[#f1ece2] text-[#151517]',
     lines: ({ pending, today, month, count, size }) => [
       'Nada es verdad, todo está permitido... menos un CV con errores. 🦅',
@@ -51,7 +48,6 @@ const CHARACTERS: Record<CharacterId, {
     ],
   },
 }
-const CHARACTER_KEY = 'acv-cheer-character'
 
 /** Original silhouettes: a frontman with the mic stand up, a soldier with a bandana in his box, a hooded assassin. */
 function Figure({ id }: { id: CharacterId }) {
@@ -108,47 +104,9 @@ function Figure({ id }: { id: CharacterId }) {
 }
 
 /** His favorite characters cheer him up: a phrase that changes, what he made this month and how close the next payment is. */
-export function TeamCheer({ pending, today, month, count, size }: Mood) {
-  const [id, setId] = useState<CharacterId>('freddie')
-  const [line, setLine] = useState(0)
-  useEffect(() => { try { const saved = localStorage.getItem(CHARACTER_KEY); if (saved && saved in CHARACTERS) setId(saved as CharacterId) } catch { /* private mode */ } }, [])
-  useEffect(() => { const timer = window.setInterval(() => setLine((value) => value + 1), 8000); return () => window.clearInterval(timer) }, [])
-  function pick(next: CharacterId) { setId(next); setLine(0); try { localStorage.setItem(CHARACTER_KEY, next) } catch { /* private mode */ } }
-
-  const look = CHARACTERS[id]
-  const lines = look.lines({ pending, today, month, count, size })
-  const share = Math.min(count / Math.max(size, 1), 1)
-
+export function TeamCheer(mood: Mood) {
   return (
-    <section className={`relative overflow-hidden rounded-3xl p-4 text-white shadow-[0_18px_40px_-24px_rgba(20,10,31,0.9)] ${look.card}`} aria-label="Ánimo">
-      {id === 'snake' && <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(0deg,rgba(125,255,168,0.06)_0_1px,transparent_1px_3px)]" />}
-      <div className="relative flex items-end gap-2">
-        {/* Tapping the character brings the next phrase. */}
-        <button type="button" onClick={() => setLine((value) => value + 1)} aria-label="Otra frase" className="h-32 w-24 shrink-0 transition-transform active:scale-95">
-          <Figure id={id} />
-        </button>
-        <p key={`${id}-${line}`} className={`relative mb-6 flex-1 animate-[goal-in_0.5s_ease-out] rounded-2xl rounded-bl-sm px-3 py-2.5 text-sm font-bold leading-snug shadow-lg ${look.bubble}`}>
-          {lines[line % lines.length]}
-        </p>
-      </div>
-
-      <div className="relative mt-1">
-        <div className="flex items-baseline justify-between gap-2 text-xs text-white/75">
-          <span>Este mes juntaste <b className={`font-display text-base ${look.accent}`}>{formatARS(month)}</b></span>
-          <span>Cobro: <b className="text-white">{count}/{size}</b></span>
-        </div>
-        <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Próximo cobro" aria-valuemin={0} aria-valuemax={size} aria-valuenow={count}>
-          <div className={`relative h-full rounded-full transition-[width] duration-1000 ${look.bar}`} style={{ width: `${share * 100}%` }}>
-            <span className="absolute inset-0 animate-[goal-shine_2.4s_linear_infinite] bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.45),transparent)] bg-[length:50%_100%] bg-no-repeat motion-reduce:hidden" />
-          </div>
-        </div>
-      </div>
-
-      <div role="radiogroup" aria-label="Personaje" className="relative mt-3 flex gap-1.5">
-        {(Object.keys(CHARACTERS) as CharacterId[]).map((key) => (
-          <button key={key} type="button" role="radio" aria-checked={id === key} onClick={() => pick(key)} className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition-colors ${id === key ? look.chip : 'bg-white/10 text-white/80 hover:bg-white/20'}`}>{CHARACTERS[key].name}</button>
-        ))}
-      </div>
-    </section>
+    <CheerCard characters={CHARACTERS} storageKey="acv-cheer-character" mood={mood} label="Este mes juntaste" value={formatARS(mood.month)}
+      side={<>Cobro: <b className="text-white">{mood.count}/{mood.size}</b></>} progress={mood.count / Math.max(mood.size, 1)} progressLabel="Próximo cobro" />
   )
 }
