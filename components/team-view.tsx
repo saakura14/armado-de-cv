@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Wallet, X } from 'lucide-react'
 import { TaskRow, TaskWorkspace } from '@/components/team-task-card'
-import { TeamCheer } from '@/components/team-cheer'
+import { TeamCelebration, TeamCheer } from '@/components/team-cheer'
 import { TeamChat, TeamChatBubble, TeamChatWindow, useTeamUnread, type ChatTask } from '@/components/team-chat'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
@@ -144,6 +144,16 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 6500); return () => window.clearTimeout(timer) }, [notice])
   const { pending, finished } = sortTasks(tasks)
   const batch = batchStats(member, tasks, payments)
+  // A party when he completes the CVs of a payment: once per batch on his device (the batch is named by its last CV).
+  // In the preview Vale can try it with a button.
+  const [celebrate, setCelebrate] = useState(false)
+  const completing = batch.size > 0 && batch.count >= batch.size ? batch.unpaid[batch.size - 1]?.id : undefined
+  useEffect(() => {
+    if (preview || !completing) return
+    const key = `acv-festejo-${completing}`
+    try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1') } catch { return }
+    setCelebrate(true)
+  }, [preview, completing])
   const months = monthlyStats(tasks, payments)
   const thisMonth = months.find((row) => row.key === monthKey(new Date()))
   const today = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)
@@ -274,6 +284,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
           <aside className="space-y-4 @3xl:sticky @3xl:top-20">
             {/* One of his favorite characters cheers him up, with what he made this month. */}
             <TeamCheer pending={pending.length} today={todayDone.count} month={thisMonth?.earned ?? 0} count={batch.count} size={batch.size} />
+            {preview && <button type="button" onClick={() => setCelebrate(true)} className="-mt-2 w-full rounded-2xl border border-dashed border-rosa/50 px-3 py-2 text-xs font-bold text-rosa-deep hover:bg-petalo-wash">🎉 Probar el festejo de los {batch.size} CVs</button>}
             {/* His own marks, game style: streak of days, today's count and his best time per pack (no averages: those are Vale's). */}
             {records.length > 0 && (
               <section className={cardClass} aria-labelledby="marks-title">
@@ -334,6 +345,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
 
       {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} onProgress={reportProgress} onStart={() => markStarted(working)} onAsk={preview ? undefined : () => { setChatTask(chatTasks.find((task) => task.id === working.id) ?? null); setChatOpen(true) }} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
       {notice && <p role="status" className={`fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl px-4 py-3 text-center text-sm font-bold text-white shadow-lg ${notice.ok ? 'bg-whatsapp' : 'bg-rosa-deep'}`}>{notice.text}</p>}
+      {celebrate && <TeamCelebration count={batch.size} onClose={() => setCelebrate(false)} />}
       {/* Chat with Vale: a bubble in the corner (hidden in the work mode, which has its own "¿Una duda?" button). */}
       {!preview && !working && <TeamChatBubble open={chatOpen} unread={unread} onClick={() => (chatOpen ? closeChat() : setChatOpen(true))} label="Chat con Vale" className="bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4" />}
       {chatOpen && !preview && (
