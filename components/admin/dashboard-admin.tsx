@@ -12,6 +12,7 @@ import { missingData, stageOf, type LegacyFilter, type Stage } from '@/lib/order
 import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, nextDueText, isTestOrder, monthKey, monthLabel, monthStats, salesByOrigin, salesInMonth, shiftMonth, shortMonthLabel, weeksOfMonth, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass } from './ui'
+import { ValeCheer } from './vale-cheer'
 
 /** Where "Ver" and the status counters take you: a tab, optionally a filter or a single order. */
 export type OpenTarget = { tab: 'pedidos' | 'sesiones' | 'analisis'; filter?: Stage | LegacyFilter; order?: number }
@@ -276,6 +277,9 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
           {sessionsToSchedule > 0 && <span>{sessionsToSchedule} {sessionsToSchedule === 1 ? 'sesión para agendar' : 'sesiones para agendar'}</span>}
         </p>
       </div>
+
+      {/* Her favorite characters cheer her up with today's numbers and the road to the car. */}
+      <ValeCheer />
 
       {error && <p className="rounded-2xl bg-petalo-wash px-4 py-3 text-sm font-semibold text-rosa-deep">{error}</p>}
 
