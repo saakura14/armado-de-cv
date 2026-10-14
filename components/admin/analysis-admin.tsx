@@ -111,16 +111,16 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
   const current = periodOf(period.kind, today())
   const isCurrent = period.start === current.start
 
-  const meta = useMemo(() => metaCostByDay(data), [data])
-  const result = resultOf(period, data, meta)
-  const previous = resultOf(shiftPeriod(period, -1), data, meta)
+  const metaCost = useMemo(() => metaCostByDay(data), [data])
+  const result = resultOf(period, data, metaCost)
+  const previous = resultOf(shiftPeriod(period, -1), data, metaCost)
   const sales = salesIn(period, data.sales)
   const campaigns = campaignsIn(period, data.ads, data.fx)
   const points = strongPoints(sales, result, campaigns, money)
   const parts = breakdowns(sales)
-  const series = period.kind === 'dia' ? [] : dailySeries(period, data.sales, meta)
+  const series = period.kind === 'dia' ? [] : dailySeries(period, data.sales, metaCost)
   const first = useMemo(() => [...data.sales.map((sale) => dayKey(sale.paid_at).slice(0, 7)), ...data.ads.map((row) => row.day.slice(0, 7))].sort()[0] ?? null, [data])
-  const matrix = monthMatrix(monthsSince(first).slice(0, 12), data, meta)
+  const matrix = monthMatrix(monthsSince(first).slice(0, 12), data, metaCost)
   const expenses = expensesIn(periodOf('mes', `${period.month}-01`), data.expenses, data.fx)
   // "vs septiembre" / "vs la semana anterior"; "12 en septiembre" / "12 la semana anterior".
   const previousName = period.kind === 'mes' ? monthLabel(shiftPeriod(period, -1).month).split(' ')[0].toLowerCase() : period.kind === 'semana' ? 'la semana anterior' : 'el día anterior'
@@ -250,7 +250,7 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
       <section className={cardClass} aria-labelledby="expenses-title">
         <h2 id="expenses-title" className="font-display text-lg font-bold text-ciruela">Gastos de {monthLabel(period.month).toLowerCase()}</h2>
         <p className="text-sm text-piedra">Todo lo que sale: Meta y el equipo se suman solos; el resto lo cargás acá (una vez o todos los meses).</p>
-        <ExpensesList month={period.month} result={resultOf(periodOf('mes', `${period.month}-01`), data, meta)} expenses={expenses} money={money} onChanged={onReload} />
+        <ExpensesList month={period.month} result={resultOf(periodOf('mes', `${period.month}-01`), data, metaCost)} expenses={expenses} money={money} onChanged={onReload} />
         <ExpenseForm onSaved={onReload} />
       </section>
 
