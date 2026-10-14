@@ -7,9 +7,10 @@ import { isDayOff } from '@/lib/holidays'
 import type { Order, OrderItem } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { PACKS_WITH_LETTER, TASK_STATUS, TEAM_PACKS, type TaskStatus, type TeamMember } from '@/lib/team'
+import { TaskStart } from './task-start'
 import { Button, Field, inputClass, useFlash } from './ui'
 
-export type OrderTask = { id: string; order_item_id: string; status: TaskStatus; team_members: { name: string } | { name: string }[] | null }
+export type OrderTask = { id: string; order_item_id: string; status: TaskStatus; started_at: string | null; team_members: { name: string } | { name: string }[] | null }
 
 const DAY = 24 * 60 * 60 * 1000
 /** The order's delivery deadline minus one business day, so Vale has time to check it (never before today). */
@@ -136,6 +137,8 @@ export function TeamRow({ order, tasks, firstName, onChanged }: { order: Order; 
                   Asignar
                 </button>
               )}
+              {/* When he started it, and a reset in case it was a mistaken tap. */}
+              {task?.started_at && task.status !== 'asignado' && <span className="basis-full"><TaskStart task={{ ...task, order_number: order.number }} onChanged={onChanged} /></span>}
             </li>
           )
         })}
