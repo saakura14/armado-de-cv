@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Check, Eye, Loader2, MessageCircle, RefreshCw, Trash2, UserPlus, X } from 'lucide-react'
 import { TaskRow, TaskTexts } from '@/components/team-task-card'
+import { TaskStart, startedLabel } from './task-start'
 import { openAdminChat, useTeamUnread } from '@/components/team-chat'
 import { TeamView } from '@/components/team-view'
 import { monthKey } from '@/lib/dashboard'
@@ -326,9 +327,10 @@ export function TeamAdmin() {
                   // One line per CV with its state; tapping it unfolds the texts and the tools.
                   <ul className="mt-3 grid items-start gap-2 2xl:grid-cols-2">
                     {list.map((task) => (
-                      <TaskRow key={task.id} task={task} action={<span className="flex shrink-0 flex-col items-end gap-1">{workMinutes(task) !== null && <span className="font-display text-[11px] font-bold text-ciruela">⏱ {formatMinutes(workMinutes(task)!)}</span>}<span className={`rounded-full px-2.5 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span></span>}>
+                      <TaskRow key={task.id} task={task} action={<span className="flex shrink-0 flex-col items-end gap-1">{workMinutes(task) !== null && <span className="font-display text-[11px] font-bold text-ciruela">⏱ {formatMinutes(workMinutes(task)!)}</span>}{task.status === 'haciendo' && task.started_at && <span className="text-[11px] text-piedra">▶ {startedLabel(task.started_at)}</span>}<span className={`rounded-full px-2.5 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span></span>}>
                         <div className="space-y-3">
                           {task.status !== 'terminado' ? <TaskTexts task={task} /> : task.design_url ? <a href={task.design_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-rosa-deep hover:underline">Ver el diseño en Canva</a> : null}
+                          <TaskStart task={task} onChanged={load} />
                           <TaskTools task={task} onChanged={load} />
                         </div>
                       </TaskRow>
