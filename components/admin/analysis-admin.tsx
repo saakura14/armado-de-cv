@@ -168,7 +168,7 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
       {series.length > 0 && (
         <section className={cardClass} aria-labelledby="days-title">
           <h2 id="days-title" className="font-display text-lg font-bold text-ciruela">Día por día</h2>
-          <p className="text-sm text-piedra">Lo que cobraste cada día (barra) y lo que costó Meta (línea).</p>
+          <p className="text-sm text-piedra">Cuántas ventas hubo cada día (número), lo que cobraste (barra) y lo que costó Meta (línea).</p>
           <DayBars series={series} money={money} onPick={(day) => setPeriod(periodOf('dia', day))} />
         </section>
       )}
@@ -296,19 +296,36 @@ function Tile({ label, value, note }: { label: string; value: string; note: stri
 
 function DayBars({ series, money, onPick }: { series: ReturnType<typeof dailySeries>; money: (value: number) => string; onPick: (day: string) => void }) {
   const max = Math.max(...series.map((day) => Math.max(day.revenue, day.ads)), 1)
+  // Sales per day: the days already lived in the period (today included), the average and the best day.
+  const lived = series.filter((day) => day.day <= today())
+  const total = lived.reduce((sum, day) => sum + day.sales, 0)
+  const best = lived.reduce<(typeof series)[number] | null>((top, day) => (day.sales > (top?.sales ?? 0) ? day : top), null)
+  const withSales = lived.filter((day) => day.sales > 0).length
+  const stats = [
+    { label: 'Ventas', value: String(total) },
+    { label: 'Promedio por día', value: lived.length ? (total / lived.length).toLocaleString('es-AR', { maximumFractionDigits: 1 }) : '0' },
+    { label: 'Mejor día', value: best ? `${best.label} · ${best.sales}` : '—' },
+    { label: 'Días con ventas', value: `${withSales} de ${lived.length}` },
+  ]
   return (
-    <div className="mt-4 overflow-x-auto">
-      <div className="flex h-44 min-w-[480px] items-end gap-1 border-b border-line" role="img" aria-label="Ventas y gasto en Meta por día">
-        {series.map((day) => (
-          <button key={day.day} type="button" onClick={() => onPick(day.day)} className="group relative flex h-full flex-1 flex-col justify-end" title={`${day.label}: ${money(day.revenue)} · ${day.sales} ${day.sales === 1 ? 'venta' : 'ventas'} · Meta ${money(Math.round(day.ads))}`}>
-            <span className="mx-auto w-full max-w-8 rounded-t-[3px] bg-petalo group-hover:bg-rosa" style={{ height: `${Math.max((day.revenue / max) * 100, day.revenue ? 2 : 0)}%` }} />
-            {day.ads > 0 && <span className="absolute inset-x-0 mx-auto h-0.5 w-full max-w-8 bg-ciruela" style={{ bottom: `${(day.ads / max) * 100}%` }} />}
-          </button>
-        ))}
+    <>
+      <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {stats.map((stat) => <div key={stat.label} className="rounded-2xl bg-papel px-3 py-2"><dt className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{stat.label}</dt><dd className="font-display text-lg font-extrabold text-ciruela">{stat.value}</dd></div>)}
+      </dl>
+      <div className="mt-4 overflow-x-auto">
+        <div className="flex h-44 min-w-[480px] items-end gap-1 border-b border-line" role="img" aria-label="Ventas y gasto en Meta por día">
+          {series.map((day) => (
+            <button key={day.day} type="button" onClick={() => onPick(day.day)} className="group relative flex h-full flex-1 flex-col justify-end" title={`${day.label}: ${money(day.revenue)} · ${day.sales} ${day.sales === 1 ? 'venta' : 'ventas'} · Meta ${money(Math.round(day.ads))}`}>
+              {day.sales > 0 && <span className="mb-0.5 text-center font-display text-[10px] font-bold leading-none text-ciruela">{day.sales}</span>}
+              <span className="mx-auto w-full max-w-8 rounded-t-[3px] bg-petalo group-hover:bg-rosa" style={{ height: `${Math.max((day.revenue / max) * 88, day.revenue ? 2 : 0)}%` }} />
+              {day.ads > 0 && <span className="absolute inset-x-0 mx-auto h-0.5 w-full max-w-8 bg-ciruela" style={{ bottom: `${(day.ads / max) * 88}%` }} />}
+            </button>
+          ))}
+        </div>
+        <div className="mt-1 flex min-w-[480px] gap-1">{series.map((day, index) => <span key={day.day} className="flex-1 text-center text-[10px] text-piedra">{series.length <= 7 || index % 3 === 0 ? day.label : ''}</span>)}</div>
+        <p className="mt-2 text-xs text-piedra">Tocá un día para ver su detalle.</p>
       </div>
-      <div className="mt-1 flex min-w-[480px] gap-1">{series.map((day, index) => <span key={day.day} className="flex-1 text-center text-[10px] text-piedra">{series.length <= 7 || index % 3 === 0 ? day.label : ''}</span>)}</div>
-      <p className="mt-2 text-xs text-piedra">Tocá un día para ver su detalle.</p>
-    </div>
+    </>
   )
 }
 
