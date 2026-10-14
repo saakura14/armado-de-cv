@@ -8,12 +8,12 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { dayKey, monthLabel, shortMonthLabel } from '@/lib/dashboard'
 import {
   ANALYSIS_SALE_SELECT, EXPENSE_CATEGORY, breakdowns, campaignsIn, dailySeries, expensesIn, monthMatrix, monthsSince, periodOf, resultOf, salesIn, shiftPeriod, strongPoints,
-  type AdRow, type AnalysisSale, type Expense, type ExpenseCategory, type FxRow, type Period, type PeriodKind, type TeamCostRow,
+  type AdRow, type AnalysisSale, type Expense, type ExpenseCategory, type FxRow, type MetaPayRow, type Period, type PeriodKind, type TeamCostRow, type AnalysisData, metaCostByDay,
 } from '@/lib/analysis'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, Field, cardClass, inputClass, useFlash } from './ui'
 
-export type Data = { sales: AnalysisSale[]; ads: AdRow[]; fx: FxRow[]; team: TeamCostRow[]; expenses: Expense[] }
+export type Data = AnalysisData
 type MetaState = { connected: boolean | null; error: string; syncing: boolean }
 
 const number = new Intl.NumberFormat('es-AR')
@@ -24,29 +24,32 @@ const KINDS: { id: PeriodKind; label: string }[] = [{ id: 'dia', label: 'Día' }
 
 /** Everything the money numbers need (Análisis and Ahorro share it). */
 export async function fetchAnalysisData(): Promise<{ data: Data; error: string }> {
-  const [sales, ads, fx, team, expenses] = await Promise.all([
+  const [sales, ads, fx, team, expenses, metaPays] = await Promise.all([
     supabase.from('orders').select(ANALYSIS_SALE_SELECT).not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000),
     supabase.from('ad_spend').select('day, campaign_id, campaign_name, spend, conversations, clicks, impressions, currency, source').order('day'),
     supabase.from('fx_rates').select('day, ars_per_usd').order('day'),
-    supabase.from('team_tasks').select('finished_at, rate, status'),
+    // Real money out: what she paid the team and what Meta charged her.
+    supabase.from('team_payments').select('paid_on, amount, kind'),
     supabase.from('expenses').select('id, day, category, concept, amount, currency, monthly, until').order('day', { ascending: false }),
+    supabase.from('meta_payments').select('day, amount_usd').order('day'),
   ])
-  const failed = sales.error ?? ads.error ?? fx.error ?? team.error ?? expenses.error
+  const failed = sales.error ?? ads.error ?? fx.error ?? team.error ?? expenses.error ?? metaPays.error
   return {
     error: failed ? errorMessage(failed) : '',
     data: {
       sales: (sales.data as unknown as AnalysisSale[] | null) ?? [],
       ads: ((ads.data as AdRow[] | null) ?? []).map((row) => ({ ...row, spend: Number(row.spend) })),
       fx: ((fx.data as FxRow[] | null) ?? []).map((row) => ({ ...row, ars_per_usd: Number(row.ars_per_usd) })),
-      team: (team.data as TeamCostRow[] | null) ?? [],
+      team: ((team.data as TeamCostRow[] | null) ?? []).map((row) => ({ ...row, amount: Number(row.amount) })),
       expenses: ((expenses.data as Expense[] | null) ?? []).map((row) => ({ ...row, amount: Number(row.amount) })),
+      metaPays: ((metaPays.data as MetaPayRow[] | null) ?? []).map((row) => ({ ...row, amount_usd: Number(row.amount_usd) })),
     },
   }
 }
 
 /** Sales, Meta spend, the team and every other expense in one place: what came in, what went out and what was left. */
 export function AnalysisAdmin() {
-  const [data, setData] = useState<Data>({ sales: [], ads: [], fx: [], team: [], expenses: [] })
+  const [data, setData] = useState<Data>({ sales: [], ads: [], fx: [], team: [], expenses: [], metaPays: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [meta, setMeta] = useState<MetaState>({ connected: null, error: '', syncing: false })
@@ -90,6 +93,8 @@ export function AnalysisAdmin() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, soon)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, soon)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ad_spend' }, soon)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'meta_payments' }, soon)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_payments' }, soon)
       .subscribe()
     const onVisible = () => { if (document.visibilityState === 'visible') soon() }
     document.addEventListener('visibilitychange', onVisible)
@@ -106,15 +111,16 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
   const current = periodOf(period.kind, today())
   const isCurrent = period.start === current.start
 
-  const result = resultOf(period, data)
-  const previous = resultOf(shiftPeriod(period, -1), data)
+  const metaCost = useMemo(() => metaCostByDay(data), [data])
+  const result = resultOf(period, data, metaCost)
+  const previous = resultOf(shiftPeriod(period, -1), data, metaCost)
   const sales = salesIn(period, data.sales)
   const campaigns = campaignsIn(period, data.ads, data.fx)
   const points = strongPoints(sales, result, campaigns, money)
   const parts = breakdowns(sales)
-  const series = period.kind === 'dia' ? [] : dailySeries(period, data.sales, data.ads, data.fx)
+  const series = period.kind === 'dia' ? [] : dailySeries(period, data.sales, metaCost)
   const first = useMemo(() => [...data.sales.map((sale) => dayKey(sale.paid_at).slice(0, 7)), ...data.ads.map((row) => row.day.slice(0, 7))].sort()[0] ?? null, [data])
-  const matrix = monthMatrix(monthsSince(first).slice(0, 12), data)
+  const matrix = monthMatrix(monthsSince(first).slice(0, 12), data, metaCost)
   const expenses = expensesIn(periodOf('mes', `${period.month}-01`), data.expenses, data.fx)
   // "vs septiembre" / "vs la semana anterior"; "12 en septiembre" / "12 la semana anterior".
   const previousName = period.kind === 'mes' ? monthLabel(shiftPeriod(period, -1).month).split(' ')[0].toLowerCase() : period.kind === 'semana' ? 'la semana anterior' : 'el día anterior'
@@ -154,8 +160,8 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
             <p className="font-display text-xs font-semibold uppercase tracking-wider text-white/70">Invertiste</p>
             <p className="mt-1 font-display text-3xl font-extrabold tabular-nums">{money(Math.round(result.invested))}</p>
             <ul className="mt-1 space-y-0.5 text-sm text-white/75">
-              <li>Meta: {money(Math.round(result.ads))}{result.adsUsd ? ` (${usd(result.adsUsd)})` : ''}</li>
-              <li>Equipo: {money(result.team)}{result.teamPacks ? ` (${result.teamPacks} ${result.teamPacks === 1 ? 'CV' : 'CVs'})` : ''}</li>
+              <li>Meta: {money(Math.round(result.ads))}{result.adsUsd ? ` (${usd(result.adsUsd)})` : ''}{result.adsEstimated ? ` · ${money(Math.round(result.adsEstimated))} estimado` : ''}</li>
+              <li>Equipo: {money(result.team)} (lo que le pagaste)</li>
               <li>Otros gastos: {money(Math.round(result.other))}{period.kind !== 'mes' ? ' (sin los mensuales)' : ''}</li>
             </ul>
           </div>
@@ -244,7 +250,7 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
       <section className={cardClass} aria-labelledby="expenses-title">
         <h2 id="expenses-title" className="font-display text-lg font-bold text-ciruela">Gastos de {monthLabel(period.month).toLowerCase()}</h2>
         <p className="text-sm text-piedra">Todo lo que sale: Meta y el equipo se suman solos; el resto lo cargás acá (una vez o todos los meses).</p>
-        <ExpensesList month={period.month} result={resultOf(periodOf('mes', `${period.month}-01`), data)} expenses={expenses} money={money} onChanged={onReload} />
+        <ExpensesList month={period.month} result={resultOf(periodOf('mes', `${period.month}-01`), data, metaCost)} expenses={expenses} money={money} onChanged={onReload} />
         <ExpenseForm onSaved={onReload} />
       </section>
 
@@ -387,8 +393,8 @@ function ExpensesList({ month, result, expenses, money, onChanged }: { month: st
   return (
     <div className="mt-4">
       <ul className="divide-y divide-line text-sm">
-        <li className="flex items-center justify-between gap-3 py-2"><span className="text-ink">Publicidad en Meta <span className="text-xs text-piedra">(automático)</span></span><span className="font-semibold tabular-nums">{money(Math.round(result.ads))}</span></li>
-        <li className="flex items-center justify-between gap-3 py-2"><span className="text-ink">Equipo: {result.teamPacks} {result.teamPacks === 1 ? 'CV terminado' : 'CVs terminados'} <span className="text-xs text-piedra">(automático)</span></span><span className="font-semibold tabular-nums">{money(result.team)}</span></li>
+        <li className="flex items-center justify-between gap-3 py-2"><span className="text-ink">Publicidad en Meta <span className="text-xs text-piedra">(lo que te cobró{result.adsEstimated ? '; lo último, estimado' : ''})</span></span><span className="font-semibold tabular-nums">{money(Math.round(result.ads))}</span></li>
+        <li className="flex items-center justify-between gap-3 py-2"><span className="text-ink">Equipo <span className="text-xs text-piedra">(pagos y adelantos que le diste: {result.teamPayments})</span></span><span className="font-semibold tabular-nums">{money(result.team)}</span></li>
         {expenses.map((expense) => (
           <li key={expense.id} className="flex items-center justify-between gap-3 py-2">
             <span className="min-w-0">

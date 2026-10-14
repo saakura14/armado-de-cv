@@ -8,7 +8,10 @@ export const ANALYSIS_SALE_SELECT = 'id, number, status, total, paid_at, created
 
 export type AdRow = { day: string; campaign_id: string; campaign_name: string; spend: number; conversations: number; clicks: number; impressions: number; currency: string; source: 'meta' | 'manual' }
 export type FxRow = { day: string; ars_per_usd: number }
-export type TeamCostRow = { finished_at: string | null; rate: number; status: string }
+/** What she paid the team (payments and advances), the day she paid it. */
+export type TeamCostRow = { paid_on: string; amount: number; kind: 'pago' | 'adelanto' }
+/** What Meta actually charged her (Billing → Actividad de pago), in dollars. */
+export type MetaPayRow = { day: string; amount_usd: number }
 export type ExpenseCategory = 'publicidad' | 'herramientas' | 'servicios' | 'impuestos' | 'equipo' | 'otros'
 export type Expense = { id: string; day: string; category: ExpenseCategory; concept: string; amount: number; currency: 'ARS' | 'USD'; monthly: boolean; until: string | null }
 
@@ -79,38 +82,61 @@ export function expensesIn(period: Period, expenses: Expense[], fx: FxRow[]) {
 
 export type Result = {
   sales: number; revenue: number; average: number
-  adsUsd: number; ads: number; conversations: number; clicks: number
-  team: number; teamPacks: number; other: number
+  adsUsd: number; ads: number; adsEstimated: number; conversations: number; clicks: number
+  team: number; teamPayments: number; other: number
   invested: number; profit: number; margin: number | null
   costPerSale: number | null; returnPerPeso: number | null; costPerConversation: number | null
 }
 
-export function resultOf(period: Period, data: { sales: AnalysisSale[]; ads: AdRow[]; fx: FxRow[]; team: TeamCostRow[]; expenses: Expense[] }): Result {
+export type AnalysisData = { sales: AnalysisSale[]; ads: AdRow[]; fx: FxRow[]; team: TeamCostRow[]; expenses: Expense[]; metaPays: MetaPayRow[] }
+
+/**
+ * What Meta cost on each day: what it actually charged (her Billing) up to the last charge loaded; after that, the
+ * day's spend as an estimate until the charges of those days are loaded.
+ */
+export function metaCostByDay(data: Pick<AnalysisData, 'ads' | 'fx' | 'metaPays'>) {
+  const lastCharge = data.metaPays.reduce((last, row) => (row.day > last ? row.day : last), '')
+  const days = new Map<string, { usd: number; pesos: number; estimated: boolean }>()
+  const add = (day: string, usd: number, pesos: number, estimated: boolean) => {
+    const current = days.get(day) ?? { usd: 0, pesos: 0, estimated }
+    days.set(day, { usd: current.usd + usd, pesos: current.pesos + pesos, estimated })
+  }
+  for (const row of data.metaPays) add(row.day, row.amount_usd, row.amount_usd * (rateFor(row.day, data.fx) ?? 0), false)
+  for (const row of data.ads) if (row.day > lastCharge) add(row.day, row.currency === 'ARS' ? 0 : row.spend, adPesos(row, data.fx), true)
+  return days
+}
+
+export function resultOf(period: Period, data: AnalysisData, meta = metaCostByDay(data)): Result {
   const sales = data.sales.filter((sale) => inPeriod(dayKey(sale.paid_at), period))
   const revenue = sales.reduce((sum, sale) => sum + sale.total, 0)
+  // Meta: what it charged her in the period (or the estimate, for days not charged yet).
+  const metaDays = [...meta.entries()].filter(([day]) => inPeriod(day, period)).map(([, value]) => value)
+  const adsPesos = metaDays.reduce((sum, row) => sum + row.pesos, 0)
+  const adsUsd = metaDays.reduce((sum, row) => sum + row.usd, 0)
+  const adsEstimated = metaDays.filter((row) => row.estimated).reduce((sum, row) => sum + row.pesos, 0)
+  // Conversations and their cost come from the daily spend of the campaigns.
   const ads = data.ads.filter((row) => inPeriod(row.day, period))
-  const adsPesos = ads.reduce((sum, row) => sum + adPesos(row, data.fx), 0)
-  const adsUsd = ads.filter((row) => row.currency !== 'ARS').reduce((sum, row) => sum + row.spend, 0)
+  const spendUsd = ads.filter((row) => row.currency !== 'ARS').reduce((sum, row) => sum + row.spend, 0)
   const conversations = ads.reduce((sum, row) => sum + row.conversations, 0)
-  // The team costs what each CV pays, the day it was finished (paid later or not).
-  const packs = data.team.filter((task) => task.status === 'terminado' && task.finished_at && inPeriod(dayKey(task.finished_at), period))
-  const team = packs.reduce((sum, task) => sum + task.rate, 0)
+  // The team costs what she paid it (payments and advances), the day she paid.
+  const paid = data.team.filter((row) => inPeriod(row.paid_on, period))
+  const team = paid.reduce((sum, row) => sum + row.amount, 0)
   const other = expensesIn(period, data.expenses, data.fx).reduce((sum, expense) => sum + expense.pesos, 0)
   const invested = adsPesos + team + other
   return {
     sales: sales.length, revenue, average: sales.length ? Math.round(revenue / sales.length) : 0,
-    adsUsd, ads: adsPesos, conversations, clicks: ads.reduce((sum, row) => sum + row.clicks, 0),
-    team, teamPacks: packs.length, other, invested,
+    adsUsd, ads: adsPesos, adsEstimated, conversations, clicks: ads.reduce((sum, row) => sum + row.clicks, 0),
+    team, teamPayments: paid.length, other, invested,
     profit: revenue - invested,
     margin: revenue ? (revenue - invested) / revenue : null,
     costPerSale: sales.length && adsPesos ? adsPesos / sales.length : null,
     returnPerPeso: adsPesos ? revenue / adsPesos : null,
-    costPerConversation: conversations ? adsUsd / conversations : null,
+    costPerConversation: conversations ? spendUsd / conversations : null,
   }
 }
 
 /** Every day of the period with what came in and what Meta cost (for the bars). */
-export function dailySeries(period: Period, sales: AnalysisSale[], ads: AdRow[], fx: FxRow[]) {
+export function dailySeries(period: Period, sales: AnalysisSale[], meta: ReturnType<typeof metaCostByDay>) {
   return daysOf(period).map((day) => {
     const daySales = sales.filter((sale) => dayKey(sale.paid_at) === day)
     return {
@@ -118,14 +144,14 @@ export function dailySeries(period: Period, sales: AnalysisSale[], ads: AdRow[],
       label: shortFormat(day),
       sales: daySales.length,
       revenue: daySales.reduce((sum, sale) => sum + sale.total, 0),
-      ads: ads.filter((row) => row.day === day).reduce((sum, row) => sum + adPesos(row, fx), 0),
+      ads: meta.get(day)?.pesos ?? 0,
     }
   })
 }
 
 /** Month by month: what came in, what went out and what was left. */
-export function monthMatrix(months: string[], data: Parameters<typeof resultOf>[1]) {
-  return months.map((month) => ({ month, ...resultOf(periodOf('mes', `${month}-01`), data) }))
+export function monthMatrix(months: string[], data: AnalysisData, meta = metaCostByDay(data)) {
+  return months.map((month) => ({ month, ...resultOf(periodOf('mes', `${month}-01`), data, meta) }))
 }
 
 export function campaignsIn(period: Period, ads: AdRow[], fx: FxRow[]) {
