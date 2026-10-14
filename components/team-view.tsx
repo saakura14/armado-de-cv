@@ -129,6 +129,11 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   }, [preview])
   const chatTasks: ChatTask[] = tasks.map(({ id, order_number, client_name, pack_name }) => ({ id, order_number, client_name, pack_name }))
   const closeWork = useCallback(() => setWorkingId(null), [])
+  // How much of each text he copied, so Vale can follow the CV live (not in her preview).
+  const reportProgress = useCallback((progress: Record<string, [number, number]>) => {
+    if (preview || !workingId || workingId === EXAMPLE_TASK.id) return
+    supabase.rpc('team_report_progress', { p_task: workingId, p_progress: progress }).then(() => undefined, () => undefined)
+  }, [preview, workingId])
   // The step-by-step video, and whether it was already offered on this device.
   const [tutorial, setTutorial] = useState(false)
   const [tutorialSeen, setTutorialSeen] = useState<boolean | null>(null)
@@ -327,7 +332,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
         </div>
       </main>
 
-      {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} onStart={() => markStarted(working)} onAsk={preview ? undefined : () => { setChatTask(chatTasks.find((task) => task.id === working.id) ?? null); setChatOpen(true) }} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
+      {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} onProgress={reportProgress} onStart={() => markStarted(working)} onAsk={preview ? undefined : () => { setChatTask(chatTasks.find((task) => task.id === working.id) ?? null); setChatOpen(true) }} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
       {notice && <p role="status" className={`fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl px-4 py-3 text-center text-sm font-bold text-white shadow-lg ${notice.ok ? 'bg-whatsapp' : 'bg-rosa-deep'}`}>{notice.text}</p>}
       {/* Chat with Vale: a bubble in the corner (hidden in the work mode, which has its own "¿Una duda?" button). */}
       {!preview && !working && <TeamChatBubble open={chatOpen} unread={unread} onClick={() => (chatOpen ? closeChat() : setChatOpen(true))} label="Chat con Vale" className="bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4" />}

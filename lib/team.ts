@@ -25,6 +25,9 @@ export type TeamTask = {
   started_at: string | null
   finished_at: string | null
   design_url: string | null
+  /** How far he got: per text, parts copied to Canva of the total, and when he last moved (his work mode reports it). */
+  progress?: Record<string, [number, number]>
+  progress_at?: string | null
   /** The payment that covered this CV (null = still to be paid). */
   paid_in: string | null
 }
@@ -32,7 +35,7 @@ export type TeamTask = {
 /** "pago" closes the batch (the counter starts again); "adelanto" is money ahead, discounted from the current batch. */
 export type TeamPayment = { id: string; member_id: string; kind: 'pago' | 'adelanto'; amount: number; paid_on: string; note: string | null; created_at: string; packs: number | null; settled_in: string | null }
 
-export const TASK_SELECT = 'id, member_id, order_id, order_item_id, order_number, client_name, pack_name, cv_modern, cv_ats, has_letter, letter, notes, due_on, status, rate, assigned_at, started_at, finished_at, design_url, paid_in'
+export const TASK_SELECT = 'id, member_id, order_id, order_item_id, order_number, client_name, pack_name, cv_modern, cv_ats, has_letter, letter, notes, due_on, status, rate, assigned_at, started_at, finished_at, design_url, paid_in, progress, progress_at'
 
 /** Only the CV packs are made by the team (LinkedIn, platforms, sessions and corrections stay with Vale). */
 export const TEAM_PACKS = ['cv-simple', 'cv-medium', 'cv-premium']
