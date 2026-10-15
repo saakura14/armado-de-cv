@@ -5,6 +5,7 @@ import { Check, Eye, Loader2, MessageCircle, RefreshCw, Trash2, UserPlus, X } fr
 import { TaskRow, TaskTexts } from '@/components/team-task-card'
 import { TaskStart, startedLabel } from './task-start'
 import { TaskProgress, progressShare } from './task-progress'
+import { TeamPresence } from './team-presence'
 import { openAdminChat, useTeamUnread } from '@/components/team-chat'
 import { TeamView } from '@/components/team-view'
 import { monthKey } from '@/lib/dashboard'
@@ -296,6 +297,8 @@ export function TeamAdmin() {
       {member && batch && (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
           <div className="min-w-0 space-y-4">
+            {/* Whether he has the panel open now, and when he came in and left (only Vale sees it). */}
+            <TeamPresence memberId={member.id} name={member.name.split(' ')[0]} />
             {/* The numbers in one compact strip: two per row on the phone, four in a row from a tablet. */}
             <div className="grid grid-cols-2 overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)] sm:grid-cols-4">
               {[
