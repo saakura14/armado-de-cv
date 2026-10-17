@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Columns2, Copy, ExternalLink, MessageCircle, RotateCcw, SkipForward, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Columns2, Copy, ExternalLink, MessageCircle, RotateCcw, SkipForward, X, Zap } from 'lucide-react'
 import { whatsappUrl } from '@/lib/catalog'
 import { dueLabel, type TeamTask } from '@/lib/team'
 
@@ -315,7 +315,7 @@ export function TaskWorkspace({ task, actions, onClose, onAsk, onStart, onProgre
         <div className="mx-auto flex max-w-3xl items-center gap-2 px-3 py-2">
           <button type="button" onClick={close} aria-label="Volver" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-papel text-ciruela hover:bg-arena"><ArrowLeft className="h-5 w-5" /></button>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{task.order_number ? `Pedido #${task.order_number}` : 'Ejemplo'}{due ? ` · ${due.text}` : ''}</p>
+            <p className="flex items-center gap-1 truncate font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{(task.urgent || due?.urgent) && <Zap role="img" aria-label="Urgente" className="h-3 w-3 shrink-0 fill-rosa-deep text-rosa-deep" />}{task.order_number ? `Pedido #${task.order_number}` : 'Ejemplo'}{due ? ` · ${due.text}` : ''}</p>
             <p className="truncate text-[15px] font-bold text-ink">{task.pack_name} · {task.client_name}</p>
           </div>
           <a href="https://www.canva.com/" target="_blank" rel="noreferrer" className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-line bg-white px-3.5 font-display text-xs font-bold text-ciruela hover:border-ciruela">Canva<ExternalLink className="h-3.5 w-3.5" /></a>
@@ -426,6 +426,8 @@ export function TaskRow({ task, action, onOpen, children, reported }: { task: Te
   const local = useTaskProgress(task)
   const progress = reported === undefined ? local : reported ?? 0
   const due = task.status !== 'terminado' ? dueLabel(task.due_on) : null
+  // Marked urgent by Vale, or due today or late: a small lightning bolt next to the name.
+  const urgent = task.status !== 'terminado' && (task.urgent || due?.urgent)
   const edge = task.status === 'terminado' ? 'bg-whatsapp' : task.status === 'haciendo' ? 'bg-rosa' : 'bg-line'
   const toggle = onOpen ?? (children ? () => setExpanded((value) => !value) : undefined)
   return (
@@ -437,13 +439,16 @@ export function TaskRow({ task, action, onOpen, children, reported }: { task: Te
           <button type="button" onClick={toggle} disabled={!toggle} aria-expanded={children && !onOpen ? expanded : undefined} className="min-w-0 flex-1 text-left">
             <p className="flex items-baseline gap-2">
               <span className="truncate text-[15px] font-bold text-ink">{task.client_name}</span>
+              {urgent && <Zap role="img" aria-label="Urgente" className="h-3.5 w-3.5 shrink-0 self-center fill-rosa-deep text-rosa-deep" />}
               <span className="shrink-0 text-xs text-piedra">{task.order_number ? `#${task.order_number}` : 'Ejemplo'}</span>
               {task.status === 'haciendo' && <span className="shrink-0 font-display text-[11px] font-bold text-rosa-deep">· En curso</span>}
             </p>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-piedra">
               {due && <span className={`rounded-full px-2 py-px font-display text-[11px] font-bold ${due.urgent ? 'bg-rosa-deep text-white' : 'bg-papel text-ciruela'}`}>{due.text}</span>}
-              <span className="truncate">{task.pack_name}{task.has_letter ? ' · con carta' : ''}{task.notes ? ' · 📝 nota' : ''}</span>
+              <span className="truncate">{task.pack_name}{task.has_letter ? ' · con carta' : ''}</span>
             </p>
+            {/* Vale's note in sight on the line itself, before and after it is finished. */}
+            {task.notes && <span className="mt-1 line-clamp-2 block text-xs text-ink"><span aria-hidden>📝 </span>{task.notes}</span>}
             {task.status !== 'terminado' && progress > 0 && (
               <span className="mt-1.5 flex items-center gap-2">
                 <span className="h-1 w-28 rounded-full bg-papel"><span className="block h-1 rounded-full bg-rosa" style={{ width: `${Math.round(progress * 100)}%` }} /></span>

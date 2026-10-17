@@ -60,7 +60,7 @@ export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { ini
     for (const row of rows) {
       const { data, error: rpcError } = await supabase.rpc('admin_record_sale', {
         p_name: row.name, p_phone: row.phone, p_paid_on: row.date, p_delivered: row.delivered,
-        p_items: row.items.map((item) => ({ product_id: item.productId, extras: item.extras.map((extra) => ({ group_id: extra.groupId, option_id: extra.optionId })) })),
+        p_items: row.items.map((item) => ({ product_id: item.productId, price: item.price ?? undefined, extras: item.extras.map((extra) => ({ group_id: extra.groupId, option_id: extra.optionId })) })),
         p_total: row.totalEdited ? Number(row.total) : null,
         p_note: `Venta por WhatsApp: ${row.raw}`,
       })

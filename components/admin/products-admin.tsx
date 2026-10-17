@@ -7,7 +7,7 @@ import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, Field, cardClass, inputClass, linesToArray, slugify, useFlash } from './ui'
 
 type ProductRow = {
-  id: string; category: Category; delivery: Delivery; name: string; subtitle: string | null; price: number; price_note: string | null
+  id: string; category: Category; delivery: Delivery; name: string; subtitle: string | null; price: number; whatsapp_price: number | null; price_note: string | null
   highlight: string | null; features: string[]; notes: string[]; popular: boolean; active: boolean; sort: number; session_minutes: number | null
   choice_label: string | null; product_extra_groups: { group_id: string }[]
 }
@@ -25,7 +25,7 @@ const EDITABLE_CATEGORIES: Category[] = ['cv', 'guias', 'etapas', 'asesorias', '
 function ProductEditor({ product, groups, onChanged }: { product: ProductRow; groups: GroupRow[]; onChanged: () => void }) {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({
-    name: product.name, subtitle: product.subtitle ?? '', price: String(product.price), price_note: product.price_note ?? '', highlight: product.highlight ?? '',
+    name: product.name, subtitle: product.subtitle ?? '', price: String(product.price), whatsapp_price: product.whatsapp_price ? String(product.whatsapp_price) : '', price_note: product.price_note ?? '', highlight: product.highlight ?? '',
     features: product.features.join('\n'), notes: product.notes.join('\n'), popular: product.popular, active: product.active, sort: String(product.sort),
     category: product.category, delivery: product.delivery, session_minutes: product.session_minutes ? String(product.session_minutes) : '',
   })
@@ -39,7 +39,7 @@ function ProductEditor({ product, groups, onChanged }: { product: ProductRow; gr
     if (!Number.isFinite(price)) { flash.show('error', 'Revisá el precio.'); return }
     setBusy(true)
     const { error } = await supabase.from('products').update({
-      name: form.name.trim(), subtitle: form.subtitle.trim() || null, price, price_note: form.price_note.trim() || null, highlight: form.highlight.trim() || null,
+      name: form.name.trim(), subtitle: form.subtitle.trim() || null, price, whatsapp_price: Number(form.whatsapp_price.replace(/\D/g, '')) || null, price_note: form.price_note.trim() || null, highlight: form.highlight.trim() || null,
       features: linesToArray(form.features), notes: linesToArray(form.notes), popular: form.popular, active: form.active, sort: Number(form.sort) || 0,
       category: form.category, delivery: form.delivery, session_minutes: form.delivery === 'session' ? Number(form.session_minutes) || 60 : null,
     }).eq('id', product.id)
@@ -64,7 +64,7 @@ function ProductEditor({ product, groups, onChanged }: { product: ProductRow; gr
           <span className="block font-bold text-ink">{product.name}{product.subtitle ? <span className="font-normal text-piedra"> · {product.subtitle}</span> : null}</span>
           <span className="text-sm text-piedra">{CATEGORY_LABEL[product.category]} · {product.active ? 'Visible' : 'Oculto'}{product.popular ? ' · Destacado' : ''}</span>
         </span>
-        <span className="flex shrink-0 items-center gap-2"><span className="font-display text-lg font-extrabold text-ciruela">{formatARS(product.price)}</span><ChevronDown className={`h-5 w-5 text-piedra transition-transform ${open ? 'rotate-180' : ''}`} /></span>
+        <span className="flex shrink-0 items-center gap-2"><span className="text-right"><span className="block font-display text-lg font-extrabold text-ciruela">{formatARS(product.price)}</span>{product.whatsapp_price ? <span className="block text-xs font-semibold text-whatsapp">WhatsApp {formatARS(product.whatsapp_price)}</span> : null}</span><ChevronDown className={`h-5 w-5 text-piedra transition-transform ${open ? 'rotate-180' : ''}`} /></span>
       </button>
       {open && (
         <form onSubmit={save} className="mt-5 space-y-4 border-t border-line pt-5">
@@ -72,6 +72,7 @@ function ProductEditor({ product, groups, onChanged }: { product: ProductRow; gr
             <Field label="Nombre"><input required value={form.name} onChange={set('name')} className={inputClass} /></Field>
             <Field label="Subtítulo"><input value={form.subtitle} onChange={set('subtitle')} className={inputClass} /></Field>
             <Field label="Precio (ARS)"><input required inputMode="numeric" value={form.price} onChange={set('price')} className={inputClass} /></Field>
+            <Field label="Precio por WhatsApp (si es distinto)"><input inputMode="numeric" value={form.whatsapp_price} onChange={set('whatsapp_price')} placeholder="Igual que en la web" className={inputClass} /></Field>
             <Field label='Aclaración del precio (ej: "c/u")'><input value={form.price_note} onChange={set('price_note')} className={inputClass} /></Field>
             <Field label="Etiqueta destacada (opcional)"><input value={form.highlight} onChange={set('highlight')} placeholder="Google Meet con turno previo" className={inputClass} /></Field>
             <Field label="Orden en la web"><input inputMode="numeric" value={form.sort} onChange={set('sort')} className={inputClass} /></Field>
