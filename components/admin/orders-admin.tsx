@@ -10,7 +10,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, pendingSessions, type Order, type OrderStatus } from '@/lib/orders'
 import { deliveryDeadline, formatDue } from '@/lib/dashboard'
-import { STAGES, kindsOf, missingData, moveTo, sortForStage, stageOf, teamState, toStage, todayReason,type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
+import { STAGES, kindsOf, missingData, moveTo, needsTexts, sortForStage, stageOf, teamState, textsReason, toStage, todayReason, type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
 import { DeadlineChip } from './dashboard-admin'
 import { OrderLinkDialog } from './order-link-dialog'
 import { TeamRow, type OrderTask } from './assign-task'
@@ -529,6 +529,7 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
       groups[stageOf(order)].push(order)
       if (reasons.get(order.id)) groups.hoy.push(order)
       if (isNew(order)) groups.nuevos.push(order)
+      if (needsTexts(order)) groups.textos.push(order)
     }
     return groups
   }, [filtered, reasons, isNew])
@@ -625,7 +626,7 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
                   onDrop={(event) => { event.preventDefault(); drop(item.id) }}
                   className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 font-display text-xs font-bold transition-all ${active ? 'bg-ciruela text-white' : 'bg-white text-piedra hover:text-ciruela'} ${dragging && target ? 'ring-2 ring-whatsapp/60' : ''} ${over === item.id && target ? 'scale-105 bg-whatsapp text-white' : ''}`}>
                   {item.label}
-                  <span className={`min-w-5 rounded-full px-1.5 py-0.5 text-[11px] ${active ? 'bg-white/20' : item.id === 'hoy' && count ? 'bg-rosa text-white' : item.id === 'nuevos' ? 'bg-rosa text-white' : 'bg-papel text-piedra'}`}>{count}</span>
+                  <span className={`min-w-5 rounded-full px-1.5 py-0.5 text-[11px] ${active ? 'bg-white/20' : (item.id === 'hoy' || item.id === 'textos') && count ? 'bg-rosa text-white' : item.id === 'nuevos' ? 'bg-rosa text-white' : 'bg-papel text-piedra'}`}>{count}</span>
                 </button>
               )
             })}
@@ -647,7 +648,7 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
         <ul className="mt-4 grid gap-3 md:grid-cols-2">
           {pageOrders.map((order) => (
             <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} fresh={isNew(order)}
-              reason={stage === 'hoy' || searching ? reasons.get(order.id) ?? todayReason(order, isNew(order)) : null}
+              reason={searching ? reasons.get(order.id) ?? todayReason(order, isNew(order)) : stage === 'hoy' ? reasons.get(order.id) ?? todayReason(order, isNew(order)) : stage === 'textos' ? textsReason(order) : null}
               onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', order.id); setDragging(order) }}
               onChanged={load} />
           ))}
