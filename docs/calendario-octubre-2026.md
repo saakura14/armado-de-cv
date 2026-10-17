@@ -19,8 +19,8 @@ Horario: 20:00, como el resto de las publicaciones.
 |---|---|---|---|
 | Mié 14/10 | Carrusel: titular de LinkedIn (ya programado) | Repost del carrusel de la **Expo** + sticker de cuenta regresiva "Expo Empleo · 28/10" | EXPO |
 | Jue 15/10 | Carrusel: consultoras (ya armado) | Historia de consultoras (ya armada) | CV |
-| Vie 16/10 | **Reel R2 · ATS** ("Mando CV y nadie me llama") | Anuncio de la entrevista en Digitalizadas + link | FILTRO |
-| Sáb 17/10 | | Caja de preguntas (Digitalizadas) + encuesta "¿Vas a ir a la Expo Empleo?" (Sí / Quiero ir pero mi CV no está listo) | EXPO |
+| Vie 16/10 | | Anuncio de la entrevista en Digitalizadas + link | |
+| Sáb 17/10 | **Reel R2 · ATS** ("Mando CV y nadie me llama") | Caja de preguntas (Digitalizadas) + encuesta "¿Vas a ir a la Expo Empleo?" (Sí / Quiero ir pero mi CV no está listo) | FILTRO · EXPO |
 | Dom 18/10 | Carrusel Digitalizadas (ya armado) | | |
 | Lun 19/10 | **Reel R1 · ¿Pongo que soy mamá?** | Respuestas a la caja de preguntas | LINKEDIN |
 | Mar 20/10 | **Carrusel Expo 2:** "Qué decir en los 30 segundos frente a cada empresa" | Oferta "CV listo para la Expo" con fecha límite | EXPO |
@@ -71,9 +71,27 @@ Escribime EXPO 👇
 
 ---
 
+## Los reels: archivos listos para subir
+
+Cada reel tiene su video (1080×1920) y una portada con Valeria, el título y su nombre. Están guardados en la carpeta de la fecha en que se publican.
+
+| Fecha | Reel | Video | Portada | Duración |
+|---|---|---|---|---|
+| Sáb 17/10 | R2 · ATS | `public/social/reels/2026-10-17/reel-digitalizadas-r2-ats.mp4` | `public/social/reels/2026-10-17/portada-r2-ats.jpg` | 52 s |
+| Lun 19/10 | R1 · ¿Pongo que soy mamá? | `public/social/reels/2026-10-19/reel-digitalizadas-r1-mama.mp4` | `public/social/reels/2026-10-19/portada-r1-mama.jpg` | 29 s |
+| Mié 21/10 | R3 · El error de poner todo | `public/social/reels/2026-10-21/reel-digitalizadas-r3-error-cv.mp4` | `public/social/reels/2026-10-21/portada-r3-error-cv.jpg` | 51 s |
+| Vie 23/10 | R4 · Tu titular es tu filtro ATS | `public/social/reels/2026-10-23/reel-digitalizadas-r4-titular.mp4` | `public/social/reels/2026-10-23/portada-r4-titular.jpg` | 69 s |
+| Lun 26/10 | R5 · LinkedIn es para todas | `public/social/reels/2026-10-26/reel-digitalizadas-r5-para-todas.mp4` | `public/social/reels/2026-10-26/portada-r5-para-todas.jpg` | 48 s |
+
+**Cómo publicarlos** (Meta Business Suite → Crear reel):
+1. Subí el video y en "Portada" elegí **Subir desde el dispositivo** con la portada del mismo día. El título queda dentro de la zona que se ve en la grilla del perfil.
+2. Pegá el texto del reel (abajo) y dejá activado **Compartir en el feed**.
+3. Etiquetá a Digitalizadas y a Sol Flores como colaboradoras, si te pasaron sus usuarios.
+4. Programalo a las 20:00 del día que figura en la tabla.
+
 ## Textos de los reels (Instagram)
 
-**R2 · ATS** (vie 16/10)
+**R2 · ATS** (sáb 17/10)
 ```
 ¿Mandás CV y nadie te llama? 😩
 
@@ -178,7 +196,7 @@ Si es tu primer trabajo, el Pack Primer Empleo está a $20.000.
 | Desde | Anuncio | Por día | Objetivo |
 |---|---|---|---|
 | 14/10 al 27/10 | Carrusel de la Expo Empleo (publicación existente) | US$ 8 | Mensajes · CABA y GBA, 18 a 35 años |
-| 16/10 | Reel R2 · ATS | US$ 8 | Mensajes |
+| 17/10 | Reel R2 · ATS | US$ 8 | Mensajes |
 | 19/10 | Reel R1 · Mamá | US$ 7 | Mensajes |
 
 A los 4 días, el reel con el costo por mensaje más alto le pasa su presupuesto al otro. El 28/10 se apaga la Expo y entra R5 como remarketing (personas que vieron más del 50% de R1 o R2).
