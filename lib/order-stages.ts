@@ -1,16 +1,18 @@
 import { pendingSessions, type Order, type OrderStatus } from './orders'
 import { deliveryDeadline, nextDueText } from './dashboard'
+import { TEAM_PACKS } from './team'
 
 /**
  * The orders board, in the order Vale works: each order is in one work stage.
  * "Hoy" and "Nuevos" are views across stages (what needs her today, and web orders not opened yet).
  */
-export type Stage = 'hoy' | 'nuevos' | 'cobrar' | 'arrancar' | 'proceso' | 'revisar' | 'equipo' | 'esperando' | 'entregados' | 'archivo'
-export type WorkStage = Exclude<Stage, 'hoy' | 'nuevos'>
+export type Stage = 'hoy' | 'nuevos' | 'textos' | 'cobrar' | 'arrancar' | 'proceso' | 'revisar' | 'equipo' | 'esperando' | 'entregados' | 'archivo'
+export type WorkStage = Exclude<Stage, 'hoy' | 'nuevos' | 'textos'>
 
 export const STAGES: { id: Stage; label: string; hint: string }[] = [
   { id: 'hoy', label: 'Hoy', hint: 'Lo que necesita tu atención hoy: pedidos nuevos, pagos a revisar, recordatorios y entregas que vencen.' },
   { id: 'nuevos', label: 'Nuevos', hint: 'Pedidos de la web que todavía no abriste.' },
+  { id: 'textos', label: 'Textos para el equipo', hint: 'CVs pagados que todavía no le pasaste al equipo, en orden de pedido: empezá por el primero. Los que esperan al cliente quedan marcados.' },
   { id: 'cobrar', label: 'Por cobrar', hint: 'Sin pagar, comprobantes por revisar y transferencias por verificar.' },
   { id: 'arrancar', label: 'Para arrancar', hint: 'Pagados y sin empezar. Primero los que vencen antes.' },
   { id: 'proceso', label: 'En proceso', hint: 'Los que estás haciendo vos, ordenados por vencimiento.' },
@@ -115,10 +117,28 @@ export function todayReason(order: Order, unseen: boolean, now = new Date()): Re
 const time = (value: string | null | undefined) => (value ? new Date(value).getTime() : 0)
 const dueTime = (order: Order) => (hasDeadline(order) ? deliveryDeadline(order)?.due.getTime() ?? Infinity : Infinity)
 
+/** CV packs of a paid order that nobody on the team has yet: Vale still has to write their texts. */
+export function needsTexts(order: Order) {
+  if (isTest(order) || (order.status !== 'paid' && order.status !== 'in_progress')) return false
+  const tasks = (order as Order & { team_tasks?: { order_item_id: string }[] }).team_tasks ?? []
+  return order.order_items.some((item) => TEAM_PACKS.includes(item.product_id) && !tasks.some((task) => task.order_item_id === item.id))
+}
+
+/** On the texts list: what is holding an order back, if anything. */
+export function textsReason(order: Order): Reason {
+  if (order.waiting_since) return { label: 'Esperando al cliente', tone: 'arena', rank: 5 }
+  if (!order.data_received_at) return { label: '¿Ya tenés sus datos?', tone: 'arena', rank: 5 }
+  const deadline = deliveryDeadline(order)
+  if (deadline && deadline.remaining < 0) return { label: `Atrasado ${-deadline.remaining} ${deadline.remaining === -1 ? 'día' : 'días'}`, tone: 'rojo', rank: 0 }
+  if (deadline && deadline.remaining <= 1) return { label: deadline.remaining === 0 ? 'Vence hoy' : 'Vence mañana', tone: 'naranja', rank: 1 }
+  return { label: 'Listo para escribir', tone: 'rosa', rank: 3 }
+}
+
 /** The order that makes sense for each stage. */
 export function sortForStage(stage: Stage, orders: Order[], reasons: Map<string, Reason | null>): Order[] {
   const list = [...orders]
   switch (stage) {
+    case 'textos': return list.sort((a, b) => a.number - b.number)
     case 'hoy': return list.sort((a, b) => (reasons.get(a.id)?.rank ?? 9) - (reasons.get(b.id)?.rank ?? 9) || dueTime(a) - dueTime(b) || time(a.created_at) - time(b.created_at))
     case 'cobrar': return list.sort((a, b) => Number(b.status === 'payment_review' || b.payment_check === 'pending') - Number(a.status === 'payment_review' || a.payment_check === 'pending') || time(a.created_at) - time(b.created_at))
     case 'arrancar': case 'proceso': case 'revisar': case 'equipo': return list.sort((a, b) => dueTime(a) - dueTime(b) || time(a.paid_at) - time(b.paid_at))
