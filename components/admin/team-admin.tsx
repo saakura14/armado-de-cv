@@ -155,6 +155,31 @@ function MemberSettings({ member, onSaved }: { member: TeamMember; onSaved: () =
   )
 }
 
+/** Vale's note and the urgent mark, editable after assigning (he sees the change on the spot). */
+function TaskNote({ task, onChanged }: { task: TeamTask; onChanged: () => void }) {
+  const [notes, setNotes] = useState(task.notes ?? '')
+  const [urgent, setUrgent] = useState(Boolean(task.urgent))
+  const [busy, setBusy] = useState(false)
+  const flash = useFlash()
+  const changed = notes.trim() !== (task.notes ?? '') || urgent !== Boolean(task.urgent)
+  async function save() {
+    setBusy(true)
+    const { error } = await supabase.from('team_tasks').update({ notes: notes.trim() || null, urgent }).eq('id', task.id)
+    setBusy(false)
+    if (error) flash.show('error', errorMessage(error)); else { flash.show('ok', 'Guardado: ya lo ve.'); onChanged() }
+  }
+  return (
+    <div className="space-y-2">
+      <Field label="Nota para él"><textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} placeholder="Colores, foto, rubro…" className={inputClass} /></Field>
+      <div className="flex flex-wrap items-center gap-3">
+        {task.status !== 'terminado' && <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={urgent} onChange={(event) => setUrgent(event.target.checked)} className="accent-rosa" />⚡ Urgente</label>}
+        {changed && <Button variant="secondary" busy={busy} onClick={save}>Guardar</Button>}
+      </div>
+      {flash.node}
+    </div>
+  )
+}
+
 /** Vale's tools on a task: reopen a finished one or take it back before it is done. */
 function TaskTools({ task, onChanged }: { task: TeamTask; onChanged: () => void }) {
   const flash = useFlash()
@@ -334,6 +359,7 @@ export function TeamAdmin() {
                       <TaskRow key={task.id} task={task} reported={progressShare(task)} action={<span className="flex shrink-0 flex-col items-end gap-1">{workMinutes(task) !== null && <span className="font-display text-[11px] font-bold text-ciruela">⏱ {formatMinutes(workMinutes(task)!)}</span>}{task.status === 'haciendo' && task.started_at && <span className="text-[11px] text-piedra">▶ {startedLabel(task.started_at)}</span>}<span className={`rounded-full px-2.5 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span></span>}>
                         <div className="space-y-3">
                           {task.status !== 'terminado' ? <TaskTexts task={task} /> : task.design_url ? <a href={task.design_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-rosa-deep hover:underline">Ver el diseño en Canva</a> : null}
+                          <TaskNote task={task} onChanged={load} />
                           <TaskProgress task={task} />
                           <TaskStart task={task} onChanged={load} />
                           <TaskTools task={task} onChanged={load} />

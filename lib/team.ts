@@ -19,6 +19,8 @@ export type TeamTask = {
   letter: string | null
   notes: string | null
   due_on: string | null
+  /** Vale marked it as urgent: a small lightning bolt in his list. */
+  urgent?: boolean
   status: TaskStatus
   rate: number
   assigned_at: string
@@ -35,7 +37,7 @@ export type TeamTask = {
 /** "pago" closes the batch (the counter starts again); "adelanto" is money ahead, discounted from the current batch. */
 export type TeamPayment = { id: string; member_id: string; kind: 'pago' | 'adelanto'; amount: number; paid_on: string; note: string | null; created_at: string; packs: number | null; settled_in: string | null }
 
-export const TASK_SELECT = 'id, member_id, order_id, order_item_id, order_number, client_name, pack_name, cv_modern, cv_ats, has_letter, letter, notes, due_on, status, rate, assigned_at, started_at, finished_at, design_url, paid_in, progress, progress_at'
+export const TASK_SELECT = 'id, member_id, order_id, order_item_id, order_number, client_name, pack_name, cv_modern, cv_ats, has_letter, letter, notes, due_on, urgent, status, rate, assigned_at, started_at, finished_at, design_url, paid_in, progress, progress_at'
 
 /** Only the CV packs are made by the team (LinkedIn, platforms, sessions and corrections stay with Vale). */
 export const TEAM_PACKS = ['cv-primer-empleo', 'cv-simple', 'cv-medium', 'cv-premium']

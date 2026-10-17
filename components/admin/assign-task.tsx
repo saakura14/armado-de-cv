@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Users, X } from 'lucide-react'
-import { deliveryDeadline } from '@/lib/dashboard'
+import { deliveryDeadline, hasExpress } from '@/lib/dashboard'
 import { isDayOff } from '@/lib/holidays'
 import type { Order, OrderItem } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
@@ -37,6 +37,8 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
   const [rate, setRate] = useState('')
   const [letter, setLetter] = useState('')
   const [notes, setNotes] = useState('')
+  // Express orders start as urgent: he sees a small lightning bolt on the CV.
+  const [urgent, setUrgent] = useState(() => hasExpress(order))
   const [due, setDue] = useState(() => suggestedDue(order))
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
@@ -62,7 +64,7 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
       member_id: member.id, order_id: order.id, order_item_id: item.id, order_number: order.number,
       client_name: firstName, pack_name: item.product_name,
       cv_modern: atsOnly ? '' : modern.trim(), cv_ats: ats.trim(), has_letter: !atsOnly && hasLetter, letter: !atsOnly && hasLetter ? letter.trim() || null : null,
-      notes: notes.trim() || null, due_on: due || null, rate: rate === '' ? member.rate : Number(rate),
+      notes: notes.trim() || null, due_on: due || null, urgent, rate: rate === '' ? member.rate : Number(rate),
     }).select('id').single()
     setBusy(false)
     if (error) { flash.show('error', /duplicate|unique/i.test(error.message) ? 'Este pack ya está asignado.' : errorMessage(error)); return }
@@ -101,6 +103,7 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
             <Field label="Notas (colores, foto, rubro…)"><input value={notes} onChange={(event) => setNotes(event.target.value)} className={inputClass} /></Field>
           </div>
           {due && <p className="-mt-2 text-xs text-piedra">Sugerido: un día hábil antes de tu vencimiento, para que llegues a revisarlo.</p>}
+          <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={urgent} onChange={(event) => setUrgent(event.target.checked)} className="accent-rosa" />⚡ Es urgente <span className="font-normal text-piedra">(le aparece un rayito en el CV)</span></label>
         </div>
         <div className="border-t border-line bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 sm:pb-5">
           {flash.node && <div className="mb-2">{flash.node}</div>}

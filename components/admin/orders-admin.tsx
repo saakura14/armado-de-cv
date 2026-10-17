@@ -59,7 +59,8 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
   const [name, setName] = useState(order.customer_name ?? '')
   const [phone, setPhone] = useState(order.customer_phone ?? '')
   const [date, setDate] = useState(toDay(order.paid_at))
-  const initialItems: SaleItem[] = order.order_items.map((item) => ({ productId: item.product_id, extras: item.extras.map((extra) => ({ groupId: extra.group_id, optionId: extra.option_id })) }))
+  // Each line keeps what was charged for it, so adding something later doesn't reprice what was already sold.
+  const initialItems: SaleItem[] = order.order_items.map((item) => ({ productId: item.product_id, price: item.unit_price, extras: item.extras.map((extra) => ({ groupId: extra.group_id, optionId: extra.option_id })) }))
   const [items, setItems] = useState<SaleItem[]>(initialItems)
   // The amount follows the prices while it isn't typed by hand.
   const [totalTouched, setTotalTouched] = useState(false)
@@ -70,7 +71,8 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
 
   function changeItems(next: SaleItem[]) {
     setItems(next)
-    if (!totalTouched) setTotal(String(totalOf(next)))
+    // What was already charged plus (or minus) what changed: an e-book sold later adds its price to the total.
+    if (!totalTouched) setTotal(String(Math.max(order.total + totalOf(next) - totalOf(initialItems), 0)))
   }
 
   async function save() {
@@ -78,7 +80,7 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
     if (itemsChanged) {
       const { error } = await supabase.rpc('admin_update_whatsapp_sale_items', {
         p_order: order.id,
-        p_items: items.map((item) => ({ product_id: item.productId, extras: item.extras.map((extra) => ({ group_id: extra.groupId, option_id: extra.optionId })) })),
+        p_items: items.map((item) => ({ product_id: item.productId, price: item.price ?? undefined, extras: item.extras.map((extra) => ({ group_id: extra.groupId, option_id: extra.optionId })) })),
         p_total: Number(total),
       })
       if (error) { setBusy(false); flash.show('error', errorMessage(error)); return }
@@ -117,8 +119,9 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
           {Number(total) > 0 && <> <button type="button" className="underline" onClick={() => { setTotal(String(order.total + Number(total))); setTotalTouched(true) }}>Usar {formatARS(order.total + Number(total))}</button></>}
         </p>
       )}
+      {added && !totalTouched && <p className="mt-2 text-xs font-semibold text-ciruela">Total: lo que ya habías cobrado ({formatARS(order.total)}) + lo nuevo ({formatARS(Math.max(Number(total) - order.total, 0))}). Si cobraste otro precio, cambialo al lado del producto.</p>}
       {added && <p className="mt-2 text-xs text-piedra">Si lo nuevo lo vendiste otro día, conviene cargarlo como venta nueva: así cuenta en el mes en que lo cobraste.</p>}
-      {lines > 0 && lines !== Number(total) && <p className="mt-2 text-xs text-piedra">Según los precios de lo que compró: {formatARS(lines)}. <button type="button" className="font-semibold text-rosa-deep hover:underline" onClick={() => { setTotal(String(lines)); setTotalTouched(false) }}>usar ese</button></p>}
+      {totalTouched && lines > 0 && lines !== Number(total) && <p className="mt-2 text-xs text-piedra">Según los precios de lo que compró: {formatARS(lines)}. <button type="button" className="font-semibold text-rosa-deep hover:underline" onClick={() => { setTotal(String(lines)); setTotalTouched(false) }}>usar ese</button></p>}
       {itemsChanged && items.some((item) => item.extras.some((extra) => extra.groupId === 'express')) && <p className="mt-2 text-xs font-semibold text-ciruela">Con Express, el plazo pasa a 24 hs hábiles desde la fecha de pago.</p>}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button busy={busy} disabled={!name.trim() || !(Number(total) > 0) || !items.length || items.some((item) => !item.productId)} onClick={save}>Guardar cambios</Button>

@@ -25,7 +25,7 @@ function dayLabel(value: string) {
 }
 
 /**
- * Only in Vale's panel: whether the team member has his panel open right now, and when he came in and left
+ * Only in Vale's panel: whether the team member has his panel open right now, and his work stretches (from when to when)
  * (his app reports it; he doesn't see this). Updates live.
  */
 export function TeamPresence({ memberId, name }: { memberId: string; name: string }) {
@@ -77,7 +77,7 @@ export function TeamPresence({ memberId, name }: { memberId: string; name: strin
           })}
         </ul>
       )}
-      <p className="mt-2 text-[11px] text-piedra">Solo lo ves vos. Cuenta mientras tiene el panel abierto en pantalla.</p>
+      <p className="mt-2 text-[11px] text-piedra">Solo lo ves vos. Cada línea es un rango de trabajo: si sale un rato (por ejemplo a Canva) y vuelve antes de 20 minutos, sigue contando el mismo.</p>
     </section>
   )
 }
