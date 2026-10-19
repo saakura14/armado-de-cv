@@ -10,10 +10,11 @@ function splitPieces(text: string) {
   return text.replace(/\r\n/g, '\n').split(/\n[ \t]*\n+/).map((piece) => piece.replace(/^\n+|\n+$/g, '')).filter((piece) => piece.trim())
 }
 
+/** `text` is what gets copied (without the section titles); `lines` is everything shown, titles included. */
 type Piece = { text: string; lines: string[] }
 
 /** The pieces "Copiar siguiente" goes through. */
-/** A section title of the CV: a short line in capitals ("HERRAMIENTAS", "OBJETIVO PROFESIONAL"). */
+/** A short line in capitals ("HERRAMIENTAS", "OBJETIVO PROFESIONAL", but also a name or a job in capitals). */
 export function isHeading(line: string) {
   const value = line.trim()
   // At least 5 letters, so a tool alone in capitals ("SQL", "HTML") isn't taken for a title; no digits, so a school
@@ -21,35 +22,65 @@ export function isHeading(line: string) {
   return value.length <= 50 && (value.match(/\p{L}/gu)?.length ?? 0) >= 5 && !/\d/.test(value) && value === value.toLocaleUpperCase('es') && !/^[•\-–—*·]/.test(value)
 }
 
+/** Markdown marks the texts sometimes come with ("## PERFIL", "**Educación**"): pasted in Canva they would have to be erased. */
+function cleanLine(line: string) {
+  return line.trim().replace(/^#+\s*/, '').replace(/^\*\*(.+)\*\*$/, '$1')
+}
+
+// How the CV's section titles start. Names and jobs in capitals ("ENFERMERO PROFESIONAL") don't, so they are still copied.
+const SECTION_TITLE = /^(perfil|formaci[oó]n|experiencias?|idiomas?|competencias|herramientas|informaci[oó]n adicional|educaci[oó]n|habilidades|objetivo|cursos|capacitaci[oó]n|capacitaciones|certificaciones|licencias|disponibilidad|[aá]reas de inter[eé]s|fortalezas|referencias|datos personales|contacto|logros|proyectos|voluntariado|conocimientos|aptitudes|estudios|resumen|sobre m[ií]|acerca de m[ií]|intereses|cv moderno|cv ats)(?=$|[\s:—–-])/i
+// The same titles written in lowercase, only when the line is just the title ("Idiomas", not "Idiomas: Inglés B1").
+const SECTION_TITLE_LOWER = /^(perfil|perfil profesional|experiencia|experiencia laboral|experiencia profesional|formaci[oó]n|formaci[oó]n acad[eé]mica|educaci[oó]n|idiomas|herramientas|competencias|habilidades|cursos|capacitaciones|certificaciones|referencias|fortalezas|informaci[oó]n adicional|datos personales|objetivo laboral|objetivo profesional)$/i
+
+/** A section title of the CV: it is already in the Canva template, so it is shown (to know where each text goes) but not copied. */
+export function isSectionTitle(line: string) {
+  const value = cleanLine(line).replace(/:$/, '').trim()
+  return (isHeading(value) && SECTION_TITLE.test(value)) || SECTION_TITLE_LOWER.test(value)
+}
+
+/** What a piece puts in the clipboard: its lines without the section titles. */
+const copyText = (lines: string[]) => lines.filter((line) => !isSectionTitle(line)).join('\n').replace(/^\n+|\n+$/g, '')
+
 function piecesOf(text: string, whole = false): Piece[] {
   // The cover letter goes whole (one block).
   if (whole) return [{ text: text.trim(), lines: text.trim().split('\n') }]
   // A CV with section titles: one piece per section, title and content together, blank lines or not
   // (a title glued to the previous section, like "FORTALEZAS" after the tools, still starts its own piece).
-  const lines = text.replace(/\r\n/g, '\n').split('\n')
+  const lines = text.replace(/\r\n/g, '\n').split('\n').map(cleanLine)
+  let list: string[][]
   if (lines.filter(isHeading).length >= 2) {
     const sections: string[][] = []
+    // A title in lowercase ("Idiomas") also starts its section.
+    const starts = (line: string) => isHeading(line) || isSectionTitle(line)
     for (const line of lines) {
-      if (!line.trim()) continue
+      if (!line) continue
       const last = sections[sections.length - 1]
       // A title right after another one ("EXPERIENCIA PROFESIONAL" and then the first job in capitals) stays in the
       // same piece, so no bubble is left with a title and nothing under it.
-      if (isHeading(line) && last?.every(isHeading)) last.push(line.trim())
-      else if (isHeading(line) || !last) sections.push([line.trim()])
-      else sections[sections.length - 1].push(line.trim())
+      if (starts(line) && last?.every(starts)) last.push(line)
+      else if (starts(line) || !last) sections.push([line])
+      else sections[sections.length - 1].push(line)
     }
-    return sections.map((section) => ({ text: section.join('\n'), lines: section }))
+    list = sections
+  } else {
+    // Without titles: paragraph by paragraph.
+    const paragraphs = splitPieces(lines.join('\n'))
+    // A long text pasted without blank lines: each line is a piece, so "Copiar siguiente" still goes bit by bit.
+    list = (paragraphs.length === 1 && paragraphs[0].split('\n').length > 6 ? paragraphs[0].split('\n').filter((line) => line.trim()) : paragraphs).map((piece) => piece.split('\n'))
   }
-  // Without titles: paragraph by paragraph.
-  const paragraphs = splitPieces(text)
-  // A long text pasted without blank lines: each line is a piece, so "Copiar siguiente" still goes bit by bit.
-  const list = paragraphs.length === 1 && paragraphs[0].split('\n').length > 6 ? paragraphs[0].split('\n').filter((line) => line.trim()) : paragraphs
-  return list.map((piece) => ({ text: piece, lines: piece.split('\n') }))
+  // A piece that is only a section title (nothing to copy) goes with the next one.
+  const pieces: Piece[] = []
+  let carry: string[] = []
+  for (const piece of list) {
+    const all = [...carry, ...piece]
+    if (copyText(all).trim()) { pieces.push({ text: copyText(all), lines: all }); carry = [] } else carry = all
+  }
+  return pieces
 }
 
-/** A paragraph is done when it was copied whole, or line by line. */
+/** A paragraph is done when it was copied whole, or line by line (the section titles don't count: they aren't copied). */
 function isPieceDone(pieces: Piece[], copied: string[], index: number) {
-  return copied.includes(`p${index}`) || pieces[index].lines.every((line, lineIndex) => !line.trim() || copied.includes(`p${index}l${lineIndex}`))
+  return copied.includes(`p${index}`) || pieces[index].lines.every((line, lineIndex) => !line.trim() || isSectionTitle(line) || copied.includes(`p${index}l${lineIndex}`))
 }
 
 async function writeClipboard(text: string) {
@@ -157,7 +188,7 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
   }
 
   const copyAll = (
-    <button type="button" onClick={() => copy(text, ['all'])} className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 font-display text-xs font-bold ${copied.includes('all') ? 'bg-whatsapp text-white' : 'bg-ciruela text-white hover:bg-rosa'}`}>
+    <button type="button" onClick={() => copy(whole ? text : pieces.map((piece) => piece.text).join('\n\n'), ['all'])} className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 font-display text-xs font-bold ${copied.includes('all') ? 'bg-whatsapp text-white' : 'bg-ciruela text-white hover:bg-rosa'}`}>
       {copied.includes('all') ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}{whole ? 'Copiar la carta' : 'Todo'}
     </button>
   )
@@ -195,7 +226,7 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
                 <button key={id} type="button" role="radio" aria-checked={mode === id} onClick={() => setMode(id)} className={`rounded-full px-3 py-1 font-display text-[11px] font-bold ${mode === id ? 'bg-ciruela text-white' : 'text-piedra'}`}>{text}</button>
               ))}
             </div>
-            <p className="text-[11px] leading-snug text-piedra">{mode === 'tocar' ? 'O el botón del bloque para el párrafo entero.' : 'Seleccioná solo la parte que necesites y tocá "Copiar lo seleccionado".'}</p>
+            <p className="text-[11px] leading-snug text-piedra">{mode === 'tocar' ? 'O el botón del bloque para el párrafo entero.' : 'Seleccioná solo la parte que necesites y tocá "Copiar lo seleccionado".'}{!whole && ' Los títulos en gris no se copian: ya están en la plantilla.'}</p>
           </div>
           <div ref={textRef} className="space-y-1.5">
             {pieces.map((piece, index) => {
@@ -203,7 +234,10 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
               return (
                 <div key={index} ref={(element) => { refs.current[index] = element }} className={`flex scroll-mt-20 items-start gap-2 rounded-xl border p-1.5 transition-colors ${index === next && !whole ? 'border-rosa bg-petalo-wash/40' : done ? 'border-transparent bg-whatsapp/5' : 'border-transparent bg-papel/50'}`}>
                   <div className="min-w-0 flex-1 select-text font-sans text-[15px] leading-relaxed text-ink">
-                    {piece.lines.map((line, lineIndex) => !line.trim() ? <span key={lineIndex} className="block h-2" /> : mode === 'marcar' ? (
+                    {piece.lines.map((line, lineIndex) => !line.trim() ? <span key={lineIndex} className="block h-2" /> : !whole && isSectionTitle(line) ? (
+                      // Already in the Canva template: shown to know where the text goes, but it can't be tapped or selected.
+                      <span key={lineIndex} className="block select-none px-1.5 pt-0.5 font-display text-[11px] font-bold uppercase tracking-wider text-piedra">{line}</span>
+                    ) : mode === 'marcar' ? (
                       <span key={lineIndex} className={`block cursor-text whitespace-pre-wrap break-words px-1.5 py-0.5 ${isHeading(line) ? 'font-display text-[13px] font-bold tracking-wide text-ciruela' : ''} ${!done && copied.includes(`p${index}l${lineIndex}`) ? 'text-whatsapp' : ''}`}>{line}</span>
                     ) : (
                       <span key={lineIndex} role="button" tabIndex={0}
