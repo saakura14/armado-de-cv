@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Columns2, Copy, ExternalLink, MessageCircle, RotateCcw, SkipForward, X, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Columns2, Copy, ExternalLink, MessageCircle, RotateCcw, SkipForward, X } from 'lucide-react'
+import { UrgentMark } from '@/components/team-cheer'
 import { whatsappUrl } from '@/lib/catalog'
 import { dueLabel, type TeamTask } from '@/lib/team'
 
@@ -349,7 +350,7 @@ export function TaskWorkspace({ task, actions, onClose, onAsk, onStart, onProgre
         <div className="mx-auto flex max-w-3xl items-center gap-2 px-3 py-2">
           <button type="button" onClick={close} aria-label="Volver" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-papel text-ciruela hover:bg-arena"><ArrowLeft className="h-5 w-5" /></button>
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1 truncate font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{(task.urgent || due?.urgent) && <Zap role="img" aria-label="Urgente" className="h-3 w-3 shrink-0 fill-rosa-deep text-rosa-deep" />}{task.order_number ? `Pedido #${task.order_number}` : 'Ejemplo'}{due ? ` · ${due.text}` : ''}</p>
+            <p className="flex items-center gap-1 truncate font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{(task.urgent || due?.urgent) && <UrgentMark compact />}{task.order_number ? `Pedido #${task.order_number}` : 'Ejemplo'}{due ? ` · ${due.text}` : ''}</p>
             <p className="truncate text-[15px] font-bold text-ink">{task.pack_name} · {task.client_name}</p>
           </div>
           <a href="https://www.canva.com/" target="_blank" rel="noreferrer" className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-line bg-white px-3.5 font-display text-xs font-bold text-ciruela hover:border-ciruela">Canva<ExternalLink className="h-3.5 w-3.5" /></a>
@@ -460,24 +461,25 @@ export function TaskRow({ task, action, onOpen, children, reported }: { task: Te
   const local = useTaskProgress(task)
   const progress = reported === undefined ? local : reported ?? 0
   const due = task.status !== 'terminado' ? dueLabel(task.due_on) : null
-  // Marked urgent by Vale, or due today or late: a small lightning bolt next to the name.
+  // Marked urgent by Vale, or due today or late: in red, with the mark of his character (and first in his list).
   const urgent = task.status !== 'terminado' && (task.urgent || due?.urgent)
-  const edge = task.status === 'terminado' ? 'bg-whatsapp' : task.status === 'haciendo' ? 'bg-rosa' : 'bg-line'
+  const edge = urgent ? 'bg-[#d6342c]' : task.status === 'terminado' ? 'bg-whatsapp' : task.status === 'haciendo' ? 'bg-rosa' : 'bg-line'
   const toggle = onOpen ?? (children ? () => setExpanded((value) => !value) : undefined)
   return (
     // Open, it takes the whole width of the list so its texts have room (and the neighbor keeps its own height).
-    <li className={`overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)] ${expanded ? 'col-span-full' : ''}`}>
+    <li className={`overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)] ${urgent ? 'ring-2 ring-[#d6342c]' : ''} ${expanded ? 'col-span-full' : ''}`}>
       <div className="flex items-stretch">
         <span aria-hidden className={`w-1.5 shrink-0 ${edge}`} />
         <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 pr-2.5">
           <button type="button" onClick={toggle} disabled={!toggle} aria-expanded={children && !onOpen ? expanded : undefined} className="min-w-0 flex-1 text-left">
             <p className="flex items-baseline gap-2">
-              <span className="truncate text-[15px] font-bold text-ink">{task.client_name}</span>
-              {urgent && <Zap role="img" aria-label="Urgente" className="h-3.5 w-3.5 shrink-0 self-center fill-rosa-deep text-rosa-deep" />}
+              <span className={`truncate text-[15px] font-bold ${urgent ? 'text-[#d6342c]' : 'text-ink'}`}>{task.client_name}</span>
+
               <span className="shrink-0 text-xs text-piedra">{task.order_number ? `#${task.order_number}` : 'Ejemplo'}</span>
               {task.status === 'haciendo' && <span className="shrink-0 font-display text-[11px] font-bold text-rosa-deep">· En curso</span>}
             </p>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-piedra">
+              {urgent && <UrgentMark />}
               {due && <span className={`rounded-full px-2 py-px font-display text-[11px] font-bold ${due.urgent ? 'bg-rosa-deep text-white' : 'bg-papel text-ciruela'}`}>{due.text}</span>}
               <span className="truncate">{task.pack_name}{task.has_letter ? ' · con carta' : ''}</span>
             </p>

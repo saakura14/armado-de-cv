@@ -172,7 +172,7 @@ function TaskNote({ task, onChanged }: { task: TeamTask; onChanged: () => void }
     <div className="space-y-2">
       <Field label="Nota para él"><textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} placeholder="Colores, foto, rubro…" className={inputClass} /></Field>
       <div className="flex flex-wrap items-center gap-3">
-        {task.status !== 'terminado' && <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={urgent} onChange={(event) => setUrgent(event.target.checked)} className="accent-rosa" />⚡ Urgente</label>}
+        {task.status !== 'terminado' && <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={urgent} onChange={(event) => setUrgent(event.target.checked)} className="accent-rosa" />🔴 Urgente</label>}
         {changed && <Button variant="secondary" busy={busy} onClick={save}>Guardar</Button>}
       </div>
       {flash.node}

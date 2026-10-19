@@ -25,7 +25,7 @@ export function CheerCard<Id extends string, Mood>({ characters, storageKey, moo
   const [line, setLine] = useState(0)
   useEffect(() => { try { const saved = localStorage.getItem(storageKey); if (saved && saved in characters) setId(saved as Id) } catch { /* private mode */ } }, [storageKey, characters])
   useEffect(() => { const timer = window.setInterval(() => setLine((current) => current + 1), 8000); return () => window.clearInterval(timer) }, [])
-  function pick(next: Id) { setId(next); setLine(0); try { localStorage.setItem(storageKey, next) } catch { /* private mode */ } }
+  function pick(next: Id) { setId(next); setLine(0); try { localStorage.setItem(storageKey, next) } catch { /* private mode */ } window.dispatchEvent(new Event('acv-character')) }
 
   const look = characters[id]
   const lines = look.lines(mood)
