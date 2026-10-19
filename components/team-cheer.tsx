@@ -141,3 +141,70 @@ export function TeamCelebration({ count, onClose }: { count: number; onClose: ()
     </div>
   )
 }
+
+/** The character he picked on the cheering card (Freddie until he picks one). Follows the change right away. */
+export function useCheerCharacter() {
+  const [id, setId] = useState<CharacterId>('freddie')
+  useEffect(() => {
+    function read() { try { const saved = localStorage.getItem('acv-cheer-character'); if (saved && saved in CHARACTERS) setId(saved as CharacterId) } catch { /* private mode */ } }
+    read()
+    window.addEventListener('acv-character', read)
+    return () => window.removeEventListener('acv-character', read)
+  }, [])
+  return id
+}
+
+/** An urgent CV, in the style of his character: the alert over Snake's head, the hidden blade, the first song of the show. */
+const URGENT_MARK: Record<CharacterId, { icon: string; label: string }> = {
+  snake: { icon: '❗', label: '¡Alerta!' },
+  ezio: { icon: '🗡️', label: 'Objetivo prioritario' },
+  freddie: { icon: '🎤', label: 'Abre el show' },
+}
+export function UrgentMark({ compact = false }: { compact?: boolean }) {
+  const mark = URGENT_MARK[useCheerCharacter()]
+  if (compact) return <span role="img" aria-label={`Urgente: ${mark.label}`} className="shrink-0 self-center text-sm leading-none">{mark.icon}</span>
+  return <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#d6342c] px-2 py-px font-display text-[11px] font-bold text-white"><span aria-hidden>{mark.icon}</span>Urgente · {mark.label}</span>
+}
+
+/** What his character says each time he finishes a CV (written here, in each one's style). */
+const DONE_LINES: Record<CharacterId, string[]> = {
+  freddie: [
+    '¡Bravo, darling! Otro CV y el público pide bis. 🎤',
+    'Ese CV fue un hit de estadio. 👑',
+    '¡Eeee-oh! Tema terminado, el show sigue. 🎸',
+    'Ovación de pie: CV entregado con estilo. ✨',
+    'Darling, eso no fue un CV: fue un clásico. 💛',
+  ],
+  snake: [
+    'Misión cumplida. CV entregado sin activar ninguna alarma. 📦',
+    '📡 Codec: Buen trabajo. El próximo objetivo ya está en el radar.',
+    'Objetivo asegurado. Volvé a la caja y preparate para la próxima. 📦',
+    'Infiltración perfecta: nadie te vio, pero el CV quedó impecable. ★',
+    'Rango de la misión: Big Boss. ★',
+  ],
+  ezio: [
+    'Salto de fe perfecto: el CV aterrizó impecable. 🍂',
+    'Sincronización 100% con este CV. 🦅',
+    'La Hermandad anota otro objetivo cumplido. 🗡️',
+    'Silencioso y preciso: así se entrega un CV. 🦅',
+    'Otro punto de vista conquistado. Seguimos, hermano. 🦅',
+  ],
+}
+
+/** The message when he finishes a CV: his character's colors, a phrase of its own and how it went (his time, the next one). */
+export function FinishCheer({ text }: { text: string }) {
+  const id = useCheerCharacter()
+  const look = CHARACTERS[id]
+  const [pick] = useState(() => Math.floor(Math.random() * 1000))
+  const lines = DONE_LINES[id]
+  return (
+    <div role="status" className={`fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto flex max-w-md animate-[goal-in_0.5s_ease-out] items-center gap-3 overflow-hidden rounded-3xl p-3 text-white shadow-2xl ${look.card}`}>
+      {look.overlay && <div className={`pointer-events-none absolute inset-0 ${look.overlay}`} />}
+      <div className="relative h-20 w-14 shrink-0">{look.figure}</div>
+      <div className="relative min-w-0 flex-1">
+        <p className={`rounded-2xl rounded-bl-sm px-3 py-2 text-sm font-bold leading-snug ${look.bubble}`}>{lines[pick % lines.length]}</p>
+        <p className="mt-1.5 text-xs font-semibold leading-snug text-white/85">{text}</p>
+      </div>
+    </div>
+  )
+}

@@ -79,9 +79,9 @@ export function monthlyStats(tasks: TeamTask[], payments: TeamPayment[]): MonthR
   return [...rows.values()].sort((a, b) => b.key.localeCompare(a.key))
 }
 
-/** Pending first by due date (the ones without date at the end), finished ones newest first. */
+/** Pending: the ones Vale marked urgent first, then by due date (the ones without date at the end), finished ones newest first. */
 export function sortTasks(tasks: TeamTask[]) {
-  const pending = tasks.filter((task) => task.status !== 'terminado').sort((a, b) => (a.due_on ?? '9999').localeCompare(b.due_on ?? '9999') || time(a.assigned_at) - time(b.assigned_at))
+  const pending = tasks.filter((task) => task.status !== 'terminado').sort((a, b) => Number(!!b.urgent) - Number(!!a.urgent) || (a.due_on ?? '9999').localeCompare(b.due_on ?? '9999') || time(a.assigned_at) - time(b.assigned_at))
   const finished = tasks.filter((task) => task.status === 'terminado').sort((a, b) => time(b.finished_at) - time(a.finished_at))
   return { pending, finished }
 }
