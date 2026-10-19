@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Wallet, X } from 'lucide-react'
 import { TaskRow, TaskTexts, TaskWorkspace } from '@/components/team-task-card'
 import { progressShare } from '@/components/admin/task-progress'
-import { FinishCheer, TeamCelebration, TeamCheer } from '@/components/team-cheer'
+import { FinishCheer, TeamCelebration, TeamCheer, useCheerCharacter } from '@/components/team-cheer'
+import { CodecCall, PANEL_THEMES, ThemeBackdrop, ThemeStrip } from '@/components/team-theme'
 import { TeamChat, TeamChatBubble, TeamChatWindow, useTeamUnread, type ChatTask } from '@/components/team-chat'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
@@ -124,6 +125,10 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   headerRight?: React.ReactNode; setup?: React.ReactNode; onChanged: () => void
 }) {
   const [view, setView] = useState<'pendientes' | 'terminados'>('pendientes')
+  // The panel dresses as the character he picked on his cheering card (background, titles, animations).
+  const character = useCheerCharacter()
+  const theme = PANEL_THEMES[character]
+  const [codec, setCodec] = useState<TeamTask | null>(null)
   // The CV open in work mode (full screen, next to Canva).
   const [workingId, setWorkingId] = useState<string | null>(null)
   // Chat with Vale: a floating button with the unread count; "#chat" in the address (from a notification) opens it.
@@ -168,9 +173,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   }, [preview, completing])
   const months = monthlyStats(tasks, payments)
   const thisMonth = months.find((row) => row.key === monthKey(new Date()))
-  const today = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)
-  // Marked urgent by Vale, or due today or late: they go first, in red.
-  const isUrgent = (task: TeamTask) => !!task.urgent || (!!task.due_on && task.due_on <= today)
+  // Only the urgent ones (24 h Express) go first, in red; a regular CV due today shows "Para hoy" but is not the same.
+  const isUrgent = (task: TeamTask) => !!task.urgent
   const urgent = pending.filter(isUrgent).length
   // In the preview, an example card shows how a new CV arrives.
   const shownPending = preview && pending.length === 0 ? [EXAMPLE_TASK] : pending
@@ -184,6 +188,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
       if (error) { setNotice({ ok: false, text: errorMessage(error) }); return }
       onChanged()
     }
+    // With Snake, opening a CV looks like a codec call for a second (it doesn't block anything).
+    if (character === 'snake') { setCodec(task); window.setTimeout(() => setCodec(null), 1100) }
     setWorkingId(task.id)
   }
   // Copying a text means the work started, even if "Empezar" was skipped: Vale sees it "Haciéndolo".
@@ -225,7 +231,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   ]
 
   return (
-    <div className="@container min-h-full bg-arena/40">
+    <div className={`relative isolate @container min-h-full ${theme.page}`}>
+      <ThemeBackdrop id={character} />
       <header className="sticky top-0 z-30 border-b border-line/70 bg-blanco/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 @3xl:px-6">
           <TeamLogo />
@@ -235,8 +242,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
 
       <main className="mx-auto max-w-6xl space-y-4 px-4 pb-24 pt-5 @3xl:px-6 @3xl:pt-6">
         <div>
-          <h1 className="font-script text-3xl leading-none text-rosa">¡Hola, {member.name.split(' ')[0]}!</h1>
-          <p className="mt-1 text-sm text-piedra">{pending.length ? `Tenés ${pending.length} ${pending.length === 1 ? 'CV para armar' : 'CVs para armar'}${urgent ? `, ${urgent} ${urgent === 1 ? 'urgente' : 'urgentes'}` : ''}.` : 'No tenés CVs pendientes. ¡Todo al día!'}</p>
+          <h1 className={`font-script text-3xl leading-none ${theme.hello}`}>¡Hola, {member.name.split(' ')[0]}!</h1>
+          <p className={`mt-1 text-sm ${theme.text}`}>{pending.length ? `Tenés ${pending.length} ${pending.length === 1 ? 'CV para armar' : 'CVs para armar'}${urgent ? `, ${urgent} ${urgent === 1 ? 'urgente' : 'urgentes'}` : ''}.` : 'No tenés CVs pendientes. ¡Todo al día!'}</p>
         </div>
 
         {/* The numbers in one compact strip: two per row on a phone, four in a row from a small tablet. */}
@@ -269,19 +276,21 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
                 </button>
               ))}
             </div>
-            {preview && view === 'pendientes' && pending.length === 0 && <p className="mt-3 text-xs font-semibold text-rosa-deep">Ejemplo: así le llega un CV cuando se lo asignás (no es un pedido real).</p>}
+            {view === 'pendientes' && <ThemeStrip id={character} urgent={pending.filter(isUrgent)} pending={pending} />}
+            {preview && view === 'pendientes' && pending.length === 0 && <p className={`mt-3 text-xs font-semibold ${theme.label}`}>Ejemplo: así le llega un CV cuando se lo asignás (no es un pedido real).</p>}
             {list.length === 0 ? (
-              <p className="mt-3 rounded-2xl bg-white p-6 text-center text-sm text-piedra">{view === 'pendientes' ? 'No tenés CVs para armar. Cuando Vale te pase uno, te aparece acá y te llega un aviso.' : 'Todavía no terminaste ningún CV.'}</p>
+              <p className="mt-3 rounded-2xl bg-white p-6 text-center text-sm text-piedra">{view === 'pendientes' ? theme.empty : 'Todavía no terminaste ningún CV.'}</p>
             ) : view === 'pendientes' ? (
               // The urgent ones first, apart, so it's clear what to do today.
               <div className="mt-3 space-y-4">
                 {[
-                  { title: 'Urgentes · primero estos', items: list.filter(isUrgent) },
-                  { title: urgent ? 'Después' : 'Para hacer', items: list.filter((task) => !isUrgent(task)) },
+                  { title: theme.groups[0], items: list.filter(isUrgent), dim: false },
+                  { title: theme.groups[1], items: list.filter((task) => !isUrgent(task)), dim: character === 'ezio' && urgent > 0 },
                 ].filter((group) => group.items.length).map((group) => (
                   <div key={group.title}>
-                    <p className="mb-1.5 px-1 font-display text-[11px] font-bold uppercase tracking-wider text-piedra">{group.title} · {group.items.length}</p>
-                    <ul className="grid items-start gap-2 @5xl:grid-cols-2">
+                    <p className={`mb-1.5 px-1 font-display text-[11px] font-bold uppercase tracking-wider ${theme.label}`}>{group.title} · {group.items.length}</p>
+                    {/* Ezio's "eagle vision": while there are urgent ones, the rest fade a little (they light up again on touch). */}
+                    <ul className={`grid items-start gap-2 @5xl:grid-cols-2 ${group.dim ? '[&>li]:opacity-70 [&>li]:grayscale [&>li]:transition [&>li:hover]:opacity-100 [&>li:hover]:grayscale-0' : ''}`}>
                       {group.items.map((task) => (
                         <TaskRow key={task.id} task={task} reported={preview ? progressShare(task) : undefined} onOpen={() => openTask(task)}
                           action={<button type="button" onClick={() => openTask(task)} className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3.5 font-display text-xs font-bold text-white ${task.status === 'haciendo' ? 'bg-rosa hover:bg-rosa-deep' : 'bg-ciruela hover:bg-rosa'}`}>{task.status === 'haciendo' ? 'Seguir' : 'Empezar'}<ChevronRight className="h-4 w-4" /></button>} />
@@ -363,7 +372,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
 
       {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} onProgress={reportProgress} onStart={() => markStarted(working)} onAsk={preview ? undefined : () => { setChatTask(chatTasks.find((task) => task.id === working.id) ?? null); setChatOpen(true) }} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
       {notice && <p role="status" className={`fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl px-4 py-3 text-center text-sm font-bold text-white shadow-lg ${notice.ok ? 'bg-whatsapp' : 'bg-rosa-deep'}`}>{notice.text}</p>}
-      {finishNote && !celebrate && <FinishCheer key={finishNote.at} text={finishNote.text} />}
+      {codec && <CodecCall task={codec} />}
+      {finishNote && !celebrate &&<FinishCheer key={finishNote.at} text={finishNote.text} />}
       {celebrate && <TeamCelebration count={batch.size} onClose={() => setCelebrate(false)} />}
       {/* Chat with Vale: a bubble in the corner (hidden in the work mode, which has its own "¿Una duda?" button). */}
       {!preview && !working && <TeamChatBubble open={chatOpen} unread={unread} onClick={() => (chatOpen ? closeChat() : setChatOpen(true))} label="Chat con Vale" className="bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4" />}

@@ -38,6 +38,7 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
   const [letter, setLetter] = useState('')
   const [notes, setNotes] = useState('')
   // Express orders start as urgent: he sees a small lightning bolt on the CV.
+  // Urgent means the customer bought the 24 h Express: it comes ticked for those.
   const [urgent, setUrgent] = useState(() => hasExpress(order))
   const [due, setDue] = useState(() => suggestedDue(order))
   const [busy, setBusy] = useState(false)
@@ -103,7 +104,7 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
             <Field label="Notas (colores, foto, rubro…)"><input value={notes} onChange={(event) => setNotes(event.target.value)} className={inputClass} /></Field>
           </div>
           {due && <p className="-mt-2 text-xs text-piedra">Sugerido: un día hábil antes de tu vencimiento, para que llegues a revisarlo.</p>}
-          <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={urgent} onChange={(event) => setUrgent(event.target.checked)} className="accent-rosa" />🔴 Es urgente <span className="font-normal text-piedra">(le aparece primero y en rojo, con la marca de su personaje)</span></label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={urgent} onChange={(event) => setUrgent(event.target.checked)} className="accent-rosa" />🔴 Es urgente (Express 24 hs) <span className="font-normal text-piedra">(le aparece primero y en rojo, con la marca de su personaje)</span></label>
         </div>
         <div className="border-t border-line bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 sm:pb-5">
           {flash.node && <div className="mb-2">{flash.node}</div>}
