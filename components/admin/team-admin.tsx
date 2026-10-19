@@ -213,7 +213,7 @@ function TaskTools({ task, onChanged }: { task: TeamTask; onChanged: () => void 
 const DEVICES = [
   { id: 'celu', label: 'Celu', width: 390 },
   { id: 'tablet', label: 'Tablet', width: 820 },
-  { id: 'horizontal', label: 'Tablet acostada', width: 1180 },
+  { id: 'horizontal', label: 'Tablet acostada', width: 1280 },
 ] as const
 
 /** "Ver como él": the team member's real screen with their data, at phone or tablet width. Buttons don't save anything. */

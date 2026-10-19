@@ -474,7 +474,7 @@ export function TaskTexts({ task }: { task: TeamTask }) {
 }
 
 /**
- * One CV in a list, in a single compact line: who, which pack, for when and how much was copied, with one button on the right.
+ * One CV in a list, as a card of four fixed lines (all the same size): who, urgent and for when, which pack and how much was copied, and Vale's note, with one button on the right.
  * The colored edge tells the state at a glance (grey to do, pink in progress, green finished).
  * `onOpen` makes the line open the work mode; otherwise `children` unfold under it.
  * `reported` (Vale's panel): the share he reported from his work mode, instead of what was copied on this device.
@@ -491,36 +491,36 @@ export function TaskRow({ task, action, onOpen, children, reported }: { task: Te
   const toggle = onOpen ?? (children ? () => setExpanded((value) => !value) : undefined)
   return (
     // Open, it takes the whole width of the list so its texts have room (and the neighbor keeps its own height).
-    <li className={`overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)] ${urgent ? 'ring-2 ring-[#d6342c]' : ''} ${expanded ? 'col-span-full' : ''}`}>
-      <div className="flex items-stretch">
+    <li className={`relative overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)] ${urgent ? 'ring-2 ring-[#d6342c]' : ''} ${expanded ? 'col-span-full' : ''}`}>
+      {/* Every card has the same four lines, each in one line (cut with "…" if long), so they are all the same size. */}
+      <div className="flex min-h-[7rem] items-stretch">
         <span aria-hidden className={`w-1.5 shrink-0 ${edge}`} />
         <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 pr-2.5">
           <button type="button" onClick={toggle} disabled={!toggle} aria-expanded={children && !onOpen ? expanded : undefined} className="min-w-0 flex-1 text-left">
-            <p className="flex items-baseline gap-2">
+            <p className="flex items-baseline gap-2 whitespace-nowrap">
               <span className={`truncate text-[15px] font-bold ${urgent ? 'text-[#d6342c]' : 'text-ink'}`}>{task.client_name}</span>
-
               <span className="shrink-0 text-xs text-piedra">{task.order_number ? `#${task.order_number}` : 'Ejemplo'}</span>
               {task.status === 'haciendo' && <span className="shrink-0 font-display text-[11px] font-bold text-rosa-deep">· En curso</span>}
             </p>
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-piedra">
+            <p className="mt-1 flex h-5 items-center gap-1.5 overflow-hidden whitespace-nowrap">
               {urgent && <UrgentMark />}
-              {due && <span className={`rounded-full px-2 py-px font-display text-[11px] font-bold ${due.urgent ? 'bg-rosa-deep text-white' : 'bg-papel text-ciruela'}`}>{due.text}</span>}
-              <span className="truncate">{task.pack_name}{task.has_letter ? ' · con carta' : ''}</span>
+              {due && <span className={`shrink-0 rounded-full px-2 py-px font-display text-[11px] font-bold ${due.urgent ? 'bg-rosa-deep text-white' : 'bg-papel text-ciruela'}`}>{due.text}</span>}
             </p>
-            {/* Vale's note in sight on the line itself, before and after it is finished. */}
-            {task.notes && <span className="mt-1 line-clamp-2 block text-xs text-ink"><span aria-hidden>📝 </span>{task.notes}</span>}
-            {task.status !== 'terminado' && progress > 0 && (
-              <span className="mt-1.5 flex items-center gap-2">
-                <span className="h-1 w-28 rounded-full bg-papel"><span className="block h-1 rounded-full bg-rosa" style={{ width: `${Math.round(progress * 100)}%` }} /></span>
-                <span className="text-[11px] text-piedra">{Math.round(progress * 100)}% copiado</span>
-              </span>
-            )}
+            <p className="mt-1 truncate text-xs text-piedra">
+              {task.pack_name}{task.has_letter ? ' · con carta' : ''}
+              {task.status !== 'terminado' && progress > 0 && <b className="font-semibold text-rosa-deep"> · {Math.round(progress * 100)}% copiado</b>}
+            </p>
+            {/* Vale's note in sight on the card itself, before and after it is finished (the whole note is inside the CV). */}
+            <p className="mt-1 h-4 truncate text-xs leading-4 text-ink" title={task.notes || undefined}>{task.notes && <><span aria-hidden>📝 </span>{task.notes}</>}</p>
           </button>
           {action}
           {children && !onOpen && <ChevronDown aria-hidden className={`h-4 w-4 shrink-0 text-piedra transition-transform ${expanded ? 'rotate-180' : ''}`} />}
         </div>
       </div>
+      {/* How much was copied, as a thin bar along the bottom edge. */}
+      {task.status !== 'terminado' && progress > 0 && <span aria-hidden className="absolute bottom-0 left-0 h-1 bg-rosa" style={{ width: `${Math.round(progress * 100)}%` }} />}
       {expanded && children && <div className="border-t border-line px-3 py-3">{children}</div>}
     </li>
   )
+
 }
