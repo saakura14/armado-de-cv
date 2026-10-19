@@ -148,6 +148,8 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
 
       {error && <p className="rounded-2xl bg-petalo-wash px-4 py-3 text-sm font-semibold text-rosa-deep">{error}</p>}
 
+      <MetaBalance data={data} money={money} onSaved={onReload} />
+
       {/* What came in, what went out, what was left */}
       <section className="overflow-hidden rounded-[32px] bg-ciruela text-white" aria-labelledby="result-title">
         <div className="grid gap-px bg-white/10 sm:grid-cols-3">
@@ -459,6 +461,71 @@ function ExpenseForm({ onSaved }: { onSaved: () => void }) {
   )
 }
 
+/**
+ * Meta's balance: what the ads spent since the last charge (Meta charges the card when it reaches about US$85). At the
+ * alert (US$75 by default, savings_goal.balance_alert_usd) it turns red, and the server sends one notification per cycle.
+ * When the ARQ charge arrives and the Monday task didn't load it yet, it can be noted here so the count starts again.
+ */
+function MetaBalance({ data, money, onSaved }: { data: Data; money: (value: number) => string; onSaved: () => void }) {
+  const [alert, setAlert] = useState(75)
+  const [adding, setAdding] = useState(false)
+  const [form, setForm] = useState({ day: today(), amount: '' })
+  const [busy, setBusy] = useState(false)
+  const flash = useFlash()
+  useEffect(() => {
+    supabase.from('savings_goal').select('balance_alert_usd').eq('id', 1).maybeSingle().then(({ data: goal }) => { if (goal?.balance_alert_usd) setAlert(Number(goal.balance_alert_usd)) })
+  }, [])
+
+  const last = [...data.metaPays].sort((a, b) => b.day.localeCompare(a.day))[0]
+  if (!last) return null
+  const spent = data.ads.filter((row) => row.day > last.day).reduce((sum, row) => sum + row.spend, 0)
+  const loadedUntil = data.ads.reduce((max, row) => (row.day > max ? row.day : max), '')
+  const rate = data.fx[data.fx.length - 1]?.ars_per_usd ?? 0
+  const share = Math.min(spent / alert, 1)
+  const tone = spent >= alert ? 'bg-rosa-deep' : spent >= alert * 0.8 ? 'bg-[#e0a43a]' : 'bg-whatsapp'
+  const short = (day: string) => `${day.slice(8)}/${day.slice(5, 7)}`
+
+  async function save() {
+    const amount = Number(form.amount.replace(',', '.'))
+    if (!(amount > 0)) { flash.show('error', 'Poné cuánto te cobró Meta, en dólares.'); return }
+    setBusy(true)
+    const { error } = await supabase.from('meta_payments').insert({ ref: `panel-${Date.now()}`, day: form.day, amount_usd: amount, kind: 'cargo' })
+    setBusy(false)
+    if (error) { flash.show('error', errorMessage(error)); return }
+    setAdding(false)
+    setForm({ day: today(), amount: '' })
+    onSaved()
+  }
+
+  return (
+    <section className={`${cardClass} ${spent >= alert ? 'ring-2 ring-rosa-deep' : ''}`} aria-labelledby="balance-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="balance-title" className="font-display text-lg font-bold text-ciruela">Saldo de Meta</h2>
+          <p className="text-sm text-piedra">Lo que gastaron los anuncios desde el último cobro ({short(last.day)}, {usd(last.amount_usd)}). Al llegar a {usd(alert)} te avisa al celu.</p>
+        </div>
+        <p className="text-right font-display text-2xl font-extrabold tabular-nums text-ciruela">{usd(spent)}<span className="block text-xs font-semibold text-piedra">{rate ? money(Math.round(spent * rate)) : ''} de {usd(alert)}</span></p>
+      </div>
+      <div className="mt-3 h-2.5 rounded-full bg-papel" role="progressbar" aria-label="Gasto desde el último cobro" aria-valuemin={0} aria-valuemax={alert} aria-valuenow={Math.round(spent)}>
+        <div className={`h-2.5 rounded-full transition-[width] ${tone}`} style={{ width: `${share * 100}%` }} />
+      </div>
+      {spent >= alert && <p className="mt-3 rounded-2xl bg-petalo-wash px-4 py-3 text-sm font-semibold text-rosa-deep">Llegaste a {usd(alert)}: Meta te va a cobrar pronto (cerca de US$85). Tené los dólares en ARQ y mirá abajo, en la revisión de anuncios, qué campaña conviene frenar.</p>}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-piedra">
+        <span>Gasto cargado hasta el {loadedUntil ? short(loadedUntil) : '—'}{loadedUntil && loadedUntil < dayKey(new Date(Date.now() - 864e5)) ? ' (faltan los últimos días: se cargan solos cada mañana)' : ''}.</span>
+        <button type="button" onClick={() => setAdding((open) => !open)} className="font-semibold text-rosa-deep hover:underline">¿Te cobró Meta? Anotalo</button>
+      </div>
+      {adding && (
+        <div className="mt-3 flex flex-wrap items-end gap-2 rounded-2xl bg-papel/60 p-3">
+          <label className="text-xs text-piedra">Día del cobro<input type="date" value={form.day} onChange={(event) => setForm({ ...form, day: event.target.value })} className={`${inputClass} w-auto`} /></label>
+          <input value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} inputMode="decimal" placeholder="US$ cobrados" aria-label="Monto cobrado en dólares" className={`${inputClass} mt-0 w-36`} />
+          <Button busy={busy} onClick={save}>Guardar</Button>
+        </div>
+      )}
+      {flash.node && <div className="mt-2">{flash.node}</div>}
+    </section>
+  )
+}
+
 /** Until Meta is connected: what Ads Manager shows as spent, for one day or a whole week (split evenly by day). */
 function ManualSpend({ onSaved }: { onSaved: () => void }) {
   const [from, setFrom] = useState(() => dayKey(new Date(Date.now() - 7 * 864e5)))
@@ -548,7 +615,7 @@ function WeeklyReview({ money }: { money: (value: number) => string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="review-title" className="font-display text-lg font-bold text-ciruela">Revisión semanal de anuncios</h2>
-          <p className="text-sm text-piedra">Todos los lunes a las 9 te llega al celu. Mira los últimos 7 días y te dice qué pausar, bajar o subir sin pasar tu tope.</p>
+          <p className="text-sm text-piedra">Todos los lunes a las 9 te llega al celu. Mira los últimos 7 días con las reglas de tu plan: tope de US$11 por día y US$80 por semana, pausar lo que pase de US$0,40 por conversación y que cada venta por anuncio cueste US$6 como máximo.</p>
         </div>
         <Button variant="secondary" busy={busy} onClick={runNow}><RefreshCw className="h-4 w-4" />Revisar ahora</Button>
       </div>
