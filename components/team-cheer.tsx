@@ -160,13 +160,13 @@ const URGENT_MARK: Record<CharacterId, { icon: string; label: string }> = {
   ezio: { icon: '🗡️', label: 'Objetivo prioritario' },
   freddie: { icon: '🎤', label: 'Abre el show' },
 }
-export function UrgentMark({ compact = false }: { compact?: boolean }) {
+export function UrgentMark({ compact = false, short = false }: { compact?: boolean; short?: boolean }) {
   const id = useCheerCharacter()
   const mark = URGENT_MARK[id]
   // Snake's "!" pops up when it appears, like when a guard spots him.
   const pop = id === 'snake' ? ' inline-block animate-[alert-pop_0.7s_ease-out_2]' : ''
   if (compact) return <span role="img" aria-label={`Urgente: ${mark.label}`} className={`shrink-0 self-center text-sm leading-none${pop}`}>{mark.icon}</span>
-  return <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#d6342c] px-2 py-px font-display text-[11px] font-bold text-white"><span aria-hidden className={pop}>{mark.icon}</span>Urgente · {mark.label}</span>
+  return <span title={mark.label} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#d6342c] px-2 py-px font-display text-[11px] font-bold text-white"><span aria-hidden className={pop}>{mark.icon}</span>{short ? 'Urgente' : `Urgente · ${mark.label}`}</span>
 }
 
 /** What his character says each time he finishes a CV (written here, in each one's style). */

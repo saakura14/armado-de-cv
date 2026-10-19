@@ -503,7 +503,7 @@ export function TaskRow({ task, action, onOpen, children, reported }: { task: Te
               {task.status === 'haciendo' && <span className="shrink-0 font-display text-[11px] font-bold text-rosa-deep">· En curso</span>}
             </p>
             <p className="mt-1 flex h-5 items-center gap-1.5 overflow-hidden whitespace-nowrap">
-              {urgent && <UrgentMark />}
+              {urgent && <UrgentMark short />}
               {due && <span className={`shrink-0 rounded-full px-2 py-px font-display text-[11px] font-bold ${due.urgent ? 'bg-rosa-deep text-white' : 'bg-papel text-ciruela'}`}>{due.text}</span>}
             </p>
             <p className="mt-1 truncate text-xs text-piedra">
