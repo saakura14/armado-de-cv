@@ -310,8 +310,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
           <aside className="space-y-4 @3xl:sticky @3xl:top-20">
             {/* One of his favorite characters cheers him up, with what he made this month. */}
             <TeamCheer pending={pending.length} today={todayDone.count} month={thisMonth?.earned ?? 0} count={batch.count} size={batch.size} />
-            {preview && <button type="button" onClick={() => setCelebrate(true)} className="-mt-2 w-full rounded-2xl border border-dashed border-rosa/50 px-3 py-2 text-xs font-bold text-rosa-deep hover:bg-petalo-wash">🎉 Probar el festejo de los {batch.size} CVs</button>}
-            {preview && <button type="button" onClick={() => setFinishNote({ at: Date.now(), text: '✅ Listo en 1 h 05 min · tu marca: 15 min. Seguimos con el próximo.' })} className="-mt-2 w-full rounded-2xl border border-dashed border-rosa/50 px-3 py-2 text-xs font-bold text-rosa-deep hover:bg-petalo-wash">💬 Probar el mensaje al terminar un CV</button>}
+            {preview && <button type="button" onClick={() => setCelebrate(true)} className="-mt-2 w-full rounded-2xl border border-dashed border-rosa/50 bg-white/90 px-3 py-2 text-xs font-bold text-rosa-deep hover:bg-petalo-wash">🎉 Probar el festejo de los {batch.size} CVs</button>}
+            {preview && <button type="button" onClick={() => setFinishNote({ at: Date.now(), text: '✅ Listo en 1 h 05 min · tu marca: 15 min. Seguimos con el próximo.' })} className="-mt-2 w-full rounded-2xl border border-dashed border-rosa/50 bg-white/90 px-3 py-2 text-xs font-bold text-rosa-deep hover:bg-petalo-wash">💬 Probar el mensaje al terminar un CV</button>}
             {/* His own marks, game style: streak of days, today's count and his best time per pack (no averages: those are Vale's). */}
             {records.length > 0 && (
               <section className={cardClass} aria-labelledby="marks-title">
