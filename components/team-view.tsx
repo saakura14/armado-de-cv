@@ -173,7 +173,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   }, [preview, completing])
   const months = monthlyStats(tasks, payments)
   const thisMonth = months.find((row) => row.key === monthKey(new Date()))
-  // Only what Vale marked urgent goes first, in red (due today is shown on the card, but it is not the same).
+  // Only the urgent ones (24 h Express) go first, in red; a regular CV due today shows "Para hoy" but is not the same.
   const isUrgent = (task: TeamTask) => !!task.urgent
   const urgent = pending.filter(isUrgent).length
   // In the preview, an example card shows how a new CV arrives.

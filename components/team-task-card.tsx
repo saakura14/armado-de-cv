@@ -485,7 +485,7 @@ export function TaskRow({ task, action, onOpen, children, reported }: { task: Te
   const local = useTaskProgress(task)
   const progress = reported === undefined ? local : reported ?? 0
   const due = task.status !== 'terminado' ? dueLabel(task.due_on) : null
-  // Only what Vale marked urgent (a CV due today, like an Express, is not the same): in red, with the mark of his character, first in his list.
+  // Only the urgent ones (the 24 h Express, ticked when assigning; a regular CV due today is not the same): in red, with the mark of his character, first in his list.
   const urgent = task.status !== 'terminado' && !!task.urgent
   const edge = urgent ? 'bg-[#d6342c]' : task.status === 'terminado' ? 'bg-whatsapp' : task.status === 'haciendo' ? 'bg-rosa' : 'bg-line'
   const toggle = onOpen ?? (children ? () => setExpanded((value) => !value) : undefined)
