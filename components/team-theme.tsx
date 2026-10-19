@@ -44,7 +44,7 @@ export function ThemeBackdrop({ id }: { id: CharacterId }) {
           <svg viewBox="0 0 400 80" preserveAspectRatio="none" className="absolute inset-x-0 bottom-0 h-40 w-full opacity-[0.12]">
             <path d="M0 80V52h24V40h18v12h14V30l10-12 10 12v22h26V44h30V30h14v22h22V36h12v16h26V24l6-14 6 14v28h24V46h30V34h16v18h22V42h20v38z" fill="#151517" />
           </svg>
-          <span className="absolute top-28 animate-[eagle-fly_34s_linear_infinite] text-2xl opacity-60 motion-reduce:hidden">🦅</span>
+          <span className="absolute bottom-36 animate-[eagle-fly_34s_linear_infinite] text-2xl opacity-60 motion-reduce:hidden">🦅</span>
         </>
       )}
       {id === 'freddie' && (
