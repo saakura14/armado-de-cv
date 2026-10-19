@@ -374,7 +374,7 @@ export function TaskWorkspace({ task, actions, onClose, onAsk, onStart, onProgre
         <div className="mx-auto flex max-w-3xl items-center gap-2 px-3 py-2">
           <button type="button" onClick={close} aria-label="Volver" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-papel text-ciruela hover:bg-arena"><ArrowLeft className="h-5 w-5" /></button>
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1 truncate font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{(task.urgent || due?.urgent) && <UrgentMark compact />}{task.order_number ? `Pedido #${task.order_number}` : 'Ejemplo'}{due ? ` · ${due.text}` : ''}</p>
+            <p className="flex items-center gap-1 truncate font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{task.urgent && <UrgentMark compact />}{task.order_number ? `Pedido #${task.order_number}` : 'Ejemplo'}{due ? ` · ${due.text}` : ''}</p>
             <p className="truncate text-[15px] font-bold text-ink">{task.pack_name} · {task.client_name}</p>
           </div>
           <a href="https://www.canva.com/" target="_blank" rel="noreferrer" className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-line bg-white px-3.5 font-display text-xs font-bold text-ciruela hover:border-ciruela">Canva<ExternalLink className="h-3.5 w-3.5" /></a>
@@ -485,8 +485,8 @@ export function TaskRow({ task, action, onOpen, children, reported }: { task: Te
   const local = useTaskProgress(task)
   const progress = reported === undefined ? local : reported ?? 0
   const due = task.status !== 'terminado' ? dueLabel(task.due_on) : null
-  // Marked urgent by Vale, or due today or late: in red, with the mark of his character (and first in his list).
-  const urgent = task.status !== 'terminado' && (task.urgent || due?.urgent)
+  // Only what Vale marked urgent (a CV due today, like an Express, is not the same): in red, with the mark of his character, first in his list.
+  const urgent = task.status !== 'terminado' && !!task.urgent
   const edge = urgent ? 'bg-[#d6342c]' : task.status === 'terminado' ? 'bg-whatsapp' : task.status === 'haciendo' ? 'bg-rosa' : 'bg-line'
   const toggle = onOpen ?? (children ? () => setExpanded((value) => !value) : undefined)
   return (

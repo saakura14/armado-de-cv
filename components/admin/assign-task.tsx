@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Users, X } from 'lucide-react'
-import { deliveryDeadline, hasExpress } from '@/lib/dashboard'
+import { deliveryDeadline } from '@/lib/dashboard'
 import { isDayOff } from '@/lib/holidays'
 import type { Order, OrderItem } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
@@ -38,7 +38,7 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
   const [letter, setLetter] = useState('')
   const [notes, setNotes] = useState('')
   // Express orders start as urgent: he sees a small lightning bolt on the CV.
-  const [urgent, setUrgent] = useState(() => hasExpress(order))
+  const [urgent, setUrgent] = useState(false)
   const [due, setDue] = useState(() => suggestedDue(order))
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
