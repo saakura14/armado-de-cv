@@ -5,7 +5,7 @@ import { CheerCard, type Character } from '@/components/cheer-card'
 import { formatARS } from '@/lib/catalog'
 
 type Mood = { pending: number; today: number; month: number; count: number; size: number }
-type CharacterId = 'freddie' | 'snake' | 'ezio'
+export type CharacterId = 'freddie' | 'snake' | 'ezio'
 
 /**
  * A character he likes cheers him up with phrases in its own style (written here, no song lyrics). The drawings are
@@ -161,9 +161,12 @@ const URGENT_MARK: Record<CharacterId, { icon: string; label: string }> = {
   freddie: { icon: '🎤', label: 'Abre el show' },
 }
 export function UrgentMark({ compact = false }: { compact?: boolean }) {
-  const mark = URGENT_MARK[useCheerCharacter()]
-  if (compact) return <span role="img" aria-label={`Urgente: ${mark.label}`} className="shrink-0 self-center text-sm leading-none">{mark.icon}</span>
-  return <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#d6342c] px-2 py-px font-display text-[11px] font-bold text-white"><span aria-hidden>{mark.icon}</span>Urgente · {mark.label}</span>
+  const id = useCheerCharacter()
+  const mark = URGENT_MARK[id]
+  // Snake's "!" pops up when it appears, like when a guard spots him.
+  const pop = id === 'snake' ? ' inline-block animate-[alert-pop_0.7s_ease-out_2]' : ''
+  if (compact) return <span role="img" aria-label={`Urgente: ${mark.label}`} className={`shrink-0 self-center text-sm leading-none${pop}`}>{mark.icon}</span>
+  return <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#d6342c] px-2 py-px font-display text-[11px] font-bold text-white"><span aria-hidden className={pop}>{mark.icon}</span>Urgente · {mark.label}</span>
 }
 
 /** What his character says each time he finishes a CV (written here, in each one's style). */
@@ -191,6 +194,8 @@ const DONE_LINES: Record<CharacterId, string[]> = {
   ],
 }
 
+const BURST: Record<CharacterId, string> = { snake: '★', ezio: '🍂', freddie: '✨' }
+
 /** The message when he finishes a CV: his character's colors, a phrase of its own and how it went (his time, the next one). */
 export function FinishCheer({ text }: { text: string }) {
   const id = useCheerCharacter()
@@ -200,6 +205,11 @@ export function FinishCheer({ text }: { text: string }) {
   return (
     <div role="status" className={`fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto flex max-w-md animate-[goal-in_0.5s_ease-out] items-center gap-3 overflow-hidden rounded-3xl p-3 text-white shadow-2xl ${look.card}`}>
       {look.overlay && <div className={`pointer-events-none absolute inset-0 ${look.overlay}`} />}
+      {/* A short burst: leaves of the leap of faith, stage sparkles or mission stars. */}
+      {Array.from({ length: 7 }, (_, index) => (
+        <span key={index} aria-hidden className="pointer-events-none absolute top-0 animate-[leaf-fall_1.8s_ease-in_forwards] text-base opacity-0 motion-reduce:hidden"
+          style={{ left: `${8 + index * 13}%`, animationDelay: `${(index % 4) * 0.18}s` }}>{BURST[id]}</span>
+      ))}
       <div className="relative h-20 w-14 shrink-0">{look.figure}</div>
       <div className="relative min-w-0 flex-1">
         <p className={`rounded-2xl rounded-bl-sm px-3 py-2 text-sm font-bold leading-snug ${look.bubble}`}>{lines[pick % lines.length]}</p>

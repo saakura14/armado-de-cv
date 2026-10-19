@@ -84,7 +84,31 @@ function isPieceDone(pieces: Piece[], copied: string[], index: number) {
   return copied.includes(`p${index}`) || pieces[index].lines.every((line, lineIndex) => !line.trim() || isSectionTitle(line) || copied.includes(`p${index}l${lineIndex}`))
 }
 
+const BULLET = /^\s*[•\-–—*·▪●◦]\s+/
+const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** The same text as HTML, with the bullet lines as a real list: Canva pastes them as a bulleted list, not as loose lines. */
+function asHtml(text: string) {
+  const parts: string[] = []
+  let list: string[] = []
+  const close = () => { if (list.length) { parts.push(`<ul>${list.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`); list = [] } }
+  for (const line of text.split('\n')) {
+    if (BULLET.test(line)) { list.push(line.replace(BULLET, '').trim()); continue }
+    close()
+    if (line.trim()) parts.push(`<p>${escapeHtml(line.trim())}</p>`)
+  }
+  close()
+  return parts.join('')
+}
+
 async function writeClipboard(text: string) {
+  // With bullets, it goes as HTML too (Canva keeps the list); plain text stays for everything else.
+  if (text.split('\n').some((line) => BULLET.test(line)) && typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'text/plain': new Blob([text], { type: 'text/plain' }), 'text/html': new Blob([asHtml(text)], { type: 'text/html' }) })])
+      return true
+    } catch { /* falls back to plain text */ }
+  }
   try { await navigator.clipboard.writeText(text); return true } catch { return false }
 }
 
