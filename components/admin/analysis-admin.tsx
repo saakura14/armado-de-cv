@@ -468,17 +468,24 @@ function ExpenseForm({ onSaved }: { onSaved: () => void }) {
  */
 function MetaBalance({ data, money, onSaved }: { data: Data; money: (value: number) => string; onSaved: () => void }) {
   const [alert, setAlert] = useState(75)
-  const [adding, setAdding] = useState(false)
+  // The "Saldo actual" Billing showed on a day: exact up to that day, then the daily spend is added.
+  const [noted, setNoted] = useState<{ usd: number; on: string } | null>(null)
+  const [adding, setAdding] = useState<'cobro' | 'saldo' | null>(null)
   const [form, setForm] = useState({ day: today(), amount: '' })
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
-  useEffect(() => {
-    supabase.from('savings_goal').select('balance_alert_usd').eq('id', 1).maybeSingle().then(({ data: goal }) => { if (goal?.balance_alert_usd) setAlert(Number(goal.balance_alert_usd)) })
+  const loadGoal = useCallback(async () => {
+    const { data: goal } = await supabase.from('savings_goal').select('balance_alert_usd, meta_balance_usd, meta_balance_on').eq('id', 1).maybeSingle()
+    if (goal?.balance_alert_usd) setAlert(Number(goal.balance_alert_usd))
+    setNoted(goal?.meta_balance_usd !== null && goal?.meta_balance_usd !== undefined && goal?.meta_balance_on ? { usd: Number(goal.meta_balance_usd), on: goal.meta_balance_on } : null)
   }, [])
+  useEffect(() => { loadGoal() }, [loadGoal])
 
   const last = [...data.metaPays].sort((a, b) => b.day.localeCompare(a.day))[0]
   if (!last) return null
-  const spent = data.ads.filter((row) => row.day > last.day).reduce((sum, row) => sum + row.spend, 0)
+  const fromNote = noted !== null && noted.on >= last.day
+  const after = fromNote ? noted.on : last.day
+  const spent = (fromNote ? noted.usd : 0) + data.ads.filter((row) => row.day > after).reduce((sum, row) => sum + row.spend, 0)
   const loadedUntil = data.ads.reduce((max, row) => (row.day > max ? row.day : max), '')
   const rate = data.fx[data.fx.length - 1]?.ars_per_usd ?? 0
   const share = Math.min(spent / alert, 1)
@@ -487,13 +494,16 @@ function MetaBalance({ data, money, onSaved }: { data: Data; money: (value: numb
 
   async function save() {
     const amount = Number(form.amount.replace(',', '.'))
-    if (!(amount > 0)) { flash.show('error', 'Poné cuánto te cobró Meta, en dólares.'); return }
+    if (!(amount >= 0) || form.amount.trim() === '' || (adding === 'cobro' && amount === 0)) { flash.show('error', adding === 'cobro' ? 'Poné cuánto te cobró Meta, en dólares.' : 'Poné el saldo actual que muestra Meta, en dólares.'); return }
     setBusy(true)
-    const { error } = await supabase.from('meta_payments').insert({ ref: `panel-${Date.now()}`, day: form.day, amount_usd: amount, kind: 'cargo' })
+    const { error } = adding === 'cobro'
+      ? await supabase.from('meta_payments').insert({ ref: `panel-${form.day}-${amount.toFixed(2)}`, day: form.day, amount_usd: amount, kind: 'cargo' })
+      : await supabase.from('savings_goal').update({ meta_balance_usd: amount, meta_balance_on: form.day, updated_at: new Date().toISOString() }).eq('id', 1)
     setBusy(false)
     if (error) { flash.show('error', errorMessage(error)); return }
-    setAdding(false)
+    setAdding(null)
     setForm({ day: today(), amount: '' })
+    await loadGoal()
     onSaved()
   }
 
@@ -502,7 +512,7 @@ function MetaBalance({ data, money, onSaved }: { data: Data; money: (value: numb
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="balance-title" className="font-display text-lg font-bold text-ciruela">Saldo de Meta</h2>
-          <p className="text-sm text-piedra">Lo que gastaron los anuncios desde el último cobro ({short(last.day)}, {usd(last.amount_usd)}). Al llegar a {usd(alert)} te avisa al celu.</p>
+          <p className="text-sm text-piedra">{fromNote ? `El saldo que anotaste el ${short(noted.on)} (${usd(noted.usd)}) más lo que se gastó después.` : `Lo que gastaron los anuncios desde el último cobro (${short(last.day)}, ${usd(last.amount_usd)}).`} Al llegar a {usd(alert)} te avisa al celu.</p>
         </div>
         <p className="text-right font-display text-2xl font-extrabold tabular-nums text-ciruela">{usd(spent)}<span className="block text-xs font-semibold text-piedra">{rate ? money(Math.round(spent * rate)) : ''} de {usd(alert)}</span></p>
       </div>
@@ -512,13 +522,19 @@ function MetaBalance({ data, money, onSaved }: { data: Data; money: (value: numb
       {spent >= alert && <p className="mt-3 rounded-2xl bg-petalo-wash px-4 py-3 text-sm font-semibold text-rosa-deep">Llegaste a {usd(alert)}: Meta te va a cobrar pronto (cerca de US$85). Tené los dólares en ARQ y mirá abajo, en la revisión de anuncios, qué campaña conviene frenar.</p>}
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-piedra">
         <span>Gasto cargado hasta el {loadedUntil ? short(loadedUntil) : '—'}{loadedUntil && loadedUntil < dayKey(new Date(Date.now() - 864e5)) ? ' (faltan los últimos días: se cargan solos cada mañana)' : ''}.</span>
-        <button type="button" onClick={() => setAdding((open) => !open)} className="font-semibold text-rosa-deep hover:underline">¿Te cobró Meta? Anotalo</button>
+        <span className="flex gap-3">
+          <button type="button" onClick={() => setAdding((open) => (open === 'saldo' ? null : 'saldo'))} className="font-semibold text-rosa-deep hover:underline">Anotar saldo actual</button>
+          <button type="button" onClick={() => setAdding((open) => (open === 'cobro' ? null : 'cobro'))} className="font-semibold text-rosa-deep hover:underline">¿Te cobró Meta? Anotalo</button>
+        </span>
       </div>
       {adding && (
-        <div className="mt-3 flex flex-wrap items-end gap-2 rounded-2xl bg-papel/60 p-3">
-          <label className="text-xs text-piedra">Día del cobro<input type="date" value={form.day} onChange={(event) => setForm({ ...form, day: event.target.value })} className={`${inputClass} w-auto`} /></label>
-          <input value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} inputMode="decimal" placeholder="US$ cobrados" aria-label="Monto cobrado en dólares" className={`${inputClass} mt-0 w-36`} />
-          <Button busy={busy} onClick={save}>Guardar</Button>
+        <div className="mt-3 rounded-2xl bg-papel/60 p-3">
+          <p className="text-xs text-piedra">{adding === 'saldo' ? 'En Meta → Facturación → Configuración de pago, copiá el "Saldo actual".' : 'Lo que figura "Pagado" en Facturación → Actividad de pago.'}</p>
+          <div className="mt-2 flex flex-wrap items-end gap-2">
+            <label className="text-xs text-piedra">{adding === 'saldo' ? 'Día' : 'Día del cobro'}<input type="date" value={form.day} onChange={(event) => setForm({ ...form, day: event.target.value })} className={`${inputClass} w-auto`} /></label>
+            <input value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} inputMode="decimal" placeholder={adding === 'saldo' ? 'US$ de saldo' : 'US$ cobrados'} aria-label={adding === 'saldo' ? 'Saldo actual en dólares' : 'Monto cobrado en dólares'} className={`${inputClass} mt-0 w-36`} />
+            <Button busy={busy} onClick={save}>Guardar</Button>
+          </div>
         </div>
       )}
       {flash.node && <div className="mt-2">{flash.node}</div>}

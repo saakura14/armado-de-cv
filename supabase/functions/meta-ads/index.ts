@@ -30,15 +30,18 @@ type Insight = { campaign_id: string; campaign_name: string; date_start: string;
 type Campaign = { id: string; name: string; effective_status: string; daily_budget?: string; adsets?: { data: { daily_budget?: string; effective_status: string }[] } }
 
 // Plan of 19/10 (spend less, sell the same): the rules live in savings_goal so they can change without a deploy.
-type Rules = { cap: number; weeklyCap: number; maxPerConversation: number; targetPerSale: number; balanceAlert: number }
+type Rules = { cap: number; weeklyCap: number; maxPerConversation: number; targetPerSale: number; balanceAlert: number; balanceUsd: number | null; balanceOn: string | null }
 async function rules(admin: SupabaseClient): Promise<Rules> {
-  const { data } = await admin.from('savings_goal').select('ad_cap_usd, weekly_cap_usd, max_per_conversation_usd, target_per_sale_usd, balance_alert_usd').eq('id', 1).maybeSingle()
+  const { data } = await admin.from('savings_goal').select('ad_cap_usd, weekly_cap_usd, max_per_conversation_usd, target_per_sale_usd, balance_alert_usd, meta_balance_usd, meta_balance_on').eq('id', 1).maybeSingle()
   return {
     cap: Number(data?.ad_cap_usd ?? 11),
     weeklyCap: Number(data?.weekly_cap_usd ?? 80),
     maxPerConversation: Number(data?.max_per_conversation_usd ?? 0.4),
     targetPerSale: Number(data?.target_per_sale_usd ?? 6),
     balanceAlert: Number(data?.balance_alert_usd ?? 75),
+    // The "Saldo actual" from Billing, noted by hand on a day.
+    balanceUsd: data?.meta_balance_usd === null || data?.meta_balance_usd === undefined ? null : Number(data.meta_balance_usd),
+    balanceOn: data?.meta_balance_on ?? null,
   }
 }
 // Traffic light: a daily budget is only worth it when the last 7 days brought enough ad sales for each one to cost at
@@ -125,8 +128,10 @@ Deno.serve(async (request) => {
 async function balanceCheck(admin: SupabaseClient, plan: Rules) {
   const { data: last } = await admin.from('meta_payments').select('day, amount_usd').order('day', { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle()
   if (!last) return null
-  const { data: rows } = await admin.from('ad_spend').select('spend').gt('day', last.day)
-  const spent = (rows ?? []).reduce((sum, row) => sum + Number(row.spend), 0)
+  // The balance she noted from Billing is exact up to its day; after that (or without one), the spend loaded day by day.
+  const noted = plan.balanceUsd !== null && plan.balanceOn !== null && plan.balanceOn >= last.day
+  const { data: rows } = await admin.from('ad_spend').select('spend').gt('day', noted ? plan.balanceOn! : last.day)
+  const spent = (noted ? plan.balanceUsd! : 0) + (rows ?? []).reduce((sum, row) => sum + Number(row.spend), 0)
   const key = `saldo-${last.day}-${last.amount_usd}`
   if (spent >= plan.balanceAlert) {
     const { data: sent } = await admin.from('ad_alerts').select('key').eq('key', key).maybeSingle()
