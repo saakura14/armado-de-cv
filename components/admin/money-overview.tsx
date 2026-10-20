@@ -113,7 +113,7 @@ export function MoneyOverview({ month, items, moves, money }: { month: string; i
               ))}
             </tbody>
           </table>
-          <p className="mt-2 text-xs text-piedra">* Mes incompleto: falta tu sueldo u otros ingresos. Es un estimado con lo que está cargado.</p>
+          {rows.some((item) => incomplete(item.month)) && <p className="mt-2 text-xs text-piedra">* Mes incompleto: falta tu sueldo u otros ingresos. Es un estimado con lo que está cargado.</p>}
         </div>
       )}
     </section>
