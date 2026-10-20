@@ -154,6 +154,7 @@ export function FinancesAdmin() {
       <section className={cardClass} aria-labelledby="add-title">
         <h2 id="add-title" className="font-display text-lg font-bold text-ciruela">Cargar un gasto o un ingreso</h2>
         <p className="text-sm text-piedra">Lo del día a día: súper, delivery, una salida, una plata que te pasaron. Lo fijo se marca arriba con "Pagué".</p>
+        <Shortcuts items={items.filter((item) => item.type === 'atajo' && item.active)} money={money} onSaved={load} />
         <MoveForm onSaved={load} />
       </section>
 
@@ -313,6 +314,34 @@ function LoanRow({ item, moves, money, onChanged }: { item: PersonalItem; moves:
   )
 }
 
+/** The expenses she repeats only on the days she chooses (Anto's school lunch): one tap notes today's. */
+function Shortcuts({ items, money, onSaved }: { items: PersonalItem[]; money: (value: number) => string; onSaved: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null)
+  const flash = useFlash()
+  if (!items.length) return null
+  async function note(item: PersonalItem) {
+    setBusy(item.id)
+    const { error } = await supabase.from('personal_moves').insert({ day: dayKey(new Date()), kind: 'gasto', item_id: item.id, category: item.category, concept: item.name, amount: item.amount ?? 0, account: item.account })
+    setBusy(null)
+    if (error) { flash.show('error', errorMessage(error)); return }
+    flash.show('ok', `Anotado: ${item.name} de hoy.`)
+    onSaved()
+  }
+  return (
+    <div className="mt-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-piedra">Atajos para hoy</p>
+      <div className="mt-1.5 flex flex-wrap gap-2">
+        {items.map((item) => (
+          <button key={item.id} type="button" disabled={busy === item.id || !item.amount} onClick={() => note(item)} className="inline-flex items-center gap-1.5 rounded-full border border-rosa/40 bg-white px-3.5 py-2 text-sm font-semibold text-ciruela hover:bg-petalo-wash disabled:opacity-50">
+            <Plus className="h-4 w-4 text-rosa" />{categoryOf(item.category).emoji} {item.name}{item.amount ? ` · ${money(Math.round(item.amount))}` : ''}
+          </button>
+        ))}
+      </div>
+      {flash.node && <div className="mt-2">{flash.node}</div>}
+    </div>
+  )
+}
+
 /** Quick entry: an expense or an income, its category and account; "del negocio" keeps it out of the personal numbers. */
 function MoveForm({ onSaved }: { onSaved: () => void }) {
   const [kind, setKind] = useState<'gasto' | 'ingreso'>('gasto')
@@ -400,7 +429,7 @@ function ClassifyRow({ move, money, onChanged }: { move: PersonalMove; money: (v
 
 /** The fixed items: change an amount or a due day, turn one off, or add a new fixed expense, income or debt. */
 function ItemsEditor({ items, money, onChanged }: { items: PersonalItem[]; money: (value: number) => string; onChanged: () => void }) {
-  const [form, setForm] = useState({ kind: 'gasto' as 'gasto' | 'ingreso', type: 'fijo' as 'fijo' | 'deuda', name: '', amount: '', due_day: '', category: 'servicios' })
+  const [form, setForm] = useState({ kind: 'gasto' as 'gasto' | 'ingreso', type: 'fijo' as 'fijo' | 'deuda' | 'atajo', name: '', amount: '', due_day: '', category: 'servicios' })
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
   async function add() {
@@ -409,8 +438,8 @@ function ItemsEditor({ items, money, onChanged }: { items: PersonalItem[]; money
     if (form.type === 'deuda' && !(amount && amount > 0)) { flash.show('error', 'Poné el total de la deuda.'); return }
     setBusy(true)
     const { error } = await supabase.from('personal_items').insert({
-      kind: form.type === 'deuda' ? 'gasto' : form.kind, type: form.type, name: form.name.trim(), category: form.type === 'deuda' ? 'prestamos' : form.category,
-      amount: form.type === 'fijo' ? amount : null, total: form.type === 'deuda' ? amount : null, due_day: form.type === 'fijo' && form.due_day ? Number(form.due_day) : null,
+      kind: form.type === 'fijo' ? form.kind : 'gasto', type: form.type, name: form.name.trim(), category: form.type === 'deuda' ? 'prestamos' : form.category,
+      amount: form.type === 'deuda' ? null : amount, total: form.type === 'deuda' ? amount : null, due_day: form.type === 'fijo' && form.due_day ? Number(form.due_day) : null,
     })
     setBusy(false)
     if (error) { flash.show('error', errorMessage(error)); return }
@@ -421,7 +450,7 @@ function ItemsEditor({ items, money, onChanged }: { items: PersonalItem[]; money
     await supabase.from('personal_items').update(changes).eq('id', item.id)
     onChanged()
   }
-  const fixed = items.filter((item) => item.type === 'fijo')
+  const fixed = items.filter((item) => item.type === 'fijo' || item.type === 'atajo')
   return (
     <details className={cardClass}>
       <summary className="cursor-pointer font-display text-lg font-bold text-ciruela">Tus fijos ({fixed.filter((item) => item.active).length})</summary>
@@ -429,7 +458,7 @@ function ItemsEditor({ items, money, onChanged }: { items: PersonalItem[]; money
       <ul className="mt-3 divide-y divide-line text-sm">
         {fixed.map((item) => (
           <li key={item.id} className={`flex flex-wrap items-center justify-between gap-2 py-2 ${item.active ? '' : 'opacity-50'}`}>
-            <span className="min-w-0 text-ink">{item.kind === 'ingreso' ? '⬇️' : '⬆️'} {item.name}</span>
+            <span className="min-w-0 text-ink">{item.type === 'atajo' ? '⚡' : item.kind === 'ingreso' ? '⬇️' : '⬆️'} {item.name}{item.type === 'atajo' ? ' (atajo)' : ''}</span>
             <span className="flex items-center gap-2">
               <input defaultValue={item.amount ?? ''} onBlur={(event) => { const value = event.target.value.trim() ? parseAmount(event.target.value) : null; if (value !== item.amount) update(item, { amount: value }) }} inputMode="decimal" placeholder="A confirmar" aria-label={`Monto de ${item.name}`} className={`${inputClass} mt-0 w-32`} title={item.amount !== null ? money(item.amount) : ''} />
               <input defaultValue={item.due_day ?? ''} onBlur={(event) => { const value = event.target.value ? Number(event.target.value) : null; if (value !== item.due_day) update(item, { due_day: value }) }} inputMode="numeric" placeholder="Día" aria-label={`Día de vencimiento de ${item.name}`} className={`${inputClass} mt-0 w-16`} />
@@ -441,13 +470,13 @@ function ItemsEditor({ items, money, onChanged }: { items: PersonalItem[]; money
       <div className="mt-4 rounded-2xl bg-papel/60 p-3">
         <p className="text-sm font-semibold text-ink">Agregar</p>
         <div className="mt-2 flex flex-wrap items-end gap-2">
-          <select value={form.type === 'deuda' ? 'deuda' : form.kind} onChange={(event) => setForm({ ...form, type: event.target.value === 'deuda' ? 'deuda' : 'fijo', kind: event.target.value === 'ingreso' ? 'ingreso' : 'gasto' })} aria-label="Tipo" className={`${inputClass} mt-0 w-auto`}>
-            <option value="gasto">Gasto fijo</option><option value="ingreso">Ingreso fijo</option><option value="deuda">Deuda (un total)</option>
+          <select value={form.type === 'fijo' ? form.kind : form.type} onChange={(event) => { const value = event.target.value; setForm({ ...form, type: value === 'deuda' || value === 'atajo' ? value : 'fijo', kind: value === 'ingreso' ? 'ingreso' : 'gasto' }) }} aria-label="Tipo" className={`${inputClass} mt-0 w-auto`}>
+            <option value="gasto">Gasto fijo</option><option value="ingreso">Ingreso fijo</option><option value="deuda">Deuda (un total)</option><option value="atajo">Atajo (gasto de algunos días)</option>
           </select>
           <Field label="Nombre" className="min-w-40 flex-1"><input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className={inputClass} /></Field>
           <Field label={form.type === 'deuda' ? 'Total' : 'Monto'}><input value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} inputMode="decimal" className={`${inputClass} w-32`} /></Field>
           {form.type === 'fijo' && <Field label="Día"><input value={form.due_day} onChange={(event) => setForm({ ...form, due_day: event.target.value })} inputMode="numeric" className={`${inputClass} w-16`} /></Field>}
-          {form.type === 'fijo' && <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} aria-label="Categoría" className={`${inputClass} mt-0 w-auto`}>{CATEGORIES.filter((row) => row.id !== 'sin_clasificar').map((row) => <option key={row.id} value={row.id}>{row.emoji} {row.label}</option>)}</select>}
+          {form.type !== 'deuda' && <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })} aria-label="Categoría" className={`${inputClass} mt-0 w-auto`}>{CATEGORIES.filter((row) => row.id !== 'sin_clasificar').map((row) => <option key={row.id} value={row.id}>{row.emoji} {row.label}</option>)}</select>}
           <Button busy={busy} onClick={add}><Plus className="h-4 w-4" />Agregar</Button>
         </div>
         {flash.node && <div className="mt-2">{flash.node}</div>}
