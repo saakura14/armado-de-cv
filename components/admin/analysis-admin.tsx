@@ -12,6 +12,7 @@ import {
 } from '@/lib/analysis'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, Field, cardClass, inputClass, useFlash } from './ui'
+import { WeeklyWithdrawal } from './weekly-withdrawal'
 
 export type Data = AnalysisData
 type MetaState = { connected: boolean | null; error: string; syncing: boolean }
@@ -149,6 +150,7 @@ function AnalysisView({ data, loading, error, meta, onReload, onSync }: { data: 
       {error && <p className="rounded-2xl bg-petalo-wash px-4 py-3 text-sm font-semibold text-rosa-deep">{error}</p>}
 
       <MetaBalance data={data} money={money} onSaved={onReload} />
+      <WeeklyWithdrawal data={data} money={money} />
 
       {/* What came in, what went out, what was left */}
       <section className="overflow-hidden rounded-[32px] bg-ciruela text-white" aria-labelledby="result-title">

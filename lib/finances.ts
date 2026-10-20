@@ -20,6 +20,7 @@ export const MOVE_SELECT = 'id, day, kind, item_id, period, installment, categor
 
 export const CATEGORIES: { id: string; label: string; emoji: string }[] = [
   { id: 'sueldo', label: 'Sueldo', emoji: '💼' },
+  { id: 'emprendimiento', label: 'Retiro del emprendimiento', emoji: '📈' },
   { id: 'anto', label: 'Anto', emoji: '🌸' },
   { id: 'vivienda', label: 'Alquiler', emoji: '🏠' },
   { id: 'servicios', label: 'Servicios', emoji: '💡' },

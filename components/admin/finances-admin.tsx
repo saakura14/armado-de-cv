@@ -61,7 +61,12 @@ export function FinancesAdmin() {
     const byCategory = new Map<string, number>()
     for (const move of personal.filter((row) => row.kind === 'gasto')) byCategory.set(move.category, (byCategory.get(move.category) ?? 0) + move.amount)
     const categories = [...byCategory.entries()].map(([id, total]) => ({ id, total })).sort((a, b) => b.total - a.total)
-    return { incomes, expenses, monthMoves, incomeExpected, incomeIn, fixedExpected, fixedPaid, daily, unknown, categories, left: incomeExpected - fixedExpected - daily }
+    // Ualá holds the business money too (it earns interest): her part this month is what came in to her there (the weekly
+    // withdrawals, Anto's allowance) minus what she paid from it.
+    const ualaIn = personal.filter((move) => move.kind === 'ingreso' && move.account === 'Ualá').reduce((sum, move) => sum + move.amount, 0)
+    const ualaOut = personal.filter((move) => move.kind === 'gasto' && move.account === 'Ualá').reduce((sum, move) => sum + move.amount, 0)
+    const withdrawals = personal.filter((move) => move.category === 'emprendimiento').reduce((sum, move) => sum + move.amount, 0)
+    return { incomes, expenses, monthMoves, incomeExpected, incomeIn, fixedExpected, fixedPaid, daily, unknown, categories, left: incomeExpected - fixedExpected - daily, ualaIn, ualaOut, withdrawals }
   }, [items, moves, month])
 
   const loans = items.filter((item) => item.active && item.kind === 'gasto' && (item.type === 'cuotas' || item.type === 'deuda'))
@@ -105,6 +110,17 @@ export function FinancesAdmin() {
             <p className="mt-1 text-sm text-white/75">{view.unknown ? `Sin contar ${view.unknown} ${view.unknown === 1 ? 'monto a confirmar' : 'montos a confirmar'}` : 'Con todo lo previsto'}</p>
           </div>
         </div>
+      </section>
+
+      <section className={cardClass} aria-labelledby="uala-title">
+        <h2 id="uala-title" className="font-display text-lg font-bold text-ciruela">Tu parte en Ualá</h2>
+        <p className="text-sm text-piedra">En Ualá está también la plata del negocio. Lo tuyo es lo que te retiraste del emprendimiento (Análisis → "Tu retiro de la semana") y lo que te entró ahí, menos lo que pagaste desde Ualá.</p>
+        <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+          <p><span className="block text-xs text-piedra">Te entró</span><b className="tabular-nums text-whatsapp">{money(Math.round(view.ualaIn))}</b><span className="block text-xs text-piedra">{view.withdrawals ? `${money(Math.round(view.withdrawals))} de retiros` : 'Sin retiros todavía'}</span></p>
+          <p><span className="block text-xs text-piedra">Pagaste</span><b className="tabular-nums">{money(Math.round(view.ualaOut))}</b></p>
+          <p><span className="block text-xs text-piedra">{view.ualaIn - view.ualaOut >= 0 ? 'Te queda' : 'Usaste del negocio'}</span><b className={`tabular-nums ${view.ualaIn - view.ualaOut >= 0 ? 'text-ciruela' : 'text-rosa-deep'}`}>{money(Math.round(Math.abs(view.ualaIn - view.ualaOut)))}</b></p>
+        </div>
+        {view.ualaIn - view.ualaOut < 0 && <p className="mt-2 text-xs text-rosa-deep">Gastaste desde Ualá más de lo que te retiraste: esa diferencia salió de la plata del negocio. Se compensa con el próximo retiro.</p>}
       </section>
 
       {unclassified.length > 0 && (
