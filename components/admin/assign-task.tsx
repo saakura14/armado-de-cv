@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { FileText, Sparkles, Upload, Users, X } from 'lucide-react'
+import { Check, FileText, Sparkles, Upload, Users, X } from 'lucide-react'
 import { deliveryDeadline, hasExpress } from '@/lib/dashboard'
 import { isDayOff } from '@/lib/holidays'
 import type { Order, OrderItem } from '@/lib/orders'
@@ -12,14 +12,15 @@ import { Button, Field, inputClass, useFlash } from './ui'
 
 export type OrderTask = { id: string; order_item_id: string; status: TaskStatus; started_at: string | null; team_members: { name: string } | { name: string }[] | null }
 /** "Textos con Claude": where each pack's texts are (the scheduled task on Vale's computer writes them). */
-export type DraftState = { order_item_id: string; status: 'pedido' | 'generando' | 'listo' | 'error'; error: string | null }
-type Draft = { source_text: string; target_job: string | null; files: string[]; has_letter: boolean; status: DraftState['status']; cv_modern: string | null; cv_ats: string | null; letter: string | null; error: string | null }
+export type DraftState = { order_item_id: string; status: 'pedido' | 'generando' | 'corregir' | 'listo' | 'error'; error: string | null }
+type Draft = { source_text: string; target_job: string | null; files: string[]; has_letter: boolean; status: DraftState['status']; cv_modern: string | null; cv_ats: string | null; letter: string | null; error: string | null; feedback?: string | null }
 
 const DRAFT_STATE: Record<DraftState['status'], { label: string; tone: string }> = {
   pedido: { label: '✨ Claude en cola', tone: 'bg-papel text-piedra' },
   generando: { label: '✨ Claude escribiendo…', tone: 'bg-petalo-wash text-rosa-deep' },
-  listo: { label: '✨ Textos listos', tone: 'bg-whatsapp/15 text-whatsapp' },
-  error: { label: '⚠️ Revisar textos', tone: 'bg-petalo-wash text-rosa-deep' },
+  corregir: { label: '✨ Claude corrigiendo…', tone: 'bg-petalo-wash text-rosa-deep' },
+  listo: { label: '✨ Revisar textos', tone: 'bg-whatsapp/15 text-whatsapp' },
+  error: { label: '⚠️ Falta material', tone: 'bg-petalo-wash text-rosa-deep' },
 }
 const fileLabel = (path: string) => path.split('/').pop()!.replace(/^\d+-/, '')
 
@@ -142,10 +143,11 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
 }
 
 /**
- * The client's material for Claude: the base CV (pasted, or as PDF / photos), the form answers, the target job and
- * anything the client asked for. "Pedir textos a Claude" leaves it in the queue; the task on her computer writes them.
+ * The client's material for Claude (the base CV pasted or as PDF, Word or photos, the form answers, the target job and
+ * what the client asked) and, once Claude wrote them, the texts to review: she can fix them by hand, tell Claude what
+ * to correct, or approve them and assign the CV.
  */
-function DraftDialog({ order, item, firstName, onClose, onSaved }: { order: Order; item: OrderItem; firstName: string; onClose: () => void; onSaved: () => void }) {
+function DraftDialog({ order, item, firstName, status, onClose, onSaved, onApprove }: { order: Order; item: OrderItem; firstName: string; status: DraftState['status'] | undefined; onClose: () => void; onSaved: () => void; onApprove: () => void }) {
   const atsOnly = ATS_ONLY_PACKS.includes(item.product_id)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [loaded, setLoaded] = useState(false)
@@ -153,20 +155,32 @@ function DraftDialog({ order, item, firstName, onClose, onSaved }: { order: Orde
   const [target, setTarget] = useState('')
   const [files, setFiles] = useState<string[]>([])
   const [hasLetter, setHasLetter] = useState(PACKS_WITH_LETTER.includes(item.product_id))
+  const [modern, setModern] = useState('')
+  const [ats, setAts] = useState('')
+  const [letter, setLetter] = useState('')
+  const [feedback, setFeedback] = useState('')
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
 
+  // Loads again when Claude changes the status (the board is live), so the texts show up without closing the window.
   useEffect(() => {
-    supabase.from('cv_drafts').select('source_text, target_job, files, has_letter, status, cv_modern, cv_ats, letter, error').eq('order_item_id', item.id).maybeSingle().then(({ data }) => {
+    supabase.from('cv_drafts').select('source_text, target_job, files, has_letter, status, cv_modern, cv_ats, letter, error, feedback').eq('order_item_id', item.id).maybeSingle().then(({ data }) => {
       const row = data as Draft | null
-      if (row) { setDraft(row); setSource(row.source_text); setTarget(row.target_job ?? ''); setFiles(row.files ?? []); setHasLetter(row.has_letter) }
+      if (row) {
+        setDraft(row); setSource(row.source_text); setTarget(row.target_job ?? ''); setFiles(row.files ?? []); setHasLetter(row.has_letter)
+        setModern(row.cv_modern ?? ''); setAts(row.cv_ats ?? ''); setLetter(row.letter ?? '')
+        if (row.status === 'listo') setFeedback('')
+      }
       setLoaded(true)
     })
+  }, [item.id, status])
+
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
-  }, [item.id, onClose])
+  }, [onClose])
 
   async function upload(list: FileList | null) {
     if (!list?.length) return
@@ -185,16 +199,18 @@ function DraftDialog({ order, item, firstName, onClose, onSaved }: { order: Orde
 
   async function removeFile(path: string) {
     await supabase.storage.from('cv-sources').remove([path])
-    setFiles((current) => current.filter((row) => row !== path))
+    const rest = files.filter((row) => row !== path)
+    setFiles(rest)
     // Keep the saved draft in step, so a removed file isn't sent to Claude.
-    if (draft) await supabase.from('cv_drafts').update({ files: files.filter((row) => row !== path) }).eq('order_item_id', item.id)
+    if (draft) await supabase.from('cv_drafts').update({ files: rest }).eq('order_item_id', item.id)
   }
 
+  // From scratch with the material (first time, or "Rehacer desde cero").
   async function request() {
     setBusy(true)
     const { error } = await supabase.from('cv_drafts').upsert({
       order_item_id: item.id, order_id: order.id, source_text: source.trim(), target_job: target.trim() || null, files,
-      has_letter: !atsOnly && hasLetter, ats_only: atsOnly, status: 'pedido', error: null, requested_at: new Date().toISOString(),
+      has_letter: !atsOnly && hasLetter, ats_only: atsOnly, status: 'pedido', error: null, feedback: null, requested_at: new Date().toISOString(),
     })
     setBusy(false)
     if (error) { flash.show('error', errorMessage(error)); return }
@@ -202,51 +218,102 @@ function DraftDialog({ order, item, firstName, onClose, onSaved }: { order: Orde
     onClose()
   }
 
-  const working = draft?.status === 'pedido' || draft?.status === 'generando'
-  const ready = (source.trim() || files.length) && !busy
+  const texts = { cv_modern: atsOnly ? '' : modern.trim(), cv_ats: ats.trim(), letter: !atsOnly && hasLetter ? letter.trim() || null : null }
+
+  // Claude keeps what's right (and her own edits) and changes only what she points out.
+  async function correct() {
+    setBusy(true)
+    const { error } = await supabase.from('cv_drafts').update({ ...texts, feedback: feedback.trim(), status: 'corregir', error: null, requested_at: new Date().toISOString() }).eq('order_item_id', item.id)
+    setBusy(false)
+    if (error) { flash.show('error', errorMessage(error)); return }
+    onSaved()
+    onClose()
+  }
+
+  async function approve() {
+    setBusy(true)
+    const { error } = await supabase.from('cv_drafts').update(texts).eq('order_item_id', item.id)
+    setBusy(false)
+    if (error) { flash.show('error', errorMessage(error)); return }
+    onApprove()
+  }
+
+  const working = draft?.status === 'pedido' || draft?.status === 'generando' || draft?.status === 'corregir'
+  const review = draft?.status === 'listo'
+  const material = (
+    <>
+      <Field label="CV base, respuestas del formulario o lo que quieras pasarle">
+        <textarea value={source} onChange={(event) => setSource(event.target.value)} rows={review ? 6 : 10} placeholder="Pegá el CV que te mandó, las respuestas del formulario, lo que te contó por WhatsApp…" className={inputClass} />
+      </Field>
+      <div>
+        <p className="text-sm font-semibold text-ink">Archivos (PDF, Word o fotos del CV)</p>
+        {files.length > 0 && (
+          <ul className="mt-1.5 space-y-1">
+            {files.map((path) => (
+              <li key={path} className="flex items-center justify-between gap-2 rounded-xl bg-papel/70 px-3 py-1.5 text-sm">
+                <span className="flex min-w-0 items-center gap-1.5"><FileText className="h-4 w-4 shrink-0 text-rosa" /><span className="truncate">{fileLabel(path)}</span></span>
+                <button type="button" onClick={() => removeFile(path)} className="rounded-full p-1 text-piedra hover:bg-white" aria-label={`Quitar ${fileLabel(path)}`}><X className="h-4 w-4" /></button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <label className="mt-1.5 inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border border-rosa/40 px-4 font-display text-sm font-bold text-rosa-deep hover:bg-petalo-wash">
+          <Upload className="h-4 w-4" />Subir archivos
+          <input type="file" multiple accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*" className="sr-only" onChange={(event) => { upload(event.target.files); event.target.value = '' }} />
+        </label>
+      </div>
+      <Field label="Puesto objetivo y lo que pidió el cliente">
+        <textarea value={target} onChange={(event) => setTarget(event.target.value)} rows={3} placeholder="Ej.: Operario de producción. Quiere destacar el manejo de autoelevador. Zona norte." className={inputClass} />
+      </Field>
+      {!atsOnly && <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={hasLetter} onChange={(event) => setHasLetter(event.target.checked)} className="accent-rosa" />Lleva carta de presentación</label>}
+    </>
+  )
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="draft-title" onClick={onClose}>
-      <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-2xl sm:rounded-[28px]" onClick={(event) => event.stopPropagation()}>
+      <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-3xl sm:rounded-[28px]" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-4 bg-ciruela px-5 py-4 text-white sm:px-7">
           <div>
-            <p id="draft-title" className="flex items-center gap-2 font-display text-lg font-bold"><Sparkles className="h-5 w-5" />Textos con Claude</p>
+            <p id="draft-title" className="flex items-center gap-2 font-display text-lg font-bold"><Sparkles className="h-5 w-5" />{review ? 'Revisá los textos' : 'Textos con Claude'}</p>
             <p className="text-sm text-white/85">Pedido #{order.number} · {item.product_name} de {firstName}. {atsOnly ? 'Lleva solo el CV ATS.' : `CV moderno + CV ATS${hasLetter ? ' + carta' : ''}.`}</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-full bg-white/15 p-2 hover:bg-white/25" aria-label="Cerrar"><X className="h-5 w-5" /></button>
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7">
-          {draft?.status === 'listo' && <p className="rounded-2xl bg-whatsapp/10 px-4 py-3 text-sm text-ink"><b>Ya están listos.</b> Tocá <b>Asignar</b> en la placa y vienen cargados para que los revises. Si cambiás el material, podés pedirlos de nuevo.</p>}
-          {working && <p className="rounded-2xl bg-petalo-wash px-4 py-3 text-sm text-rosa-deep"><b>Claude ya lo tiene en la cola.</b> Revisa cada 30 minutos mientras tu compu está prendida con la app de Claude abierta. Te aviso al celular cuando estén.</p>}
+          {working && <p className="rounded-2xl bg-petalo-wash px-4 py-3 text-sm text-rosa-deep"><b>{draft?.status === 'corregir' ? 'Claude está corrigiendo lo que le pediste.' : 'Claude está escribiendo los textos.'}</b> Cuando estén, aparecen acá para que los revises y te aviso al celular.</p>}
           {draft?.status === 'error' && <p className="rounded-2xl bg-petalo-wash px-4 py-3 text-sm text-rosa-deep"><b>No se pudieron generar:</b> {draft.error ?? 'probá de nuevo.'}</p>}
-          <Field label="CV base, respuestas del formulario o lo que quieras pasarle">
-            <textarea value={source} onChange={(event) => setSource(event.target.value)} rows={10} placeholder="Pegá el CV que te mandó, las respuestas del formulario, lo que te contó por WhatsApp…" className={inputClass} />
-          </Field>
-          <div>
-            <p className="text-sm font-semibold text-ink">Archivos (PDF o fotos del CV)</p>
-            {files.length > 0 && (
-              <ul className="mt-1.5 space-y-1">
-                {files.map((path) => (
-                  <li key={path} className="flex items-center justify-between gap-2 rounded-xl bg-papel/70 px-3 py-1.5 text-sm">
-                    <span className="flex min-w-0 items-center gap-1.5"><FileText className="h-4 w-4 shrink-0 text-rosa" /><span className="truncate">{fileLabel(path)}</span></span>
-                    <button type="button" onClick={() => removeFile(path)} className="rounded-full p-1 text-piedra hover:bg-white" aria-label={`Quitar ${fileLabel(path)}`}><X className="h-4 w-4" /></button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <label className="mt-1.5 inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border border-rosa/40 px-4 font-display text-sm font-bold text-rosa-deep hover:bg-petalo-wash">
-              <Upload className="h-4 w-4" />Subir archivos
-              <input type="file" multiple accept="application/pdf,image/*" className="sr-only" onChange={(event) => { upload(event.target.files); event.target.value = '' }} />
-            </label>
-            <p className="mt-1 text-xs text-piedra">Si es un Word, abrilo y pegá el texto arriba.</p>
-          </div>
-          <Field label="Puesto objetivo y lo que pidió el cliente">
-            <textarea value={target} onChange={(event) => setTarget(event.target.value)} rows={3} placeholder="Ej.: Operario de producción. Quiere destacar el manejo de autoelevador. Zona norte." className={inputClass} />
-          </Field>
-          {!atsOnly && <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={hasLetter} onChange={(event) => setHasLetter(event.target.checked)} className="accent-rosa" />Lleva carta de presentación</label>}
+          {review ? (
+            <>
+              <p className="rounded-2xl bg-whatsapp/10 px-4 py-3 text-sm text-ink">Leelos con calma. Podés cambiar cualquier cosa acá mismo, o decirle a Claude qué corregir. Al aprobarlos pasan a <b>Asignar</b> tal cual quedaron.</p>
+              {!atsOnly && <Field label="CV moderno"><textarea value={modern} onChange={(event) => setModern(event.target.value)} rows={12} className={inputClass} /></Field>}
+              <Field label="CV ATS"><textarea value={ats} onChange={(event) => setAts(event.target.value)} rows={12} className={inputClass} /></Field>
+              {!atsOnly && hasLetter && <Field label="Carta de presentación"><textarea value={letter} onChange={(event) => setLetter(event.target.value)} rows={8} className={inputClass} /></Field>}
+              <div className="rounded-2xl border border-rosa/30 bg-petalo-wash/40 p-3">
+                <Field label="¿Algo está mal? Decile a Claude qué corregir">
+                  <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} rows={3} placeholder="Ej.: en el ATS sacá el trabajo de niñera, el título tiene que ser Administrativa contable, la carta más corta." className={inputClass} />
+                </Field>
+                <p className="mt-1 text-xs text-piedra">Corrige solo lo que le digas y respeta los cambios que hiciste a mano.</p>
+              </div>
+              <details className="rounded-2xl border border-line px-3 py-2">
+                <summary className="cursor-pointer text-sm font-semibold text-ink">Material del cliente</summary>
+                <div className="mt-3 space-y-4">
+                  {material}
+                  <Button variant="secondary" busy={busy} disabled={!(source.trim() || files.length)} onClick={request}>Rehacer desde cero con este material</Button>
+                </div>
+              </details>
+            </>
+          ) : material}
         </div>
         <div className="border-t border-line bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 sm:pb-5">
           {flash.node && <div className="mb-2">{flash.node}</div>}
-          <Button className="w-full" busy={busy || !loaded} disabled={!ready} onClick={request}><Sparkles className="h-4 w-4" />{draft ? 'Pedir los textos de nuevo' : 'Pedir textos a Claude'}</Button>
+          {review ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button variant="secondary" busy={busy} disabled={!feedback.trim()} onClick={correct}><Sparkles className="h-4 w-4" />Pedir corrección</Button>
+              <Button busy={busy} disabled={!ats.trim() || (!atsOnly && !modern.trim())} onClick={approve}><Check className="h-4 w-4" />Aprobar y asignar</Button>
+            </div>
+          ) : (
+            <Button className="w-full" busy={busy || !loaded} disabled={!(source.trim() || files.length) || working} onClick={request}><Sparkles className="h-4 w-4" />{draft ? 'Pedir los textos de nuevo' : 'Generar textos con Claude'}</Button>
+          )}
         </div>
       </div>
     </div>
@@ -302,7 +369,7 @@ export function TeamRow({ order, tasks, drafts = [], firstName, onChanged }: { o
         })}
       </ul>
       {assigning && <AssignDialog order={order} item={assigning} firstName={firstName} onClose={close} onSaved={onChanged} />}
-      {drafting && <DraftDialog order={order} item={drafting} firstName={firstName} onClose={closeDraft} onSaved={onChanged} />}
+      {drafting && <DraftDialog order={order} item={drafting} firstName={firstName} status={drafts.find((row) => row.order_item_id === drafting.id)?.status} onClose={closeDraft} onSaved={onChanged} onApprove={() => { setAssigning(drafting); setDrafting(null) }} />}
     </div>
   )
 }

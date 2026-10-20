@@ -1,6 +1,7 @@
-// "Textos con Claude": the scheduled Claude task on Vale's computer calls this through pg_net (x-cron-key, never a key
-// in the task). {action:'pending'} returns the CV packs waiting for texts, with short-lived links to the client's files;
-// {action:'notify', order_item_id} tells Vale on her phone that the texts are ready (the task saves them by SQL).
+// "Textos con Claude": Claude on Vale's computer (started by the watcher, or the scheduled task) calls this through
+// pg_net (x-cron-key, never a key on her computer). {action:'pending'} returns the CV packs waiting for texts or a
+// correction, with short-lived links to the client's files; {action:'notify', order_item_id} tells Vale on her phone
+// that the texts are ready (Claude saves them by SQL).
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.57.4'
 import webpush from 'npm:web-push@3.6.7'
 
@@ -13,11 +14,11 @@ Deno.serve(async (request) => {
   const body = await request.json().catch(() => ({})) as { action?: string; order_item_id?: string }
 
   if (body.action === 'pending') {
-    // Asked for, or stuck "generando" for more than 30 minutes (a run that didn't finish).
-    const stale = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+    // Asked for (new texts or a correction), or stuck "generando" for more than 20 minutes (a run that didn't finish).
+    const stale = new Date(Date.now() - 20 * 60 * 1000).toISOString()
     const { data: drafts, error } = await admin.from('cv_drafts')
-      .select('order_item_id, order_id, source_text, target_job, files, has_letter, ats_only, status, requested_at, orders(number, customer_name), order_items(product_id, product_name)')
-      .or(`status.eq.pedido,and(status.eq.generando,requested_at.lt.${stale})`)
+      .select('order_item_id, order_id, source_text, target_job, files, has_letter, ats_only, status, requested_at, feedback, cv_modern, cv_ats, letter, orders(number, customer_name), order_items(product_id, product_name)')
+      .or(`status.in.(pedido,corregir),and(status.eq.generando,requested_at.lt.${stale})`)
       .order('requested_at')
     if (error) return json({ error: error.message }, 500)
     const list = []
@@ -33,6 +34,9 @@ Deno.serve(async (request) => {
         order_item_id: draft.order_item_id, order_number: order?.number, client_name: order?.customer_name,
         pack: item?.product_name, ats_only: draft.ats_only, has_letter: draft.has_letter,
         target_job: draft.target_job, source_text: draft.source_text, files,
+        // A correction keeps the texts (with her own edits) and changes only what she asked.
+        mode: draft.feedback ? 'correccion' : 'nuevo', feedback: draft.feedback,
+        current: draft.feedback ? { cv_modern: draft.cv_modern, cv_ats: draft.cv_ats, letter: draft.letter } : null,
       })
     }
     return json({ drafts: list })
