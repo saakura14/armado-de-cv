@@ -64,8 +64,10 @@ export function FinancesAdmin() {
     const categories = [...byCategory.entries()].map(([id, total]) => ({ id, total })).sort((a, b) => b.total - a.total)
     // Ualá holds the business money too (it earns interest): her part this month is what came in to her there (the weekly
     // withdrawals, Anto's allowance) minus what she paid from it.
-    const ualaIn = personal.filter((move) => move.kind === 'ingreso' && move.account === 'Ualá').reduce((sum, move) => sum + move.amount, 0)
-    const ualaOut = personal.filter((move) => move.kind === 'gasto' && move.account === 'Ualá').reduce((sum, move) => sum + move.amount, 0)
+    // Transfers count too: money she moved into Ualá is hers, and what left Ualá to another account (savings) is out.
+    const transfers = monthMoves.filter((move) => move.scope === 'personal' && move.kind === 'entre_cuentas')
+    const ualaIn = [...personal.filter((move) => move.kind === 'ingreso' && move.account === 'Ualá'), ...transfers.filter((move) => move.to_account === 'Ualá')].reduce((sum, move) => sum + move.amount, 0)
+    const ualaOut = [...personal.filter((move) => move.kind === 'gasto' && move.account === 'Ualá'), ...transfers.filter((move) => move.account === 'Ualá' && move.to_account !== 'Ualá')].reduce((sum, move) => sum + move.amount, 0)
     const withdrawals = personal.filter((move) => move.category === 'emprendimiento').reduce((sum, move) => sum + move.amount, 0)
     return { incomes, expenses, monthMoves, incomeExpected, incomeIn, fixedExpected, fixedPaid, daily, unknown, categories, left: incomeExpected - fixedExpected - daily, ualaIn, ualaOut, withdrawals }
   }, [items, moves, month])
@@ -123,7 +125,7 @@ export function FinancesAdmin() {
         <p className="text-sm text-piedra">En Ualá está también la plata del negocio. Lo tuyo es lo que te retiraste del emprendimiento (Análisis → "Tu retiro de la semana") y lo que te entró ahí, menos lo que pagaste desde Ualá.</p>
         <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
           <p><span className="block text-xs text-piedra">Te entró</span><b className="tabular-nums text-whatsapp">{money(Math.round(view.ualaIn))}</b><span className="block text-xs text-piedra">{view.withdrawals ? `${money(Math.round(view.withdrawals))} de retiros` : 'Sin retiros todavía'}</span></p>
-          <p><span className="block text-xs text-piedra">Pagaste</span><b className="tabular-nums">{money(Math.round(view.ualaOut))}</b></p>
+          <p><span className="block text-xs text-piedra">Salió (pagos y ahorro)</span><b className="tabular-nums">{money(Math.round(view.ualaOut))}</b></p>
           <p><span className="block text-xs text-piedra">{view.ualaIn - view.ualaOut >= 0 ? 'Te queda' : 'Usaste del negocio'}</span><b className={`tabular-nums ${view.ualaIn - view.ualaOut >= 0 ? 'text-ciruela' : 'text-rosa-deep'}`}>{money(Math.round(Math.abs(view.ualaIn - view.ualaOut)))}</b></p>
         </div>
         {view.ualaIn - view.ualaOut < 0 && <p className="mt-2 text-xs text-rosa-deep">Gastaste desde Ualá más de lo que te retiraste: esa diferencia salió de la plata del negocio. Se compensa con el próximo retiro.</p>}
@@ -215,7 +217,7 @@ function DueList({ title, rows, month, today, money, onChanged, verb }: {
                     {due.item.notes && !paid && <p className="text-xs text-piedra">{due.item.notes}</p>}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <span className="font-display font-bold tabular-nums text-ciruela">{due.amount !== null ? `${due.est ? '≈ ' : ''}${money(Math.round(due.amount))}` : 'A confirmar'}</span>
+                    <span className="font-display font-bold tabular-nums text-ciruela">{paid ? money(Math.round(paid)) : due.amount !== null ? `${due.est ? '≈ ' : ''}${money(Math.round(due.amount))}` : 'A confirmar'}</span>
                     {paid ? (
                       <button type="button" onClick={async () => { if (!window.confirm('¿Desmarcar este pago?')) return; await supabase.from('personal_moves').delete().in('id', payments.map((move) => move.id)); onChanged() }} className="rounded-full p-1.5 text-piedra hover:bg-papel hover:text-rosa-deep" aria-label="Desmarcar"><X className="h-4 w-4" /></button>
                     ) : (
@@ -400,7 +402,7 @@ function MoveRow({ move, money, onChanged }: { move: PersonalMove; money: (value
     <li className="flex items-center justify-between gap-3 py-2">
       <span className="min-w-0">
         <span className="block truncate text-ink">{categoryOf(move.category).emoji} {move.concept}</span>
-        <span className="block text-xs text-piedra">{short(move.day)}{move.account ? ` · ${move.account}` : ''}{move.scope === 'negocio' ? ' · negocio' : ''}{move.kind === 'entre_cuentas' ? ' · entre tus cuentas' : ''}</span>
+        <span className="block text-xs text-piedra">{short(move.day)}{move.account ? ` · ${move.account}` : ''}{move.to_account ? ` → ${move.to_account}` : ''}{move.scope === 'negocio' ? ' · negocio' : ''}{move.kind === 'entre_cuentas' ? ' · entre tus cuentas' : ''}</span>
       </span>
       <span className="flex shrink-0 items-center gap-2">
         <span className={`font-semibold tabular-nums ${move.kind === 'ingreso' ? 'text-whatsapp' : move.kind === 'gasto' ? 'text-ink' : 'text-piedra'}`}>{sign}{money(Math.round(move.amount))}</span>

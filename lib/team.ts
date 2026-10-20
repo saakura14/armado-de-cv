@@ -54,13 +54,13 @@ export const TASK_STATUS: Record<TaskStatus, { label: string; tone: string }> = 
 
 const time = (value: string | null) => (value ? new Date(value).getTime() : 0)
 
-/** The batch in course: finished CVs not covered by a payment yet, what they add up to, and what is owed after unsettled advances. */
+/** The batch in course: finished CVs not covered by a payment yet, what they add up to, and what is owed after unsettled advances (or, when the advances are bigger, what the member still owes: each finished CV takes its rate off). */
 export function batchStats(member: Pick<TeamMember, 'batch_size'>, tasks: TeamTask[], payments: TeamPayment[]) {
   const unpaid = tasks.filter((task) => task.status === 'terminado' && !task.paid_in).sort((a, b) => time(a.finished_at) - time(b.finished_at))
   const earned = unpaid.reduce((sum, task) => sum + task.rate, 0)
   const advances = payments.filter((payment) => payment.kind === 'adelanto' && !payment.settled_in).reduce((sum, payment) => sum + payment.amount, 0)
   const lastPayment = payments.filter((payment) => payment.kind === 'pago').sort((a, b) => time(b.created_at) - time(a.created_at))[0]
-  return { count: unpaid.length, size: member.batch_size, unpaid, earned, advances, owed: Math.max(earned - advances, 0), lastPayment: lastPayment ?? null }
+  return { count: unpaid.length, size: member.batch_size, unpaid, earned, advances, owed: Math.max(earned - advances, 0), debt: Math.max(advances - earned, 0), lastPayment: lastPayment ?? null }
 }
 
 export type MonthRow = { key: string; label: string; packs: number; earned: number; paid: number }

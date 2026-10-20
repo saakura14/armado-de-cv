@@ -12,11 +12,11 @@ export type PersonalItem = {
 export type MoveKind = 'ingreso' | 'gasto' | 'entre_cuentas'
 export type PersonalMove = {
   id: string; day: string; kind: MoveKind; item_id: string | null; period: string | null; installment: number | null
-  category: string; concept: string; amount: number; account: string | null; scope: 'personal' | 'negocio'; source: string
+  category: string; concept: string; amount: number; account: string | null; to_account: string | null; scope: 'personal' | 'negocio'; source: string
 }
 
 export const ITEM_SELECT = 'id, kind, type, name, category, amount, due_day, due_note, account, plan, installments_total, total, paid_before, notes, active, sort'
-export const MOVE_SELECT = 'id, day, kind, item_id, period, installment, category, concept, amount, account, scope, source'
+export const MOVE_SELECT = 'id, day, kind, item_id, period, installment, category, concept, amount, account, to_account, scope, source'
 
 export const CATEGORIES: { id: string; label: string; emoji: string }[] = [
   { id: 'sueldo', label: 'Sueldo', emoji: '💼' },

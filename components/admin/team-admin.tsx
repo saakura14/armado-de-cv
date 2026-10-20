@@ -376,13 +376,14 @@ export function TeamAdmin() {
             <section className={cardClass} aria-labelledby="owed-title">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 id="owed-title" className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">Le debés</h2>
-                  <p className="font-display text-3xl font-extrabold text-ciruela">{money(batch.owed)}</p>
+                  {/* Advanced more than he has built: he owes it, and each CV he finishes takes its rate off. */}
+                  <h2 id="owed-title" className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{batch.debt ? 'Te debe' : 'Le debés'}</h2>
+                  <p className={`font-display text-3xl font-extrabold ${batch.debt ? 'text-rosa-deep' : 'text-ciruela'}`}>{money(batch.debt || batch.owed)}</p>
                 </div>
                 <p className="text-right font-display text-sm font-bold text-ciruela">{batch.count}<span className="font-normal text-piedra"> de {batch.size} CVs</span></p>
               </div>
               <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${batch.count >= batch.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(batch.count / batch.size, 1) * 100}%` }} /></div>
-              <p className="mt-2 text-xs text-piedra">{batch.count >= batch.size ? <b className="text-whatsapp">Completó la tanda: te toca pagarle.</b> : batch.advances ? `Ya le adelantaste ${money(batch.advances)}.` : batch.lastPayment ? `Último pago: ${formatDate(`${batch.lastPayment.paid_on}T12:00:00-03:00`)}.` : 'Todavía no le pagaste.'}</p>
+              <p className="mt-2 text-xs text-piedra">{batch.debt ? `Le adelantaste ${money(batch.advances)} y ya cubrió ${money(batch.earned)} con ${batch.count} ${batch.count === 1 ? 'CV' : 'CVs'}. Cada CV que termina descuenta ${money(member.rate)}: le faltan ${Math.ceil(batch.debt / Math.max(member.rate, 1))} para saldarlo.` : batch.count >= batch.size ? <b className="text-whatsapp">Completó la tanda: te toca pagarle.</b> : batch.advances ? `Ya le adelantaste ${money(batch.advances)}.` : batch.lastPayment ? `Último pago: ${formatDate(`${batch.lastPayment.paid_on}T12:00:00-03:00`)}.` : 'Todavía no le pagaste.'}</p>
               <div className="mt-3"><PaymentForm key={`pay-${member.id}`} member={member} batch={batch} onSaved={load} /></div>
             </section>
 

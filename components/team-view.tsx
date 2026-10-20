@@ -331,6 +331,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
               <p className="mt-1 font-display text-2xl font-extrabold text-ciruela">{batch.count}<span className="text-sm text-piedra"> de {batch.size} CVs</span></p>
               <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${batch.count >= batch.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(batch.count / batch.size, 1) * 100}%` }} /></div>
               <p className="mt-2 text-xs leading-snug text-piedra">{batch.unpaid.every((task) => task.rate === member.rate) ? `${batch.count} ${batch.count === 1 ? 'CV' : 'CVs'} × ${formatARS(member.rate)}` : `${batch.count} ${batch.count === 1 ? 'CV' : 'CVs'} (${formatARS(batch.earned)})`}{batch.advances ? ` − ${formatARS(batch.advances)} de adelanto` : ''} = <b className="text-ink">{formatARS(batch.owed)}</b></p>
+              {/* The advance not covered yet: each CV he finishes takes its rate off. */}
+              {batch.debt > 0 && <p className="mt-2 rounded-xl bg-papel/70 px-3 py-2 text-xs leading-snug text-ink">Adelanto por cubrir: <b>{formatARS(batch.debt)}</b>. Cada CV que terminás lo baja {formatARS(member.rate)}: te faltan {Math.ceil(batch.debt / Math.max(member.rate, 1))}.</p>}
             </section>
 
             <section className={cardClass} aria-labelledby="months-title">
