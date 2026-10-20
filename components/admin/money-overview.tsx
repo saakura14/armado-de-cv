@@ -64,8 +64,11 @@ export function MoneyOverview({ month, items, moves, money }: { month: string; i
   if (!data) return null
   const row = rows.find((item) => item.month === month) ?? totalsFor(month, data, metaCostByDay(data), items, moves, current)
   const pending = row.personal.pendingIn || row.personal.pendingOut
-  // A month whose personal side has no income loaded (no salary yet) shows incomplete numbers.
-  const incomplete = (key: string) => !moves.some((move) => monthOf(move) === key && move.kind === 'ingreso' && move.category === 'sueldo')
+  // A month is partial until its Ualá statement is loaded (the day to day is only there) and its salary is noted.
+  const hasStatement = (key: string) => moves.some((move) => move.source === `uala-${key}`)
+  const hasSalary = (key: string) => moves.some((move) => monthOf(move) === key && move.kind === 'ingreso' && move.category === 'sueldo')
+  const incomplete = (key: string) => !hasStatement(key) || !hasSalary(key)
+  const missing = (key: string) => [!hasStatement(key) && `el extracto de Ualá de ${monthLabel(key).toLowerCase()}`, !hasSalary(key) && 'tu sueldo'].filter(Boolean).join(' y ')
 
   return (
     <section className={cardClass} aria-labelledby="overview-title">
@@ -91,12 +94,12 @@ export function MoneyOverview({ month, items, moves, money }: { month: string; i
           </ul>
         </div>
         <div className="rounded-2xl bg-ciruela p-4 text-white">
-          <p className="font-display text-xs font-semibold uppercase tracking-wider text-white/70">{row.left >= 0 ? 'Quedó' : 'Faltó'}</p>
+          <p className="font-display text-xs font-semibold uppercase tracking-wider text-white/70">{incomplete(month) ? (row.left >= 0 ? 'Por ahora queda' : 'Por ahora falta') : row.left >= 0 ? 'Quedó' : 'Faltó'}</p>
           <p className={`mt-1 font-display text-2xl font-extrabold tabular-nums ${row.left >= 0 ? 'text-petalo' : 'text-white'}`}>{money(Math.round(Math.abs(row.left)))}</p>
           <p className="mt-1 text-xs text-white/75">{pending ? 'Contando lo que falta cobrar y pagar.' : 'Con lo que ya pasó.'}{month === current ? ' El día a día de este mes se suma a medida que lo cargás.' : ''}</p>
         </div>
       </div>
-      {incomplete(month) && <p className="mt-2 text-xs font-semibold text-rosa-deep">Este mes está incompleto: falta cargar tu sueldo u otros ingresos de Santander. Pasame el resumen y lo completo.</p>}
+      {incomplete(month) && <p className="mt-2 text-xs font-semibold text-rosa-deep">Número parcial: falta {missing(month)}. Recién con eso cargado vas a ver el total real de lo que gastaste en el mes.</p>}
 
       {rows.length > 1 && (
         <div className="mt-4 overflow-x-auto">
@@ -113,7 +116,7 @@ export function MoneyOverview({ month, items, moves, money }: { month: string; i
               ))}
             </tbody>
           </table>
-          {rows.some((item) => incomplete(item.month)) && <p className="mt-2 text-xs text-piedra">* Mes incompleto: falta tu sueldo u otros ingresos. Es un estimado con lo que está cargado.</p>}
+          {rows.some((item) => incomplete(item.month)) && <p className="mt-2 text-xs text-piedra">* Parcial: falta el extracto del mes (o tu sueldo). Es un estimado con lo que está cargado hasta ahora.</p>}
         </div>
       )}
     </section>
