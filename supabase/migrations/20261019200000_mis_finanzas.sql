@@ -80,3 +80,7 @@ alter table public.business_withdrawals enable row level security;
 drop policy if exists "Solo la administradora" on public.business_withdrawals;
 create policy "Solo la administradora" on public.business_withdrawals for all to authenticated
   using ((select public.is_admin())) with check ((select public.is_admin()));
+
+-- atajo = an expense repeated only on the days she chooses (Anto's school lunch): one tap notes it for today.
+alter table public.personal_items drop constraint if exists personal_items_type_check;
+alter table public.personal_items add constraint personal_items_type_check check (type in ('fijo', 'cuotas', 'deuda', 'atajo'));

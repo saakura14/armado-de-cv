@@ -1,7 +1,7 @@
 /** "Mis finanzas": Vale's personal money (tables personal_items and personal_moves, admin only). */
 
 export type ItemKind = 'ingreso' | 'gasto'
-export type ItemType = 'fijo' | 'cuotas' | 'deuda'
+export type ItemType = 'fijo' | 'cuotas' | 'deuda' | 'atajo'
 export type Installment = { n: number; due: string; amount: number; est?: boolean }
 export type PersonalItem = {
   id: string; kind: ItemKind; type: ItemType; name: string; category: string
