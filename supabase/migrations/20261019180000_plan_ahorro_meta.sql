@@ -17,3 +17,9 @@ alter table public.ad_alerts enable row level security;
 drop policy if exists "Solo la administradora" on public.ad_alerts;
 create policy "Solo la administradora" on public.ad_alerts for all to authenticated
   using ((select public.is_admin())) with check ((select public.is_admin()));
+
+-- The "Saldo actual" Meta shows in Billing (what is owed since the last charge), noted by hand on a day: the balance
+-- alert starts from it and adds the spend of the following days.
+alter table public.savings_goal
+  add column if not exists meta_balance_usd numeric check (meta_balance_usd is null or meta_balance_usd >= 0),
+  add column if not exists meta_balance_on date;
