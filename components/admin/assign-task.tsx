@@ -27,7 +27,8 @@ const fileLabel = (path: string) => path.split('/').pop()!.replace(/^\d+-/, '')
 const DAY = 24 * 60 * 60 * 1000
 /** The order's delivery deadline minus one business day, so Vale has time to check it (never before today). */
 function suggestedDue(order: Order) {
-  const deadline = deliveryDeadline(order)
+  // Assigning it means the client's data is in: if it wasn't marked yet, the clock starts now (as the database does).
+  const deadline = deliveryDeadline({ ...order, data_received_at: order.data_received_at ?? new Date().toISOString() })
   const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
   if (!deadline) return ''
   let day = new Date(deadline.due.getTime() - DAY)
