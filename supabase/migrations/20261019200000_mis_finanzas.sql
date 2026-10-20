@@ -63,3 +63,20 @@ select cron.schedule('personal-reminders', '0 12 * * *', $$
     body := '{}'::jsonb
   )
 $$);
+
+-- Weekly "salary" from the business: everything stays in Ualá (it earns daily interest), so business and personal money
+-- are split on paper. Each Monday the previous week's profit is either taken out by Vale (amount) or partly kept as the
+-- business cushion (to_cushion; negative when a losing week used it).
+alter table public.savings_goal add column if not exists cushion_target numeric not null default 200000 check (cushion_target >= 0);
+create table if not exists public.business_withdrawals (
+  week date primary key,
+  profit numeric not null,
+  to_cushion numeric not null default 0,
+  amount numeric not null default 0 check (amount >= 0),
+  day date not null,
+  created_at timestamptz not null default now()
+);
+alter table public.business_withdrawals enable row level security;
+drop policy if exists "Solo la administradora" on public.business_withdrawals;
+create policy "Solo la administradora" on public.business_withdrawals for all to authenticated
+  using ((select public.is_admin())) with check ((select public.is_admin()));
