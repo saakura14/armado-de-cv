@@ -290,6 +290,7 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
           {draft?.status === 'error' && <p className="rounded-2xl bg-petalo-wash px-4 py-3 text-sm text-rosa-deep"><b>No se pudieron generar:</b> {draft.error ?? 'probá de nuevo.'}</p>}
           {review ? (
             <>
+              {draft?.error && <p className="rounded-2xl bg-papel px-4 py-3 text-sm text-ink"><b>Nota de Claude:</b> {draft.error}</p>}
               <p className="rounded-2xl bg-whatsapp/10 px-4 py-3 text-sm text-ink">Leelos con calma. Podés cambiar cualquier cosa acá mismo, o decirle a Claude qué corregir. Al aprobarlos pasan a <b>Asignar</b> tal cual quedaron.</p>
               {!atsOnly && <Field label="CV moderno"><textarea value={modern} onChange={(event) => setModern(event.target.value)} rows={12} className={inputClass} /></Field>}
               <Field label="CV ATS"><textarea value={ats} onChange={(event) => setAts(event.target.value)} rows={12} className={inputClass} /></Field>
