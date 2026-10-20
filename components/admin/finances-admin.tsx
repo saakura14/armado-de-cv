@@ -70,7 +70,10 @@ export function FinancesAdmin() {
   }, [items, moves, month])
 
   const loans = items.filter((item) => item.active && item.kind === 'gasto' && (item.type === 'cuotas' || item.type === 'deuda'))
-  const unclassified = moves.filter((move) => move.category === 'sin_clasificar' && move.kind !== 'entre_cuentas' && move.scope === 'personal')
+  // Only the month on screen: the ones of other months are pointed out, so the month's numbers aren't mixed.
+  const pending = moves.filter((move) => move.category === 'sin_clasificar' && move.kind !== 'entre_cuentas' && move.scope === 'personal')
+  const unclassified = pending.filter((move) => monthOf(move) === month)
+  const pendingElsewhere = [...new Set(pending.filter((move) => monthOf(move) !== month).map(monthOf))].sort()
   const spentMax = Math.max(...view.categories.map((row) => row.total), 1)
 
   return (
@@ -129,6 +132,11 @@ export function FinancesAdmin() {
           <p className="text-sm text-piedra">Movimientos que no supe qué eran. Elegí la categoría, o marcalos como del negocio o entre tus cuentas.</p>
           <ul className="mt-3 divide-y divide-line text-sm">{unclassified.slice(0, 30).map((move) => <ClassifyRow key={move.id} move={move} money={money} onChanged={load} />)}</ul>
         </section>
+      )}
+      {pendingElsewhere.length > 0 && (
+        <p className="rounded-2xl bg-petalo-wash/60 px-4 py-2.5 text-sm text-ink">
+          ❓ Tenés movimientos para clasificar en {pendingElsewhere.map((key, index) => <button key={key} type="button" onClick={() => setMonth(key)} className="font-semibold text-rosa-deep hover:underline">{index ? ', ' : ''}{monthLabel(key).toLowerCase()}</button>)}.
+        </p>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
