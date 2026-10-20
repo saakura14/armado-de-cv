@@ -332,12 +332,68 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
   )
 }
 
+type SentTask = { pack_name: string; cv_modern: string; cv_ats: string; has_letter: boolean; letter: string | null; notes: string | null; design_url: string | null; assigned_at: string }
+
+/** What the team member got for a pack (read only), to check the finished CV against it. */
+function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; order: Order; firstName: string; onClose: () => void }) {
+  const [task, setTask] = useState<SentTask | null>(null)
+  const [copied, setCopied] = useState('')
+
+  useEffect(() => {
+    supabase.from('team_tasks').select('pack_name, cv_modern, cv_ats, has_letter, letter, notes, design_url, assigned_at').eq('id', taskId).maybeSingle().then(({ data }) => setTask(data as SentTask | null))
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
+  }, [taskId, onClose])
+
+  const sections = task ? [
+    { label: 'CV moderno', text: task.cv_modern },
+    { label: 'CV ATS', text: task.cv_ats },
+    { label: 'Carta de presentación', text: task.has_letter ? task.letter ?? '' : '' },
+  ].filter((section) => section.text.trim()) : []
+
+  function copy(label: string, text: string) {
+    navigator.clipboard.writeText(text).then(() => { setCopied(label); window.setTimeout(() => setCopied(''), 1500) }, () => undefined)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="sent-title" onClick={onClose}>
+      <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-3xl sm:rounded-[28px]" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4 bg-ciruela px-5 py-4 text-white sm:px-7">
+          <div>
+            <p id="sent-title" className="flex items-center gap-2 font-display text-lg font-bold"><FileText className="h-5 w-5" />Textos que le pasaste</p>
+            <p className="text-sm text-white/85">Pedido #{order.number} · {task?.pack_name ?? '…'} de {firstName}{task ? ` · asignado el ${new Date(task.assigned_at).toLocaleDateString('es-AR', { day: 'numeric', month: 'numeric' })}` : ''}</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-full bg-white/15 p-2 hover:bg-white/25" aria-label="Cerrar"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7">
+          {!task && <p className="text-sm text-piedra">Cargando…</p>}
+          {task?.notes && <p className="rounded-2xl bg-papel px-4 py-3 text-sm text-ink"><b>Notas:</b> {task.notes}</p>}
+          {task?.design_url && <p className="text-sm"><a href={task.design_url} target="_blank" rel="noreferrer" className="font-semibold text-rosa-deep underline">Abrir el diseño en Canva</a> para compararlo.</p>}
+          {sections.map((section) => (
+            <section key={section.label}>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-display text-sm font-bold text-ciruela">{section.label}</h3>
+                <button type="button" onClick={() => copy(section.label, section.text)} className="rounded-full border border-line px-3 py-1 font-display text-xs font-bold text-ciruela hover:bg-papel">{copied === section.label ? '¡Copiado!' : 'Copiar'}</button>
+              </div>
+              <div className="mt-1.5 whitespace-pre-wrap rounded-2xl border border-line bg-white px-4 py-3 text-sm leading-relaxed text-ink">{section.text}</div>
+            </section>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** On a CV order: each pack with who is building it, or a button to assign it. */
 export function TeamRow({ order, tasks, drafts = [], firstName, onChanged }: { order: Order; tasks: OrderTask[]; drafts?: DraftState[]; firstName: string; onChanged: () => void }) {
   const [assigning, setAssigning] = useState<OrderItem | null>(null)
   const [drafting, setDrafting] = useState<OrderItem | null>(null)
   const close = useCallback(() => setAssigning(null), [])
   const closeDraft = useCallback(() => setDrafting(null), [])
+  const [viewing, setViewing] = useState<string | null>(null)
+  const closeViewing = useCallback(() => setViewing(null), [])
   const packs = order.order_items.filter((item) => TEAM_PACKS.includes(item.product_id))
   if (!packs.length || order.status === 'cancelled' || order.status === 'pending_payment' || order.status === 'payment_review') return null
   // A delivered order only shows the packs that went through the team.
@@ -362,6 +418,8 @@ export function TeamRow({ order, tasks, drafts = [], firstName, onChanged }: { o
                 <span className="flex items-center gap-2 text-xs text-piedra">
                   {member?.name ?? 'Equipo'}
                   <span className={`rounded-full px-2 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span>
+                  {/* The texts he got, to check the finished CV against them. */}
+                  <button type="button" onClick={() => setViewing(task.id)} className="inline-flex min-h-8 items-center gap-1 rounded-full border border-line px-3 font-display text-xs font-bold text-ciruela hover:bg-papel"><FileText className="h-3.5 w-3.5 text-rosa" />Ver textos</button>
                 </span>
               ) : (
                 <span className="flex flex-wrap items-center justify-end gap-1.5">
@@ -381,6 +439,7 @@ export function TeamRow({ order, tasks, drafts = [], firstName, onChanged }: { o
         })}
       </ul>
       {assigning && <AssignDialog order={order} item={assigning} firstName={firstName} onClose={close} onSaved={onChanged} />}
+      {viewing && <SentTexts taskId={viewing} order={order} firstName={firstName} onClose={closeViewing} />}
       {drafting && <DraftDialog order={order} item={drafting} firstName={firstName} status={drafts.find((row) => row.order_item_id === drafting.id)?.status} onClose={closeDraft} onSaved={onChanged} onApprove={() => { setAssigning(drafting); setDrafting(null) }} />}
     </div>
   )
