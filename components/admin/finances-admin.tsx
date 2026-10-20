@@ -11,6 +11,7 @@ import {
 } from '@/lib/finances'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, Field, cardClass, inputClass, useFlash } from './ui'
+import { MoneyOverview } from './money-overview'
 
 const short = (day: string) => `${day.slice(8)}/${day.slice(5, 7)}`
 const parseAmount = (value: string) => Number(value.replace(/\./g, '').replace(',', '.'))
@@ -114,6 +115,8 @@ export function FinancesAdmin() {
           </div>
         </div>
       </section>
+
+      <MoneyOverview month={month} items={items} moves={moves} money={money} />
 
       <section className={cardClass} aria-labelledby="uala-title">
         <h2 id="uala-title" className="font-display text-lg font-bold text-ciruela">Tu parte en Ualá</h2>
