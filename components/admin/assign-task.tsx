@@ -97,6 +97,12 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
     if (error) { flash.show('error', /duplicate|unique/i.test(error.message) ? 'Este pack ya está asignado.' : errorMessage(error)); return }
     // The member gets a notification on their phone. The order moves to "En proceso" in the database (team_task_starts_order).
     supabase.functions.invoke('notify-admin', { body: { task_id: (data as { id: string }).id, kind: 'task_assigned' } }).then(() => undefined, () => undefined)
+    // The texts are now with the team: Claude's draft and the client's files go away (and a queued one isn't written).
+    const { data: draft } = await supabase.from('cv_drafts').select('files').eq('order_item_id', item.id).maybeSingle()
+    if (draft) {
+      if ((draft.files as string[]).length) await supabase.storage.from('cv-sources').remove(draft.files as string[])
+      await supabase.from('cv_drafts').delete().eq('order_item_id', item.id)
+    }
     onSaved()
     onClose()
   }
@@ -312,7 +318,11 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
               <Button busy={busy} disabled={!ats.trim() || (!atsOnly && !modern.trim())} onClick={approve}><Check className="h-4 w-4" />Aprobar y asignar</Button>
             </div>
           ) : (
-            <Button className="w-full" busy={busy || !loaded} disabled={!(source.trim() || files.length) || working} onClick={request}><Sparkles className="h-4 w-4" />{draft ? 'Pedir los textos de nuevo' : 'Generar textos con Claude'}</Button>
+            <div className="grid gap-2 sm:grid-cols-[1fr_2fr]">
+              {/* Without Claude: she writes or pastes the texts herself in Asignar. */}
+              <Button variant="secondary" onClick={onApprove}>Los escribo yo</Button>
+              <Button busy={busy || !loaded} disabled={!(source.trim() || files.length) || working} onClick={request}><Sparkles className="h-4 w-4" />{draft ? 'Pedir los textos de nuevo' : 'Generar textos con Claude'}</Button>
+            </div>
           )}
         </div>
       </div>
