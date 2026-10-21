@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Wallet, X } from 'lucide-react'
-import { TaskRow, TaskWorkspace } from '@/components/team-task-card'
+import { TaskRow, TaskTexts, TaskWorkspace } from '@/components/team-task-card'
+import { progressShare } from '@/components/admin/task-progress'
+import { FinishCheer, TeamCelebration, TeamCheer, useCheerCharacter } from '@/components/team-cheer'
+import { CodecCall, PANEL_THEMES, ThemeBackdrop, ThemeStrip } from '@/components/team-theme'
 import { TeamChat, TeamChatBubble, TeamChatWindow, useTeamUnread, type ChatTask } from '@/components/team-chat'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
@@ -93,6 +96,17 @@ function TaskActions({ task, preview, onChanged, onFinished }: { task: TeamTask;
   )
 }
 
+/** A finished CV, unfolded: what Vale wrote for it, the Canva design and the texts, to look back at it. */
+function FinishedDetail({ task }: { task: TeamTask }) {
+  return (
+    <div className="space-y-2">
+      {!task.notes && <p className="rounded-xl bg-papel px-3 py-2 text-sm text-piedra">Este CV no tenía notas de Vale.</p>}
+      {task.design_url && <a href={task.design_url} target="_blank" rel="noreferrer" className="inline-block text-sm font-semibold text-rosa-deep hover:underline">Ver tu diseño en Canva</a>}
+      <TaskTexts task={task} />
+    </div>
+  )
+}
+
 /** What a CV looks like before there is a real one (only in Vale's preview). */
 export const EXAMPLE_TASK: TeamTask = {
   id: 'ejemplo', member_id: '', order_id: '', order_item_id: '', order_number: 0, client_name: 'Martina', pack_name: 'Pack CV Premium',
@@ -111,6 +125,10 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   headerRight?: React.ReactNode; setup?: React.ReactNode; onChanged: () => void
 }) {
   const [view, setView] = useState<'pendientes' | 'terminados'>('pendientes')
+  // The panel dresses as the character he picked on his cheering card (background, titles, animations).
+  const character = useCheerCharacter()
+  const theme = PANEL_THEMES[character]
+  const [codec, setCodec] = useState<TeamTask | null>(null)
   // The CV open in work mode (full screen, next to Canva).
   const [workingId, setWorkingId] = useState<string | null>(null)
   // Chat with Vale: a floating button with the unread count; "#chat" in the address (from a notification) opens it.
@@ -128,6 +146,11 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   }, [preview])
   const chatTasks: ChatTask[] = tasks.map(({ id, order_number, client_name, pack_name }) => ({ id, order_number, client_name, pack_name }))
   const closeWork = useCallback(() => setWorkingId(null), [])
+  // How much of each text he copied, so Vale can follow the CV live (not in her preview).
+  const reportProgress = useCallback((progress: Record<string, [number, number]>) => {
+    if (preview || !workingId || workingId === EXAMPLE_TASK.id) return
+    supabase.rpc('team_report_progress', { p_task: workingId, p_progress: progress }).then(() => undefined, () => undefined)
+  }, [preview, workingId])
   // The step-by-step video, and whether it was already offered on this device.
   const [tutorial, setTutorial] = useState(false)
   const [tutorialSeen, setTutorialSeen] = useState<boolean | null>(null)
@@ -138,10 +161,21 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 6500); return () => window.clearTimeout(timer) }, [notice])
   const { pending, finished } = sortTasks(tasks)
   const batch = batchStats(member, tasks, payments)
+  // A party when he completes the CVs of a payment: once per batch on his device (the batch is named by its last CV).
+  // In the preview Vale can try it with a button.
+  const [celebrate, setCelebrate] = useState(false)
+  const completing = batch.size > 0 && batch.count >= batch.size ? batch.unpaid[batch.size - 1]?.id : undefined
+  useEffect(() => {
+    if (preview || !completing) return
+    const key = `acv-festejo-${completing}`
+    try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1') } catch { return }
+    setCelebrate(true)
+  }, [preview, completing])
   const months = monthlyStats(tasks, payments)
   const thisMonth = months.find((row) => row.key === monthKey(new Date()))
-  const today = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)
-  const urgent = pending.filter((task) => task.due_on && task.due_on <= today).length
+  // Only the urgent ones (24 h Express) go first, in red; a regular CV due today shows "Para hoy" but is not the same.
+  const isUrgent = (task: TeamTask) => !!task.urgent
+  const urgent = pending.filter(isUrgent).length
   // In the preview, an example card shows how a new CV arrives.
   const shownPending = preview && pending.length === 0 ? [EXAMPLE_TASK] : pending
   const list = view === 'pendientes' ? shownPending : finished.slice(0, 30)
@@ -154,6 +188,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
       if (error) { setNotice({ ok: false, text: errorMessage(error) }); return }
       onChanged()
     }
+    // With Snake, opening a CV looks like a codec call for a second (it doesn't block anything).
+    if (character === 'snake') { setCodec(task); window.setTimeout(() => setCodec(null), 1100) }
     setWorkingId(task.id)
   }
   // Copying a text means the work started, even if "Empezar" was skipped: Vale sees it "Haciéndolo".
@@ -174,10 +210,13 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
         : first ? `⏱ Primer ${done.pack_name}: ${formatMinutes(minutes)}. ¡Esa es tu marca a superar!`
         : `✅ Listo en ${formatMinutes(minutes)} · tu marca: ${formatMinutes(best!)}.`
     }
-    setNotice({ ok: true, text: following
+    // His character congratulates him with a phrase of its own, plus his time and what comes next.
+    setFinishNote({ at: Date.now(), text: following
       ? `${mark} Seguimos con el #${following.order_number}: ${following.pack_name} de ${following.client_name}.`
       : `${mark} ¡Terminaste todos los CVs!` })
   }
+  const [finishNote, setFinishNote] = useState<{ at: number; text: string } | null>(null)
+  useEffect(() => { if (!finishNote) return; const timer = window.setTimeout(() => setFinishNote(null), 7500); return () => window.clearTimeout(timer) }, [finishNote])
 
   // His marks (Vale sees the full times in her panel).
   const records = timesByPack(tasks)
@@ -186,13 +225,14 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
 
   const stats = [
     { icon: ListTodo, label: 'Para hacer', value: String(pending.length), strong: true },
-    { icon: CalendarClock, label: 'Para hoy', value: String(urgent) },
+    { icon: CalendarClock, label: 'Urgentes', value: String(urgent) },
     { icon: CheckCircle2, label: 'Este mes', value: String(thisMonth?.packs ?? 0) },
     { icon: Wallet, label: 'A cobrar', value: formatARS(batch.owed) },
   ]
 
   return (
-    <div className="@container min-h-full bg-arena/40">
+    <div className={`relative isolate @container min-h-full ${theme.page}`}>
+      <ThemeBackdrop id={character} />
       <header className="sticky top-0 z-30 border-b border-line/70 bg-blanco/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 @3xl:px-6">
           <TeamLogo />
@@ -202,8 +242,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
 
       <main className="mx-auto max-w-6xl space-y-4 px-4 pb-24 pt-5 @3xl:px-6 @3xl:pt-6">
         <div>
-          <h1 className="font-script text-3xl leading-none text-rosa">¡Hola, {member.name.split(' ')[0]}!</h1>
-          <p className="mt-1 text-sm text-piedra">{pending.length ? `Tenés ${pending.length} ${pending.length === 1 ? 'CV para armar' : 'CVs para armar'}${urgent ? `, ${urgent} para hoy o atrasados` : ''}.` : 'No tenés CVs pendientes. ¡Todo al día!'}</p>
+          <h1 className={`font-script text-3xl leading-none ${theme.hello}`}>¡Hola, {member.name.split(' ')[0]}!</h1>
+          <p className={`mt-1 text-sm ${theme.text}`}>{pending.length ? `Tenés ${pending.length} ${pending.length === 1 ? 'CV para armar' : 'CVs para armar'}${urgent ? `, ${urgent} ${urgent === 1 ? 'urgente' : 'urgentes'}` : ''}.` : 'No tenés CVs pendientes. ¡Todo al día!'}</p>
         </div>
 
         {/* The numbers in one compact strip: two per row on a phone, four in a row from a small tablet. */}
@@ -236,21 +276,23 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
                 </button>
               ))}
             </div>
-            {preview && view === 'pendientes' && pending.length === 0 && <p className="mt-3 text-xs font-semibold text-rosa-deep">Ejemplo: así le llega un CV cuando se lo asignás (no es un pedido real).</p>}
+            {view === 'pendientes' && <ThemeStrip id={character} urgent={pending.filter(isUrgent)} pending={pending} />}
+            {preview && view === 'pendientes' && pending.length === 0 && <p className={`mt-3 text-xs font-semibold ${theme.label}`}>Ejemplo: así le llega un CV cuando se lo asignás (no es un pedido real).</p>}
             {list.length === 0 ? (
-              <p className="mt-3 rounded-2xl bg-white p-6 text-center text-sm text-piedra">{view === 'pendientes' ? 'No tenés CVs para armar. Cuando Vale te pase uno, te aparece acá y te llega un aviso.' : 'Todavía no terminaste ningún CV.'}</p>
+              <p className="mt-3 rounded-2xl bg-white p-6 text-center text-sm text-piedra">{view === 'pendientes' ? theme.empty : 'Todavía no terminaste ningún CV.'}</p>
             ) : view === 'pendientes' ? (
               // The urgent ones first, apart, so it's clear what to do today.
               <div className="mt-3 space-y-4">
                 {[
-                  { title: 'Para hoy o atrasados', items: list.filter((task) => task.due_on && task.due_on <= today) },
-                  { title: urgent ? 'Próximos' : 'Para hacer', items: list.filter((task) => !(task.due_on && task.due_on <= today)) },
+                  { title: theme.groups[0], items: list.filter(isUrgent), dim: false },
+                  { title: theme.groups[1], items: list.filter((task) => !isUrgent(task)), dim: character === 'ezio' && urgent > 0 },
                 ].filter((group) => group.items.length).map((group) => (
                   <div key={group.title}>
-                    <p className="mb-1.5 px-1 font-display text-[11px] font-bold uppercase tracking-wider text-piedra">{group.title} · {group.items.length}</p>
-                    <ul className="grid items-start gap-2 @5xl:grid-cols-2">
+                    <p className={`mb-1.5 px-1 font-display text-[11px] font-bold uppercase tracking-wider ${theme.label}`}>{group.title} · {group.items.length}</p>
+                    {/* Ezio's "eagle vision": while there are urgent ones, the rest fade a little (they light up again on touch). */}
+                    <ul className={`grid items-start gap-2 @5xl:grid-cols-2 ${group.dim ? '[&>li]:opacity-70 [&>li]:grayscale [&>li]:transition [&>li:hover]:opacity-100 [&>li:hover]:grayscale-0' : ''}`}>
                       {group.items.map((task) => (
-                        <TaskRow key={task.id} task={task} onOpen={() => openTask(task)}
+                        <TaskRow key={task.id} task={task} reported={preview ? progressShare(task) : undefined} onOpen={() => openTask(task)}
                           action={<button type="button" onClick={() => openTask(task)} className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3.5 font-display text-xs font-bold text-white ${task.status === 'haciendo' ? 'bg-rosa hover:bg-rosa-deep' : 'bg-ciruela hover:bg-rosa'}`}>{task.status === 'haciendo' ? 'Seguir' : 'Empezar'}<ChevronRight className="h-4 w-4" /></button>} />
                       ))}
                     </ul>
@@ -259,13 +301,17 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
               </div>
             ) : (
               <ul className="mt-3 grid items-start gap-2 @5xl:grid-cols-2">
-                {list.map((task) => <TaskRow key={task.id} task={task} action={<span className="shrink-0 text-right text-[11px] leading-tight text-piedra">{formatDate(task.finished_at!, true)}{workMinutes(task) !== null ? ` · ⏱ ${formatMinutes(workMinutes(task)!)}` : ''}<br /><b className={task.paid_in ? 'text-whatsapp' : 'text-ciruela'}>{task.paid_in ? 'cobrado' : 'a cobrar'}</b></span>} />)}
+                {list.map((task) => <TaskRow key={task.id} task={task} action={<span className="shrink-0 text-right text-[11px] leading-tight text-piedra">{formatDate(task.finished_at!, true)}{workMinutes(task) !== null ? ` · ⏱ ${formatMinutes(workMinutes(task)!)}` : ''}<br /><b className={task.paid_in ? 'text-whatsapp' : 'text-ciruela'}>{task.paid_in ? 'cobrado' : 'a cobrar'}</b></span>}><FinishedDetail task={task} /></TaskRow>)}
               </ul>
             )}
           </section>
 
           {/* Money and history: beside the CVs on a tablet, under them on a phone. */}
           <aside className="space-y-4 @3xl:sticky @3xl:top-20">
+            {/* One of his favorite characters cheers him up, with what he made this month. */}
+            <TeamCheer pending={pending.length} today={todayDone.count} month={thisMonth?.earned ?? 0} count={batch.count} size={batch.size} />
+            {preview && <button type="button" onClick={() => setCelebrate(true)} className="-mt-2 w-full rounded-2xl border border-dashed border-rosa/50 bg-white/90 px-3 py-2 text-xs font-bold text-rosa-deep hover:bg-petalo-wash">🎉 Probar el festejo de los {batch.size} CVs</button>}
+            {preview && <button type="button" onClick={() => setFinishNote({ at: Date.now(), text: '✅ Listo en 1 h 05 min · tu marca: 15 min. Seguimos con el próximo.' })} className="-mt-2 w-full rounded-2xl border border-dashed border-rosa/50 bg-white/90 px-3 py-2 text-xs font-bold text-rosa-deep hover:bg-petalo-wash">💬 Probar el mensaje al terminar un CV</button>}
             {/* His own marks, game style: streak of days, today's count and his best time per pack (no averages: those are Vale's). */}
             {records.length > 0 && (
               <section className={cardClass} aria-labelledby="marks-title">
@@ -284,7 +330,9 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
               <h2 id="batch-title" className="font-display text-base font-bold text-ciruela">Tu próximo cobro</h2>
               <p className="mt-1 font-display text-2xl font-extrabold text-ciruela">{batch.count}<span className="text-sm text-piedra"> de {batch.size} CVs</span></p>
               <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${batch.count >= batch.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(batch.count / batch.size, 1) * 100}%` }} /></div>
-              <p className="mt-2 text-xs leading-snug text-piedra">{batch.count} {batch.count === 1 ? 'CV' : 'CVs'} × {formatARS(member.rate)}{batch.advances ? ` − ${formatARS(batch.advances)} de adelanto` : ''} = <b className="text-ink">{formatARS(batch.owed)}</b></p>
+              <p className="mt-2 text-xs leading-snug text-piedra">{batch.unpaid.every((task) => task.rate === member.rate) ? `${batch.count} ${batch.count === 1 ? 'CV' : 'CVs'} × ${formatARS(member.rate)}` : `${batch.count} ${batch.count === 1 ? 'CV' : 'CVs'} (${formatARS(batch.earned)})`}{batch.advances ? ` − ${formatARS(batch.advances)} de adelanto` : ''} = <b className="text-ink">{formatARS(batch.owed)}</b></p>
+              {/* The advance not covered yet: each CV he finishes takes its rate off. */}
+              {batch.debt > 0 && <p className="mt-2 rounded-xl bg-papel/70 px-3 py-2 text-xs leading-snug text-ink">Adelanto por cubrir: <b>{formatARS(batch.debt)}</b>. Cada CV que terminás lo baja {formatARS(member.rate)}: te faltan {Math.ceil(batch.debt / Math.max(member.rate, 1))}.</p>}
             </section>
 
             <section className={cardClass} aria-labelledby="months-title">
@@ -324,8 +372,11 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
         </div>
       </main>
 
-      {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} onStart={() => markStarted(working)} onAsk={preview ? undefined : () => { setChatTask(chatTasks.find((task) => task.id === working.id) ?? null); setChatOpen(true) }} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
+      {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} onProgress={reportProgress} onStart={() => markStarted(working)} onAsk={preview ? undefined : () => { setChatTask(chatTasks.find((task) => task.id === working.id) ?? null); setChatOpen(true) }} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
       {notice && <p role="status" className={`fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl px-4 py-3 text-center text-sm font-bold text-white shadow-lg ${notice.ok ? 'bg-whatsapp' : 'bg-rosa-deep'}`}>{notice.text}</p>}
+      {codec && <CodecCall task={codec} />}
+      {finishNote && !celebrate &&<FinishCheer key={finishNote.at} text={finishNote.text} />}
+      {celebrate && <TeamCelebration count={batch.size} onClose={() => setCelebrate(false)} />}
       {/* Chat with Vale: a bubble in the corner (hidden in the work mode, which has its own "¿Una duda?" button). */}
       {!preview && !working && <TeamChatBubble open={chatOpen} unread={unread} onClick={() => (chatOpen ? closeChat() : setChatOpen(true))} label="Chat con Vale" className="bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4" />}
       {chatOpen && !preview && (

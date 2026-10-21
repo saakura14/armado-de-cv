@@ -3,9 +3,11 @@
 // One note per line (so many notes, or copied WhatsApp messages, can be pasted at once). Each note can hold several
 // products and add-ons (express, languages, platforms, LinkedIn services...).
 
-export type SaleProduct = { id: string; name: string; category: string; price: number; groups: string[] }
+/** `whatsappPrice`: what she charges for it by WhatsApp when it differs from the web (null = same as the web). */
+export type SaleProduct = { id: string; name: string; category: string; price: number; whatsappPrice?: number | null; groups: string[] }
 export type SaleExtra = { groupId: string; optionId: string; groupLabel: string; label: string; price: number; isOther: boolean }
-export type SaleItem = { productId: string | null; extras: { groupId: string; optionId: string }[] }
+/** `price`: what she charged for the product itself (without add-ons), when it isn't the usual one. */
+export type SaleItem = { productId: string | null; price?: number | null; extras: { groupId: string; optionId: string }[] }
 
 export type ParsedSale = {
   raw: string

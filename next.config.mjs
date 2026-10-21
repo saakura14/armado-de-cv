@@ -22,6 +22,8 @@ const nextConfig = {
       { source: '/:path*', headers: securityHeaders },
       // The admin app's service worker and manifest must never be served stale.
       { source: '/(sw.js|admin.webmanifest)', headers: [{ key: 'Cache-Control', value: 'no-cache' }] },
+      // The bridge that hands the public carousel images to Meta Business Suite may be framed only by Business Suite.
+      { source: '/social/relay.html', headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }, { key: 'Content-Security-Policy', value: 'frame-ancestors https://business.facebook.com' }] },
     ]
   },
 }

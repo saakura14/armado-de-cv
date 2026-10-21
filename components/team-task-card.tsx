@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, ChevronDown, Columns2, Copy, ExternalLink, MessageCircle, RotateCcw, SkipForward, X } from 'lucide-react'
+import { UrgentMark } from '@/components/team-cheer'
 import { whatsappUrl } from '@/lib/catalog'
 import { dueLabel, type TeamTask } from '@/lib/team'
 
@@ -10,10 +11,11 @@ function splitPieces(text: string) {
   return text.replace(/\r\n/g, '\n').split(/\n[ \t]*\n+/).map((piece) => piece.replace(/^\n+|\n+$/g, '')).filter((piece) => piece.trim())
 }
 
+/** `text` is what gets copied (without the section titles); `lines` is everything shown, titles included. */
 type Piece = { text: string; lines: string[] }
 
 /** The pieces "Copiar siguiente" goes through. */
-/** A section title of the CV: a short line in capitals ("HERRAMIENTAS", "OBJETIVO PROFESIONAL"). */
+/** A short line in capitals ("HERRAMIENTAS", "OBJETIVO PROFESIONAL", but also a name or a job in capitals). */
 export function isHeading(line: string) {
   const value = line.trim()
   // At least 5 letters, so a tool alone in capitals ("SQL", "HTML") isn't taken for a title; no digits, so a school
@@ -21,38 +23,92 @@ export function isHeading(line: string) {
   return value.length <= 50 && (value.match(/\p{L}/gu)?.length ?? 0) >= 5 && !/\d/.test(value) && value === value.toLocaleUpperCase('es') && !/^[•\-–—*·]/.test(value)
 }
 
+/** Markdown marks the texts sometimes come with ("## PERFIL", "**Educación**"): pasted in Canva they would have to be erased. */
+function cleanLine(line: string) {
+  return line.trim().replace(/^#+\s*/, '').replace(/^\*\*(.+)\*\*$/, '$1')
+}
+
+// How the CV's section titles start. Names and jobs in capitals ("ENFERMERO PROFESIONAL") don't, so they are still copied.
+const SECTION_TITLE = /^(perfil|formaci[oó]n|experiencias?|idiomas?|competencias|herramientas|informaci[oó]n adicional|educaci[oó]n|habilidades|objetivo|cursos|capacitaci[oó]n|capacitaciones|certificaciones|licencias|disponibilidad|[aá]reas de inter[eé]s|fortalezas|referencias|datos personales|contacto|logros|proyectos|voluntariado|conocimientos|aptitudes|estudios|resumen|sobre m[ií]|acerca de m[ií]|intereses|cv moderno|cv ats)(?=$|[\s:—–-])/i
+// The same titles written in lowercase, only when the line is just the title ("Idiomas", not "Idiomas: Inglés B1").
+const SECTION_TITLE_LOWER = /^(perfil|perfil profesional|experiencia|experiencia laboral|experiencia profesional|formaci[oó]n|formaci[oó]n acad[eé]mica|educaci[oó]n|idiomas|herramientas|competencias|habilidades|cursos|capacitaciones|certificaciones|referencias|fortalezas|informaci[oó]n adicional|datos personales|objetivo laboral|objetivo profesional)$/i
+
+/** A section title of the CV: it is already in the Canva template, so it is shown (to know where each text goes) but not copied. */
+export function isSectionTitle(line: string) {
+  const value = cleanLine(line).replace(/:$/, '').trim()
+  return (isHeading(value) && SECTION_TITLE.test(value)) || SECTION_TITLE_LOWER.test(value)
+}
+
+/** What a piece puts in the clipboard: its lines without the section titles. */
+const copyText = (lines: string[]) => lines.filter((line) => !isSectionTitle(line)).join('\n').replace(/^\n+|\n+$/g, '')
+
 function piecesOf(text: string, whole = false): Piece[] {
   // The cover letter goes whole (one block).
   if (whole) return [{ text: text.trim(), lines: text.trim().split('\n') }]
   // A CV with section titles: one piece per section, title and content together, blank lines or not
   // (a title glued to the previous section, like "FORTALEZAS" after the tools, still starts its own piece).
-  const lines = text.replace(/\r\n/g, '\n').split('\n')
+  const lines = text.replace(/\r\n/g, '\n').split('\n').map(cleanLine)
+  let list: string[][]
   if (lines.filter(isHeading).length >= 2) {
     const sections: string[][] = []
+    // A title in lowercase ("Idiomas") also starts its section.
+    const starts = (line: string) => isHeading(line) || isSectionTitle(line)
     for (const line of lines) {
-      if (!line.trim()) continue
+      if (!line) continue
       const last = sections[sections.length - 1]
       // A title right after another one ("EXPERIENCIA PROFESIONAL" and then the first job in capitals) stays in the
       // same piece, so no bubble is left with a title and nothing under it.
-      if (isHeading(line) && last?.every(isHeading)) last.push(line.trim())
-      else if (isHeading(line) || !last) sections.push([line.trim()])
-      else sections[sections.length - 1].push(line.trim())
+      if (starts(line) && last?.every(starts)) last.push(line)
+      else if (starts(line) || !last) sections.push([line])
+      else sections[sections.length - 1].push(line)
     }
-    return sections.map((section) => ({ text: section.join('\n'), lines: section }))
+    list = sections
+  } else {
+    // Without titles: paragraph by paragraph.
+    const paragraphs = splitPieces(lines.join('\n'))
+    // A long text pasted without blank lines: each line is a piece, so "Copiar siguiente" still goes bit by bit.
+    list = (paragraphs.length === 1 && paragraphs[0].split('\n').length > 6 ? paragraphs[0].split('\n').filter((line) => line.trim()) : paragraphs).map((piece) => piece.split('\n'))
   }
-  // Without titles: paragraph by paragraph.
-  const paragraphs = splitPieces(text)
-  // A long text pasted without blank lines: each line is a piece, so "Copiar siguiente" still goes bit by bit.
-  const list = paragraphs.length === 1 && paragraphs[0].split('\n').length > 6 ? paragraphs[0].split('\n').filter((line) => line.trim()) : paragraphs
-  return list.map((piece) => ({ text: piece, lines: piece.split('\n') }))
+  // A piece that is only a section title (nothing to copy) goes with the next one.
+  const pieces: Piece[] = []
+  let carry: string[] = []
+  for (const piece of list) {
+    const all = [...carry, ...piece]
+    if (copyText(all).trim()) { pieces.push({ text: copyText(all), lines: all }); carry = [] } else carry = all
+  }
+  return pieces
 }
 
-/** A paragraph is done when it was copied whole, or line by line. */
+/** A paragraph is done when it was copied whole, or line by line (the section titles don't count: they aren't copied). */
 function isPieceDone(pieces: Piece[], copied: string[], index: number) {
-  return copied.includes(`p${index}`) || pieces[index].lines.every((line, lineIndex) => !line.trim() || copied.includes(`p${index}l${lineIndex}`))
+  return copied.includes(`p${index}`) || pieces[index].lines.every((line, lineIndex) => !line.trim() || isSectionTitle(line) || copied.includes(`p${index}l${lineIndex}`))
+}
+
+const BULLET = /^\s*[•\-–—*·▪●◦]\s+/
+const escapeHtml = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** The same text as HTML, with the bullet lines as a real list: Canva pastes them as a bulleted list, not as loose lines. */
+function asHtml(text: string) {
+  const parts: string[] = []
+  let list: string[] = []
+  const close = () => { if (list.length) { parts.push(`<ul>${list.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`); list = [] } }
+  for (const line of text.split('\n')) {
+    if (BULLET.test(line)) { list.push(line.replace(BULLET, '').trim()); continue }
+    close()
+    if (line.trim()) parts.push(`<p>${escapeHtml(line.trim())}</p>`)
+  }
+  close()
+  return parts.join('')
 }
 
 async function writeClipboard(text: string) {
+  // With bullets, it goes as HTML too (Canva keeps the list); plain text stays for everything else.
+  if (text.split('\n').some((line) => BULLET.test(line)) && typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'text/plain': new Blob([text], { type: 'text/plain' }), 'text/html': new Blob([asHtml(text)], { type: 'text/html' }) })])
+      return true
+    } catch { /* falls back to plain text */ }
+  }
   try { await navigator.clipboard.writeText(text); return true } catch { return false }
 }
 
@@ -157,7 +213,7 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
   }
 
   const copyAll = (
-    <button type="button" onClick={() => copy(text, ['all'])} className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 font-display text-xs font-bold ${copied.includes('all') ? 'bg-whatsapp text-white' : 'bg-ciruela text-white hover:bg-rosa'}`}>
+    <button type="button" onClick={() => copy(whole ? text : pieces.map((piece) => piece.text).join('\n\n'), ['all'])} className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 font-display text-xs font-bold ${copied.includes('all') ? 'bg-whatsapp text-white' : 'bg-ciruela text-white hover:bg-rosa'}`}>
       {copied.includes('all') ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}{whole ? 'Copiar la carta' : 'Todo'}
     </button>
   )
@@ -195,7 +251,7 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
                 <button key={id} type="button" role="radio" aria-checked={mode === id} onClick={() => setMode(id)} className={`rounded-full px-3 py-1 font-display text-[11px] font-bold ${mode === id ? 'bg-ciruela text-white' : 'text-piedra'}`}>{text}</button>
               ))}
             </div>
-            <p className="text-[11px] leading-snug text-piedra">{mode === 'tocar' ? 'O el botón del bloque para el párrafo entero.' : 'Seleccioná solo la parte que necesites y tocá "Copiar lo seleccionado".'}</p>
+            <p className="text-[11px] leading-snug text-piedra">{mode === 'tocar' ? 'O el botón del bloque para el párrafo entero.' : 'Seleccioná solo la parte que necesites y tocá "Copiar lo seleccionado".'}{!whole && ' Los títulos en gris no se copian: ya están en la plantilla.'}</p>
           </div>
           <div ref={textRef} className="space-y-1.5">
             {pieces.map((piece, index) => {
@@ -203,7 +259,10 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
               return (
                 <div key={index} ref={(element) => { refs.current[index] = element }} className={`flex scroll-mt-20 items-start gap-2 rounded-xl border p-1.5 transition-colors ${index === next && !whole ? 'border-rosa bg-petalo-wash/40' : done ? 'border-transparent bg-whatsapp/5' : 'border-transparent bg-papel/50'}`}>
                   <div className="min-w-0 flex-1 select-text font-sans text-[15px] leading-relaxed text-ink">
-                    {piece.lines.map((line, lineIndex) => !line.trim() ? <span key={lineIndex} className="block h-2" /> : mode === 'marcar' ? (
+                    {piece.lines.map((line, lineIndex) => !line.trim() ? <span key={lineIndex} className="block h-2" /> : !whole && isSectionTitle(line) ? (
+                      // Already in the Canva template: shown to know where the text goes, but it can't be tapped or selected.
+                      <span key={lineIndex} className="block select-none px-1.5 pt-0.5 font-display text-[11px] font-bold uppercase tracking-wider text-piedra">{line}</span>
+                    ) : mode === 'marcar' ? (
                       <span key={lineIndex} className={`block cursor-text whitespace-pre-wrap break-words px-1.5 py-0.5 ${isHeading(line) ? 'font-display text-[13px] font-bold tracking-wide text-ciruela' : ''} ${!done && copied.includes(`p${index}l${lineIndex}`) ? 'text-whatsapp' : ''}`}>{line}</span>
                     ) : (
                       <span key={lineIndex} role="button" tabIndex={0}
@@ -260,9 +319,10 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
 }
 
 /** The texts of a task, in order: CV moderno, CV ATS and the letter when there is one. */
-function sectionsOf(task: TeamTask) {
+export function sectionsOf(task: Pick<TeamTask, 'cv_modern' | 'cv_ats' | 'has_letter' | 'letter'>) {
+  // The first job pack has only the ATS CV: no modern text, no tab for it.
   const list: { id: string; label: string; text: string; whole?: boolean }[] = [
-    { id: 'moderno', label: 'CV moderno', text: task.cv_modern },
+    ...(task.cv_modern.trim() ? [{ id: 'moderno', label: 'CV moderno', text: task.cv_modern }] : []),
     { id: 'ats', label: 'CV ATS', text: task.cv_ats },
   ]
   if (task.has_letter && task.letter) list.push({ id: 'carta', label: 'Carta', text: task.letter, whole: true })
@@ -274,7 +334,7 @@ function sectionsOf(task: TeamTask) {
  * Tabs for each text, the big "Copiar siguiente" at the bottom, and "Empecé"/"Terminé" at the end.
  * Canva can't be shown inside the panel (Canva doesn't allow it), so there is a button to open it.
  */
-export function TaskWorkspace({ task, actions, onClose, onAsk, onStart }: { task: TeamTask; actions?: React.ReactNode; onClose: () => void; onAsk?: () => void; onStart?: () => void }) {
+export function TaskWorkspace({ task, actions, onClose, onAsk, onStart, onProgress }: { task: TeamTask; actions?: React.ReactNode; onClose: () => void; onAsk?: () => void; onStart?: () => void; onProgress?: (progress: Record<string, [number, number]>) => void }) {
   const sections = sectionsOf(task)
   const [tab, setTab] = useState(sections[0].id)
   const [progress, setProgress] = useState<Record<string, [number, number]>>({})
@@ -284,6 +344,13 @@ export function TaskWorkspace({ task, actions, onClose, onAsk, onStart }: { task
   const due = dueLabel(task.due_on)
   const report = useCallback((id: string) => (done: number, total: number) => setProgress((current) => (current[id]?.[0] === done && current[id]?.[1] === total ? current : { ...current, [id]: [done, total] })), [])
   const reporters = useMemo(() => Object.fromEntries(sections.map((section) => [section.id, report(section.id)])), [report, sections.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // What he copied goes to Vale's panel a moment after he stops (once every text reported its count).
+  useEffect(() => {
+    if (!onProgress || Object.keys(progress).length < sections.length) return
+    const timer = window.setTimeout(() => onProgress(progress), 1500)
+    return () => window.clearTimeout(timer)
+  }, [progress, onProgress, sections.length])
 
   // The phone's back button closes the work mode instead of leaving the screen.
   useEffect(() => {
@@ -307,7 +374,7 @@ export function TaskWorkspace({ task, actions, onClose, onAsk, onStart }: { task
         <div className="mx-auto flex max-w-3xl items-center gap-2 px-3 py-2">
           <button type="button" onClick={close} aria-label="Volver" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-papel text-ciruela hover:bg-arena"><ArrowLeft className="h-5 w-5" /></button>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{task.order_number ? `Pedido #${task.order_number}` : 'Ejemplo'}{due ? ` · ${due.text}` : ''}</p>
+            <p className="flex items-center gap-1 truncate font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{task.urgent && <UrgentMark compact />}{task.order_number ? `Pedido #${task.order_number}` : 'Ejemplo'}{due ? ` · ${due.text}` : ''}</p>
             <p className="truncate text-[15px] font-bold text-ink">{task.pack_name} · {task.client_name}</p>
           </div>
           <a href="https://www.canva.com/" target="_blank" rel="noreferrer" className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-line bg-white px-3.5 font-display text-xs font-bold text-ciruela hover:border-ciruela">Canva<ExternalLink className="h-3.5 w-3.5" /></a>
@@ -398,7 +465,7 @@ export function TaskTexts({ task }: { task: TeamTask }) {
   return (
     <div className="space-y-2">
       {task.notes && <p className="rounded-xl bg-papel px-3 py-2 text-sm text-ink"><b>Notas de Vale:</b> {task.notes}</p>}
-      <CopyBlock storageKey={`${task.id}-moderno`} label="CV moderno" text={task.cv_modern} />
+      {task.cv_modern.trim() && <CopyBlock storageKey={`${task.id}-moderno`} label="CV moderno" text={task.cv_modern} />}
       <CopyBlock storageKey={`${task.id}-ats`} label="CV ATS" text={task.cv_ats} />
       {task.has_letter && task.letter && <CopyBlock storageKey={`${task.id}-carta`} label="Carta de presentación" text={task.letter} whole />}
       {task.has_letter && !task.letter && <p className="px-1 text-xs font-semibold text-rosa-deep">Lleva carta: el texto te lo pasa Vale.</p>}
@@ -407,44 +474,53 @@ export function TaskTexts({ task }: { task: TeamTask }) {
 }
 
 /**
- * One CV in a list, in a single compact line: who, which pack, for when and how much was copied, with one button on the right.
+ * One CV in a list, as a card of four fixed lines (all the same size): who, urgent and for when, which pack and how much was copied, and Vale's note, with one button on the right.
  * The colored edge tells the state at a glance (grey to do, pink in progress, green finished).
  * `onOpen` makes the line open the work mode; otherwise `children` unfold under it.
+ * `reported` (Vale's panel): the share he reported from his work mode, instead of what was copied on this device.
  */
-export function TaskRow({ task, action, onOpen, children }: { task: TeamTask; action?: React.ReactNode; onOpen?: () => void; children?: React.ReactNode }) {
+export function TaskRow({ task, action, onOpen, children, reported }: { task: TeamTask; action?: React.ReactNode; onOpen?: () => void; children?: React.ReactNode; reported?: number | null }) {
   const [expanded, setExpanded] = useState(false)
-  const progress = useTaskProgress(task)
+  // In Vale's panel the bar shows what the team member reported, not what was copied on her own device (her tests).
+  const local = useTaskProgress(task)
+  const progress = reported === undefined ? local : reported ?? 0
   const due = task.status !== 'terminado' ? dueLabel(task.due_on) : null
-  const edge = task.status === 'terminado' ? 'bg-whatsapp' : task.status === 'haciendo' ? 'bg-rosa' : 'bg-line'
+  // Only the urgent ones (the 24 h Express, ticked when assigning; a regular CV due today is not the same): in red, with the mark of his character, first in his list.
+  const urgent = task.status !== 'terminado' && !!task.urgent
+  const edge = urgent ? 'bg-[#d6342c]' : task.status === 'terminado' ? 'bg-whatsapp' : task.status === 'haciendo' ? 'bg-rosa' : 'bg-line'
   const toggle = onOpen ?? (children ? () => setExpanded((value) => !value) : undefined)
   return (
     // Open, it takes the whole width of the list so its texts have room (and the neighbor keeps its own height).
-    <li className={`overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)] ${expanded ? 'col-span-full' : ''}`}>
-      <div className="flex items-stretch">
+    <li className={`relative overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)] ${urgent ? 'ring-2 ring-[#d6342c]' : ''} ${expanded ? 'col-span-full' : ''}`}>
+      {/* Every card has the same four lines, each in one line (cut with "…" if long), so they are all the same size. */}
+      <div className="flex min-h-[7rem] items-stretch">
         <span aria-hidden className={`w-1.5 shrink-0 ${edge}`} />
         <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 pr-2.5">
           <button type="button" onClick={toggle} disabled={!toggle} aria-expanded={children && !onOpen ? expanded : undefined} className="min-w-0 flex-1 text-left">
-            <p className="flex items-baseline gap-2">
-              <span className="truncate text-[15px] font-bold text-ink">{task.client_name}</span>
+            <p className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className={`truncate text-[15px] font-bold ${urgent ? 'text-[#d6342c]' : 'text-ink'}`}>{task.client_name}</span>
               <span className="shrink-0 text-xs text-piedra">{task.order_number ? `#${task.order_number}` : 'Ejemplo'}</span>
               {task.status === 'haciendo' && <span className="shrink-0 font-display text-[11px] font-bold text-rosa-deep">· En curso</span>}
             </p>
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-piedra">
-              {due && <span className={`rounded-full px-2 py-px font-display text-[11px] font-bold ${due.urgent ? 'bg-rosa-deep text-white' : 'bg-papel text-ciruela'}`}>{due.text}</span>}
-              <span className="truncate">{task.pack_name}{task.has_letter ? ' · con carta' : ''}{task.notes ? ' · 📝 nota' : ''}</span>
+            <p className="mt-1 flex h-5 items-center gap-1.5 overflow-hidden whitespace-nowrap">
+              {urgent && <UrgentMark short />}
+              {due && <span className={`shrink-0 rounded-full px-2 py-px font-display text-[11px] font-bold ${due.urgent ? 'bg-rosa-deep text-white' : 'bg-papel text-ciruela'}`}>{due.text}</span>}
             </p>
-            {task.status !== 'terminado' && progress > 0 && (
-              <span className="mt-1.5 flex items-center gap-2">
-                <span className="h-1 w-28 rounded-full bg-papel"><span className="block h-1 rounded-full bg-rosa" style={{ width: `${Math.round(progress * 100)}%` }} /></span>
-                <span className="text-[11px] text-piedra">{Math.round(progress * 100)}% copiado</span>
-              </span>
-            )}
+            <p className="mt-1 truncate text-xs text-piedra">
+              {task.pack_name}{task.has_letter ? ' · con carta' : ''}
+              {task.status !== 'terminado' && progress > 0 && <b className="font-semibold text-rosa-deep"> · {Math.round(progress * 100)}% copiado</b>}
+            </p>
+            {/* Vale's note in sight on the card itself, before and after it is finished (the whole note is inside the CV). */}
+            <p className="mt-1 h-4 truncate text-xs leading-4 text-ink" title={task.notes || undefined}>{task.notes && <><span aria-hidden>📝 </span>{task.notes}</>}</p>
           </button>
           {action}
           {children && !onOpen && <ChevronDown aria-hidden className={`h-4 w-4 shrink-0 text-piedra transition-transform ${expanded ? 'rotate-180' : ''}`} />}
         </div>
       </div>
+      {/* How much was copied, as a thin bar along the bottom edge. */}
+      {task.status !== 'terminado' && progress > 0 && <span aria-hidden className="absolute bottom-0 left-0 h-1 bg-rosa" style={{ width: `${Math.round(progress * 100)}%` }} />}
       {expanded && children && <div className="border-t border-line px-3 py-3">{children}</div>}
     </li>
   )
+
 }

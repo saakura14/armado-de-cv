@@ -52,7 +52,7 @@ export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { ini
   }
 
   const totalOf = (row: Row) => (row.totalEdited ? Number(row.total) || 0 : catalogTotal(row.items))
-  const ready = rows.length > 0 && rows.every((row) => row.name.trim() && row.items.length && row.items.every((item) => item.productId) && totalOf(row) > 0 && row.date)
+  const ready = rows.length > 0 && rows.every((row) => row.name.trim() && row.items.length && row.items.every((item) => item.productId) && totalOf(row) > 0 && row.date && row.origin)
 
   async function save() {
     setBusy(true); setError('')
@@ -60,7 +60,7 @@ export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { ini
     for (const row of rows) {
       const { data, error: rpcError } = await supabase.rpc('admin_record_sale', {
         p_name: row.name, p_phone: row.phone, p_paid_on: row.date, p_delivered: row.delivered,
-        p_items: row.items.map((item) => ({ product_id: item.productId, extras: item.extras.map((extra) => ({ group_id: extra.groupId, option_id: extra.optionId })) })),
+        p_items: row.items.map((item) => ({ product_id: item.productId, price: item.price ?? undefined, extras: item.extras.map((extra) => ({ group_id: extra.groupId, option_id: extra.optionId })) })),
         p_total: row.totalEdited ? Number(row.total) : null,
         p_note: `Venta por WhatsApp: ${row.raw}`,
       })
@@ -136,7 +136,7 @@ export function WhatsappSaleDialog({ initialText = '', onClose, onSaved }: { ini
                       <label className={`col-span-2 ${label}`}>WhatsApp (opcional)
                         <input type="tel" inputMode="tel" value={row.phone} onChange={(event) => update(row.key, { phone: event.target.value })} placeholder="11 2345-6789" className={inputClass} />
                       </label>
-                      <label className={`col-span-2 ${label}`}>¿Cómo te conoció?
+                      <label className={`col-span-2 ${label}`}>¿Cómo te conoció? <span className={row.origin ? '' : 'text-rosa-deep'}>(obligatorio, para medir los anuncios)</span>
                         <select value={row.origin} onChange={(event) => update(row.key, { origin: event.target.value as Origin | '' })} className={inputClass}>
                           <option value="">Elegí una opción</option>
                           {(['anuncio', 'instagram', 'recomendacion', 'google', 'web', 'otro'] as Origin[]).map((origin) => <option key={origin} value={origin}>{ORIGIN_LABEL[origin]}</option>)}

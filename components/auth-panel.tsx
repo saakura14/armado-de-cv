@@ -62,7 +62,8 @@ export function AuthPanel({ title = 'Ingresá para continuar', text, initialMode
     // The section is kept aside and the panel reopens it after signing in.
     const { hash, origin, pathname, search } = window.location
     try { if (hash) sessionStorage.setItem('acv-return-hash', hash.slice(1)) } catch { /* private mode: opens in Inicio */ }
-    const { error: authError } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${origin}${pathname}${search}` } })
+    // Always asks which Google account (a browser signed in to another one would go straight in with it).
+    const { error: authError } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${origin}${pathname}${search}`, queryParams: { prompt: 'select_account' } } })
     if (authError) setError(errorMessage(authError))
   }
 

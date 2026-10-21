@@ -63,6 +63,11 @@ function arDay(moment: Date) {
   return { day: new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate())), hour: shifted.getUTCHours() }
 }
 
+/** 'YYYY-MM-DD' of a moment in Argentina. */
+export function dayKey(value: string | Date) {
+  return arDay(new Date(value)).day.toISOString().slice(0, 10)
+}
+
 /** 'YYYY-MM' of a moment in Argentina. */
 export function monthKey(value: string | Date) {
   return arDay(new Date(value)).day.toISOString().slice(0, 7)
@@ -109,13 +114,14 @@ export const hasExpress = (order: Order) => order.order_items.some((item) => ite
 export type Deadline = { due: Date; remaining: number; express: boolean; waiting: boolean }
 
 /**
- * Packs take up to 4 business days (Express: 1). The clock starts when the payment is confirmed;
+ * Packs take up to 4 business days (Express: 1). The clock starts when Vale has everything from the customer
+ * (payment confirmed and CV/puesto received: no deadline while the data is missing);
  * after 5 pm, on a weekend or on a holiday it starts the next business day, as the pack conditions say.
  * Days spent waiting for the customer (corrections, missing information) move the deadline; while waiting, the clock stops.
  */
 export function deliveryDeadline(order: Order, now = new Date()): Deadline | null {
-  if (!order.paid_at) return null
-  const { day, hour } = arDay(new Date(order.paid_at))
+  if (!order.paid_at || !order.data_received_at) return null
+  const { day, hour } = arDay(new Date(order.data_received_at))
   const start = isDayOff(day) || hour >= 17 ? addBusinessDays(day, 1) : day
   const express = hasExpress(order)
   const waiting = Boolean(order.waiting_since)

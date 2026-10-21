@@ -8,13 +8,14 @@ import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, needsCoordination, type Order } from '@/lib/orders'
-import { stageOf, type LegacyFilter, type Stage } from '@/lib/order-stages'
+import { missingData, stageOf, type LegacyFilter, type Stage } from '@/lib/order-stages'
 import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, nextDueText, isTestOrder, monthKey, monthLabel, monthStats, salesByOrigin, salesInMonth, shiftMonth, shortMonthLabel, weeksOfMonth, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass } from './ui'
+import { ValeCheer } from './vale-cheer'
 
 /** Where "Ver" and the status counters take you: a tab, optionally a filter or a single order. */
-export type OpenTarget = { tab: 'pedidos' | 'sesiones'; filter?: Stage | LegacyFilter; order?: number }
+export type OpenTarget = { tab: 'pedidos' | 'sesiones' | 'analisis'; filter?: Stage | LegacyFilter; order?: number }
 
 type Task = { order: Order; kind: 'pago' | 'verificar' | 'entrega' | 'sesion'; deadline: Deadline | null }
 
@@ -31,7 +32,7 @@ function toTasks(orders: Order[]): Task[] {
     if (service) return { order, kind: 'entrega', deadline: deliveryDeadline(order) }
     return { order, kind: 'sesion', deadline: null }
   }).filter((task) => (task.kind !== 'sesion' || needsCoordination(task.order)) && stageOf(task.order) !== 'equipo')
-  const rank = (task: Task) => (task.kind === 'pago' || task.kind === 'verificar' ? -100 : task.deadline?.waiting ? 60 : task.deadline ? task.deadline.remaining : 50)
+  const rank = (task: Task) => (task.kind === 'pago' || task.kind === 'verificar' ? -100 : task.deadline?.waiting || missingData(task.order) ? 60 : task.deadline ? task.deadline.remaining : 50)
   return tasks.sort((a, b) => rank(a) - rank(b))
 }
 
@@ -61,6 +62,7 @@ function TaskRow({ task, onOpen }: { task: Task; onOpen: () => void }) {
         {kind === 'pago' && <span className="inline-flex items-center gap-1.5 rounded-full bg-petalo-wash px-3 py-1 font-display text-xs font-bold text-rosa-deep"><FileCheck2 className="h-3.5 w-3.5" />Revisar comprobante</span>}
         {kind === 'verificar' && <span className="inline-flex items-center gap-1.5 rounded-full bg-petalo-wash px-3 py-1 font-display text-xs font-bold text-rosa-deep"><FileCheck2 className="h-3.5 w-3.5" />Verificar transferencia</span>}
         {kind === 'sesion' && <span className="inline-flex items-center gap-1.5 rounded-full bg-arena px-3 py-1 font-display text-xs font-bold text-ciruela"><CalendarClock className="h-3.5 w-3.5" />Agendar sesión</span>}
+        {kind === 'entrega' && missingData(order) && <span className="inline-flex items-center gap-1.5 rounded-full bg-papel px-3 py-1 font-display text-xs font-bold text-piedra"><Hourglass className="h-3.5 w-3.5" />Faltan los datos</span>}
         {deadline && (
           <>
             {deadline.express && <span className="inline-flex items-center gap-1 rounded-full bg-ciruela px-2.5 py-1 font-display text-[11px] font-bold text-white"><Zap className="h-3 w-3" />Express</span>}
@@ -276,6 +278,9 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
         </p>
       </div>
 
+      {/* Her favorite characters cheer her up with today's numbers and the road to the car. */}
+      <ValeCheer />
+
       {error && <p className="rounded-2xl bg-petalo-wash px-4 py-3 text-sm font-semibold text-rosa-deep">{error}</p>}
 
       {/* Orders at a glance */}
@@ -318,7 +323,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
               {tasks.length > upcoming.length && <button type="button" onClick={() => onOpen({ tab: 'pedidos', filter: 'activos' })} className="inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">Ver los {tasks.length}<ArrowRight className="h-4 w-4" /></button>}
             </div>
             <ul className="mt-1">{upcoming.map((task) => <TaskRow key={task.order.id} task={task} onOpen={() => onOpen(task.kind === 'sesion' ? { tab: 'sesiones' } : { tab: 'pedidos', order: task.order.number })} />)}</ul>
-            <p className="mt-2 text-xs text-piedra">Plazo: 4 días hábiles desde el pago (Express: 1). Después de las 17 hs, en fin de semana o feriado arranca el siguiente día hábil. Sábados, domingos y feriados no cuentan.</p>
+            <p className="mt-2 text-xs text-piedra">Plazo: 4 días hábiles desde que el cliente te mandó los datos (Express: 1). Después de las 17 hs, en fin de semana o feriado arranca el siguiente día hábil. Sábados, domingos y feriados no cuentan.</p>
           </div>
         )}
         {!loading && tasks.length === 0 && <p className="mt-4 rounded-2xl bg-white px-4 py-5 text-center text-piedra">No tenés pedidos pendientes. ¡Todo al día!</p>}
@@ -329,6 +334,7 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="stats-title" className="font-display text-lg font-bold text-ciruela">Cómo viene el mes</h2>
           <div className="flex items-center gap-2">
+          <button type="button" onClick={() => onOpen({ tab: 'analisis' })} className="inline-flex items-center gap-1 text-sm font-semibold text-rosa-deep hover:underline">Gastos y ganancia<ArrowRight className="h-4 w-4" /></button>
           <HideMoneyButton />
           <select value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Mes" className="rounded-full border border-line bg-white px-4 py-2 font-display text-sm font-semibold text-ciruela">
             {months.map((key) => <option key={key} value={key}>{monthLabel(key)}</option>)}

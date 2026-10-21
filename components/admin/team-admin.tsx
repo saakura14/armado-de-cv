@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Check, Eye, Loader2, MessageCircle, RefreshCw, Trash2, UserPlus, X } from 'lucide-react'
 import { TaskRow, TaskTexts } from '@/components/team-task-card'
+import { TaskStart, startedLabel } from './task-start'
+import { TaskProgress, progressShare } from './task-progress'
+import { TeamPresence } from './team-presence'
 import { openAdminChat, useTeamUnread } from '@/components/team-chat'
 import { TeamView } from '@/components/team-view'
 import { monthKey } from '@/lib/dashboard'
@@ -152,6 +155,31 @@ function MemberSettings({ member, onSaved }: { member: TeamMember; onSaved: () =
   )
 }
 
+/** Vale's note and the urgent mark, editable after assigning (he sees the change on the spot). */
+function TaskNote({ task, onChanged }: { task: TeamTask; onChanged: () => void }) {
+  const [notes, setNotes] = useState(task.notes ?? '')
+  const [urgent, setUrgent] = useState(Boolean(task.urgent))
+  const [busy, setBusy] = useState(false)
+  const flash = useFlash()
+  const changed = notes.trim() !== (task.notes ?? '') || urgent !== Boolean(task.urgent)
+  async function save() {
+    setBusy(true)
+    const { error } = await supabase.from('team_tasks').update({ notes: notes.trim() || null, urgent }).eq('id', task.id)
+    setBusy(false)
+    if (error) flash.show('error', errorMessage(error)); else { flash.show('ok', 'Guardado: ya lo ve.'); onChanged() }
+  }
+  return (
+    <div className="space-y-2">
+      <Field label="Nota para él"><textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} placeholder="Colores, foto, rubro…" className={inputClass} /></Field>
+      <div className="flex flex-wrap items-center gap-3">
+        {task.status !== 'terminado' && <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={urgent} onChange={(event) => setUrgent(event.target.checked)} className="accent-rosa" />🔴 Urgente</label>}
+        {changed && <Button variant="secondary" busy={busy} onClick={save}>Guardar</Button>}
+      </div>
+      {flash.node}
+    </div>
+  )
+}
+
 /** Vale's tools on a task: reopen a finished one or take it back before it is done. */
 function TaskTools({ task, onChanged }: { task: TeamTask; onChanged: () => void }) {
   const flash = useFlash()
@@ -185,7 +213,7 @@ function TaskTools({ task, onChanged }: { task: TeamTask; onChanged: () => void 
 const DEVICES = [
   { id: 'celu', label: 'Celu', width: 390 },
   { id: 'tablet', label: 'Tablet', width: 820 },
-  { id: 'horizontal', label: 'Tablet acostada', width: 1180 },
+  { id: 'horizontal', label: 'Tablet acostada', width: 1280 },
 ] as const
 
 /** "Ver como él": the team member's real screen with their data, at phone or tablet width. Buttons don't save anything. */
@@ -294,6 +322,8 @@ export function TeamAdmin() {
       {member && batch && (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
           <div className="min-w-0 space-y-4">
+            {/* Whether he has the panel open now, and when he came in and left (only Vale sees it). */}
+            <TeamPresence memberId={member.id} name={member.name.split(' ')[0]} />
             {/* The numbers in one compact strip: two per row on the phone, four in a row from a tablet. */}
             <div className="grid grid-cols-2 overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_-26px_rgba(67,32,44,0.6)] sm:grid-cols-4">
               {[
@@ -326,9 +356,12 @@ export function TeamAdmin() {
                   // One line per CV with its state; tapping it unfolds the texts and the tools.
                   <ul className="mt-3 grid items-start gap-2 2xl:grid-cols-2">
                     {list.map((task) => (
-                      <TaskRow key={task.id} task={task} action={<span className="flex shrink-0 flex-col items-end gap-1">{workMinutes(task) !== null && <span className="font-display text-[11px] font-bold text-ciruela">⏱ {formatMinutes(workMinutes(task)!)}</span>}<span className={`rounded-full px-2.5 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span></span>}>
+                      <TaskRow key={task.id} task={task} reported={progressShare(task)} action={<span className="flex shrink-0 flex-col items-end gap-1">{workMinutes(task) !== null && <span className="font-display text-[11px] font-bold text-ciruela">⏱ {formatMinutes(workMinutes(task)!)}</span>}{task.status === 'haciendo' && task.started_at && <span className="text-[11px] text-piedra">▶ {startedLabel(task.started_at)}</span>}<span className={`rounded-full px-2.5 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span></span>}>
                         <div className="space-y-3">
                           {task.status !== 'terminado' ? <TaskTexts task={task} /> : task.design_url ? <a href={task.design_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-rosa-deep hover:underline">Ver el diseño en Canva</a> : null}
+                          <TaskNote task={task} onChanged={load} />
+                          <TaskProgress task={task} />
+                          <TaskStart task={task} onChanged={load} />
                           <TaskTools task={task} onChanged={load} />
                         </div>
                       </TaskRow>
@@ -343,13 +376,14 @@ export function TeamAdmin() {
             <section className={cardClass} aria-labelledby="owed-title">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 id="owed-title" className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">Le debés</h2>
-                  <p className="font-display text-3xl font-extrabold text-ciruela">{money(batch.owed)}</p>
+                  {/* Advanced more than he has built: he owes it, and each CV he finishes takes its rate off. */}
+                  <h2 id="owed-title" className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">{batch.debt ? 'Te debe' : 'Le debés'}</h2>
+                  <p className={`font-display text-3xl font-extrabold ${batch.debt ? 'text-rosa-deep' : 'text-ciruela'}`}>{money(batch.debt || batch.owed)}</p>
                 </div>
                 <p className="text-right font-display text-sm font-bold text-ciruela">{batch.count}<span className="font-normal text-piedra"> de {batch.size} CVs</span></p>
               </div>
               <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${batch.count >= batch.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(batch.count / batch.size, 1) * 100}%` }} /></div>
-              <p className="mt-2 text-xs text-piedra">{batch.count >= batch.size ? <b className="text-whatsapp">Completó la tanda: te toca pagarle.</b> : batch.advances ? `Ya le adelantaste ${money(batch.advances)}.` : batch.lastPayment ? `Último pago: ${formatDate(`${batch.lastPayment.paid_on}T12:00:00-03:00`)}.` : 'Todavía no le pagaste.'}</p>
+              <p className="mt-2 text-xs text-piedra">{batch.debt ? `Le adelantaste ${money(batch.advances)} y ya cubrió ${money(batch.earned)} con ${batch.count} ${batch.count === 1 ? 'CV' : 'CVs'}. Cada CV que termina descuenta ${money(member.rate)}: le faltan ${Math.ceil(batch.debt / Math.max(member.rate, 1))} para saldarlo.` : batch.count >= batch.size ? <b className="text-whatsapp">Completó la tanda: te toca pagarle.</b> : batch.advances ? `Ya le adelantaste ${money(batch.advances)}.` : batch.lastPayment ? `Último pago: ${formatDate(`${batch.lastPayment.paid_on}T12:00:00-03:00`)}.` : 'Todavía no le pagaste.'}</p>
               <div className="mt-3"><PaymentForm key={`pay-${member.id}`} member={member} batch={batch} onSaved={load} /></div>
             </section>
 

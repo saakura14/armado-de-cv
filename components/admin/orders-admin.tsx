@@ -3,21 +3,21 @@
 import { SaleItemsEditor, useSaleCatalog } from './sale-items'
 import type { SaleItem } from '@/lib/whatsapp-sale'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw, Hourglass, Video } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Inbox, Link2, Palette, Pencil, RefreshCw, Hourglass, Trash2, Video } from 'lucide-react'
 import { useHideMoney } from '@/lib/hide-money'
 import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, pendingSessions, type Order, type OrderStatus } from '@/lib/orders'
 import { deliveryDeadline, formatDue } from '@/lib/dashboard'
-import { STAGES, kindsOf, moveTo, sortForStage, stageOf, toStage, todayReason, type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
+import { STAGES, kindsOf, missingData, moveTo, needsTexts, sortForStage, stageOf, teamState, textsReason, toStage, todayReason, type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
 import { DeadlineChip } from './dashboard-admin'
 import { OrderLinkDialog } from './order-link-dialog'
-import { TeamRow, type OrderTask } from './assign-task'
+import { TeamRow, type DraftState, type OrderTask } from './assign-task'
 
 // The admin also sees every Ualá checkout opened for the order (buyers can't read that table).
-type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null; team_tasks?: OrderTask[] }
-const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, team_members(name)), sessions(id, title, status, scheduled_at)`
+type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null; team_tasks?: OrderTask[]; cv_drafts?: DraftState[] }
+const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, started_at, team_members(name)), cv_drafts(order_item_id, status, error), sessions(id, title, status, scheduled_at)`
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, inputClass, useFlash } from './ui'
 
@@ -59,7 +59,8 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
   const [name, setName] = useState(order.customer_name ?? '')
   const [phone, setPhone] = useState(order.customer_phone ?? '')
   const [date, setDate] = useState(toDay(order.paid_at))
-  const initialItems: SaleItem[] = order.order_items.map((item) => ({ productId: item.product_id, extras: item.extras.map((extra) => ({ groupId: extra.group_id, optionId: extra.option_id })) }))
+  // Each line keeps what was charged for it, so adding something later doesn't reprice what was already sold.
+  const initialItems: SaleItem[] = order.order_items.map((item) => ({ productId: item.product_id, price: item.unit_price, extras: item.extras.map((extra) => ({ groupId: extra.group_id, optionId: extra.option_id })) }))
   const [items, setItems] = useState<SaleItem[]>(initialItems)
   // The amount follows the prices while it isn't typed by hand.
   const [totalTouched, setTotalTouched] = useState(false)
@@ -70,7 +71,8 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
 
   function changeItems(next: SaleItem[]) {
     setItems(next)
-    if (!totalTouched) setTotal(String(totalOf(next)))
+    // What was already charged plus (or minus) what changed: an e-book sold later adds its price to the total.
+    if (!totalTouched) setTotal(String(Math.max(order.total + totalOf(next) - totalOf(initialItems), 0)))
   }
 
   async function save() {
@@ -78,7 +80,7 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
     if (itemsChanged) {
       const { error } = await supabase.rpc('admin_update_whatsapp_sale_items', {
         p_order: order.id,
-        p_items: items.map((item) => ({ product_id: item.productId, extras: item.extras.map((extra) => ({ group_id: extra.groupId, option_id: extra.optionId })) })),
+        p_items: items.map((item) => ({ product_id: item.productId, price: item.price ?? undefined, extras: item.extras.map((extra) => ({ group_id: extra.groupId, option_id: extra.optionId })) })),
         p_total: Number(total),
       })
       if (error) { setBusy(false); flash.show('error', errorMessage(error)); return }
@@ -97,6 +99,8 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
     return <button type="button" onClick={() => setOpen(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-rosa-deep hover:underline"><Pencil className="h-3.5 w-3.5" />Editar venta</button>
   }
   const lines = totalOf(items)
+  // Something was added to what she had already charged for.
+  const added = items.length > initialItems.length
   return (
     <div className="mt-3 rounded-2xl border border-rosa/40 bg-petalo-wash/60 p-4">
       <p className="font-display text-sm font-bold text-ciruela">Editar venta por WhatsApp</p>
@@ -106,9 +110,18 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
         <label className="col-span-2 text-xs font-semibold uppercase tracking-wider text-piedra sm:col-span-1">Cliente<input value={name} onChange={(event) => setName(event.target.value)} className={inputClass} /></label>
         <label className="col-span-2 text-xs font-semibold uppercase tracking-wider text-piedra sm:col-span-1">WhatsApp<input type="tel" inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className={inputClass} /></label>
         <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Fecha de pago<input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={inputClass} /></label>
-        <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Cobraste<input inputMode="numeric" value={total} onChange={(event) => { setTotal(event.target.value.replace(/\D/g, '')); setTotalTouched(true) }} className={inputClass} /></label>
+        <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Total cobrado (todo el pedido)<input inputMode="numeric" value={total} onChange={(event) => { setTotal(event.target.value.replace(/\D/g, '')); setTotalTouched(true) }} className={inputClass} /></label>
       </div>
-      {lines > 0 && lines !== Number(total) && <p className="mt-2 text-xs text-piedra">Según los precios de lo que compró: {formatARS(lines)}. <button type="button" className="font-semibold text-rosa-deep hover:underline" onClick={() => { setTotal(String(lines)); setTotalTouched(false) }}>usar ese</button></p>}
+      {/* Adding something sold later: the amount is the whole order, not just the new item. */}
+      {added && Number(total) < order.total && (
+        <p className="mt-2 rounded-xl bg-rosa/10 px-3 py-2 text-xs font-semibold text-rosa-deep">
+          Ojo: el total quedó menor que lo que ya habías cobrado ({formatARS(order.total)}). Va el total de todo: {formatARS(order.total)} + lo que cobraste por lo nuevo.
+          {Number(total) > 0 && <> <button type="button" className="underline" onClick={() => { setTotal(String(order.total + Number(total))); setTotalTouched(true) }}>Usar {formatARS(order.total + Number(total))}</button></>}
+        </p>
+      )}
+      {added && !totalTouched && <p className="mt-2 text-xs font-semibold text-ciruela">Total: lo que ya habías cobrado ({formatARS(order.total)}) + lo nuevo ({formatARS(Math.max(Number(total) - order.total, 0))}). Si cobraste otro precio, cambialo al lado del producto.</p>}
+      {added && <p className="mt-2 text-xs text-piedra">Si lo nuevo lo vendiste otro día, conviene cargarlo como venta nueva: así cuenta en el mes en que lo cobraste.</p>}
+      {totalTouched && lines > 0 && lines !== Number(total) && <p className="mt-2 text-xs text-piedra">Según los precios de lo que compró: {formatARS(lines)}. <button type="button" className="font-semibold text-rosa-deep hover:underline" onClick={() => { setTotal(String(lines)); setTotalTouched(false) }}>usar ese</button></p>}
       {itemsChanged && items.some((item) => item.extras.some((extra) => extra.groupId === 'express')) && <p className="mt-2 text-xs font-semibold text-ciruela">Con Express, el plazo pasa a 24 hs hábiles desde la fecha de pago.</p>}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button busy={busy} disabled={!name.trim() || !(Number(total) > 0) || !items.length || items.some((item) => !item.productId)} onClick={save}>Guardar cambios</Button>
@@ -197,6 +210,29 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
     onChanged()
   }
 
+  // The clock starts when Vale has everything from the customer; "faltan datos" takes it back to zero.
+  async function setDataReceived(received: boolean) {
+    if (!received && !window.confirm(`¿Todavía te faltan datos del pedido #${order.number}? El plazo vuelve a cero y arranca cuando marques "Ya tengo los datos".`)) return
+    setBusy('data')
+    const { error } = await supabase.rpc('admin_set_data_received', { p_order: order.id, p_received: received })
+    setBusy('')
+    if (error) { flash.show('error', errorMessage(error)); return }
+    flash.show('ok', received ? 'Listo: el plazo de entrega arranca hoy.' : 'Plazo frenado hasta que tengas los datos.')
+    onChanged()
+  }
+
+  // A sale loaded twice by mistake: deleting it also takes it out of the metrics. Typing the number is the approval.
+  async function deleteSale() {
+    const typed = window.prompt(`Eliminar el pedido #${order.number} (${name}, ${formatARS(order.total)}) para siempre: sale de las métricas y no se puede deshacer.\n\nSi es una venta repetida, escribí ${order.number} para confirmar.`)
+    if (typed === null) return
+    if (typed.trim().replace('#', '') !== String(order.number)) { flash.show('error', 'El número no coincide: no se eliminó nada.'); return }
+    setBusy('delete')
+    const { error } = await supabase.rpc('admin_delete_order', { p_order: order.id, p_number: order.number })
+    setBusy('')
+    if (error) { flash.show('error', errorMessage(error)); return }
+    onChanged()
+  }
+
   async function setStatus(status: OrderStatus, fallbackNote?: string) {
     if (status === 'cancelled' && !window.confirm(`¿Cancelar el pedido #${order.number}?`)) return
     setBusy(status)
@@ -231,7 +267,11 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
     else window.open(data.signedUrl, '_blank', 'noopener')
   }
 
-  const status = STATUS[order.status]
+  // A CV with the team says so on the card: building it, or finished and waiting for her to check it.
+  const team = order.status === 'paid' || order.status === 'in_progress' ? teamState(order) : 'none'
+  const status = team === 'working' ? { label: 'En proceso por el equipo', tone: 'bg-rosa text-white' }
+    : team === 'done' ? { label: 'Listo del equipo', tone: 'bg-whatsapp/15 text-whatsapp' }
+    : STATUS[order.status]
   const name = order.customer_name || buyer?.full_name || buyer?.email || 'Cliente'
   const phone = order.customer_phone || buyer?.phone || null
   // Bought without an account: the email is on the order, not on a profile.
@@ -243,12 +283,14 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
   // A 1:1 session: its own product, or the Meet feedback of the vocational test.
   const session = order.order_items.some((item) => item.products?.delivery === 'session' || item.extras.some((extra) => extra.group_id === 'devolucion'))
   const deadline = service && (order.status === 'paid' || order.status === 'in_progress') ? deliveryDeadline(order) : null
+  const noData = missingData(order)
   const nextSession = pendingSessions(order)[0]
   // Ready-made message for the next step of this order.
   const template = order.status === 'pending_payment'
     ? { label: 'Recordar el pago', text: `¡Hola ${firstName}! Vi tu pedido #${order.number} (${products}) por ${formatARS(order.total)}. ¿Pudiste hacer la transferencia? Acá tenés los datos para pagar: https://armadodecv.com/cuenta/pedido/${order.id}\nCuando transfieras, mandame el comprobante por acá y arranco. Si tenés alguna duda, te ayudo.` }
     : service && (order.status === 'paid' || order.status === 'in_progress')
-      ? { label: 'Pedir los datos', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, pasame tu CV actual (si tenés) y contame a qué puesto o rubro apuntás.` }
+      // Ask for the data while it's missing; after that, a plain WhatsApp button (Vale writes to them herself).
+      ? noData ? { label: 'Pedir los datos', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, pasame tu CV actual (si tenés) y contame a qué puesto o rubro apuntás. Apenas tenga todo, empieza a correr el plazo de entrega.` } : null
       : session && (order.status === 'paid' || order.status === 'in_progress')
         ? { label: 'Coordinar la sesión', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 ¿Qué días y horarios te quedan cómodos para la sesión por Google Meet?` }
       // CV + session: once the CV is delivered, the session comes next.
@@ -291,6 +333,7 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
         </div>
         <p className="shrink-0 font-display text-lg font-extrabold text-ciruela">{money(order.total)}</p>
       </div>
+      {noData && <p className="mt-2 flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-papel px-3 py-1 font-display text-xs font-bold text-piedra"><Inbox className="h-3.5 w-3.5" />Faltan los datos</span><span className="text-xs text-piedra">El plazo arranca cuando tengas todo</span></p>}
       {deadline && <p className="mt-2 flex flex-wrap items-center gap-2"><DeadlineChip deadline={deadline} /><span className="text-xs text-piedra">{deadline.waiting ? `Plazo en pausa desde el ${formatDate(order.waiting_since!)}` : `Entregar el ${formatDue(deadline.due)}${deadline.express ? ' · Express' : ''}`}</span></p>}
       {order.status === 'pending_payment' && <UnpaidSince createdAt={order.created_at} />}
 
@@ -346,7 +389,7 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
         </ul>
       )}
       {service && order.status !== 'cancelled' && order.status !== 'pending_payment' && <CanvaLink order={order} />}
-      <TeamRow order={order} tasks={order.team_tasks ?? []} firstName={firstName} onChanged={onChanged} />
+      <TeamRow order={order} tasks={order.team_tasks ?? []} drafts={order.cv_drafts ?? []} firstName={firstName} onChanged={onChanged} />
 
       {/* One main action (the next step), one WhatsApp button (with the message for this step) and the rest under "Más opciones". */}
       {(order.status === 'pending_payment' || order.status === 'payment_review') && !order.receipt_path && <p className="mt-4 text-sm text-piedra">Sin comprobante todavía.</p>}
@@ -355,7 +398,10 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
         {(order.status === 'pending_payment' || order.status === 'payment_review') && (order.receipt_path
           ? <Button variant="success" className={action} busy={busy === 'paid'} onClick={() => setStatus('paid')}>Aprobar pago</Button>
           : <Button variant="success" className={action} busy={busy === 'paid'} onClick={approveOutsideWeb}>Me llegó el pago</Button>)}
-        {order.status === 'paid' && <Button className={action} busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Pasar a En proceso</Button>}
+        {order.status === 'paid' && (noData
+          ? <Button variant="success" className={action} busy={busy === 'data'} onClick={() => setDataReceived(true)}>Ya tengo los datos</Button>
+          : <Button className={action} busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Pasar a En proceso</Button>)}
+        {order.status === 'in_progress' && noData && <Button variant="success" className={action} busy={busy === 'data'} onClick={() => setDataReceived(true)}>Ya tengo los datos</Button>}
         {order.status === 'in_progress' && <Button className={action} busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>{service && session ? 'Marcar CV entregado' : 'Marcar entregado'}</Button>}
         {order.status === 'cancelled' && <Button variant="secondary" className={action} busy={busy === 'pending_payment'} onClick={() => setStatus('pending_payment')}>Reabrir</Button>}
         {(templateLink ?? whatsapp) && (
@@ -389,7 +435,9 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
             {template && whatsapp && <a href={whatsapp} onClick={(event) => openBusinessWhatsapp(event, whatsapp)} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 py-2 font-display text-sm font-bold text-ciruela"><WhatsAppIcon className="h-4 w-4" />Escribir sin mensaje</a>}
             {/* Fallback when the device opens the personal WhatsApp: copy and paste it in WhatsApp Business. */}
             <Button variant="secondary" onClick={() => copyMessage(template?.text ?? `¡Hola ${firstName}! Te escribo por tu pedido #${order.number} de Armado de CV.`)}><Copy className="h-4 w-4" />Copiar mensaje{phone ? ' y número' : ''}</Button>
+            {deadline && !order.waiting_since && order.status === 'paid' && !(order.team_tasks ?? []).length && <Button variant="secondary" busy={busy === 'data'} onClick={() => setDataReceived(false)}><Inbox className="h-4 w-4" />Todavía faltan datos</Button>}
             {order.status !== 'cancelled' && order.status !== 'delivered' && <Button variant="danger" busy={busy === 'cancelled'} onClick={() => setStatus('cancelled')}>Cancelar pedido</Button>}
+            {order.payment_method !== 'card' && <Button variant="danger" busy={busy === 'delete'} onClick={deleteSale}><Trash2 className="h-4 w-4" />Eliminar venta repetida</Button>}
           </div>
           {order.source === 'whatsapp' && <EditSale order={order} onSaved={onChanged} />}
         </div>
@@ -468,7 +516,7 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
     let timer: number | undefined
     const soon = () => { window.clearTimeout(timer); timer = window.setTimeout(load, 700) }
     // Team tasks too: a CV finished by the team shows up in Hoy.
-    const channelSub = supabase.channel('admin-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, soon).subscribe()
+    const channelSub = supabase.channel('admin-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'cv_drafts' }, soon).subscribe()
     return () => { window.clearTimeout(timer); supabase.removeChannel(channelSub) }
   }, [load])
 
@@ -481,6 +529,7 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
       groups[stageOf(order)].push(order)
       if (reasons.get(order.id)) groups.hoy.push(order)
       if (isNew(order)) groups.nuevos.push(order)
+      if (needsTexts(order)) groups.textos.push(order)
     }
     return groups
   }, [filtered, reasons, isNew])
@@ -540,7 +589,9 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
     if (move.kind === 'status' && move.confirm === 'paid' && !window.confirm(`¿Ya te llegó el pago de ${formatARS(order.total)} del pedido #${order.number}?`)) return
     const { error: moveError } = move.kind === 'status'
       ? await supabase.rpc('admin_set_order_status', { p_order: order.id, p_status: move.status, p_note: null })
-      : await supabase.rpc('admin_set_waiting', { p_order: order.id, p_waiting: move.waiting })
+      : move.kind === 'data'
+        ? await supabase.rpc('admin_set_data_received', { p_order: order.id, p_received: true })
+        : await supabase.rpc('admin_set_waiting', { p_order: order.id, p_waiting: move.waiting })
     if (moveError) { flash.show('error', errorMessage(moveError)); return }
     flash.show('ok', `Pedido #${order.number} pasado a "${label}".`)
     load()
@@ -575,7 +626,7 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
                   onDrop={(event) => { event.preventDefault(); drop(item.id) }}
                   className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 font-display text-xs font-bold transition-all ${active ? 'bg-ciruela text-white' : 'bg-white text-piedra hover:text-ciruela'} ${dragging && target ? 'ring-2 ring-whatsapp/60' : ''} ${over === item.id && target ? 'scale-105 bg-whatsapp text-white' : ''}`}>
                   {item.label}
-                  <span className={`min-w-5 rounded-full px-1.5 py-0.5 text-[11px] ${active ? 'bg-white/20' : item.id === 'hoy' && count ? 'bg-rosa text-white' : item.id === 'nuevos' ? 'bg-rosa text-white' : 'bg-papel text-piedra'}`}>{count}</span>
+                  <span className={`min-w-5 rounded-full px-1.5 py-0.5 text-[11px] ${active ? 'bg-white/20' : (item.id === 'hoy' || item.id === 'textos') && count ? 'bg-rosa text-white' : item.id === 'nuevos' ? 'bg-rosa text-white' : 'bg-papel text-piedra'}`}>{count}</span>
                 </button>
               )
             })}
@@ -597,7 +648,7 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
         <ul className="mt-4 grid gap-3 md:grid-cols-2">
           {pageOrders.map((order) => (
             <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} fresh={isNew(order)}
-              reason={stage === 'hoy' || searching ? reasons.get(order.id) ?? todayReason(order, isNew(order)) : null}
+              reason={searching ? reasons.get(order.id) ?? todayReason(order, isNew(order)) : stage === 'hoy' ? reasons.get(order.id) ?? todayReason(order, isNew(order)) : stage === 'textos' ? textsReason(order) : null}
               onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', order.id); setDragging(order) }}
               onChanged={load} />
           ))}

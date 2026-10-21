@@ -20,20 +20,22 @@ Horario: 20:00, como el resto de las publicaciones.
 | Mié 14/10 | Carrusel: titular de LinkedIn (ya programado) | Repost del carrusel de la **Expo** + sticker de cuenta regresiva "Expo Empleo · 28/10" | EXPO |
 | Jue 15/10 | Carrusel: consultoras (ya armado) | Historia de consultoras (ya armada) | CV |
 | Vie 16/10 | | Anuncio de la entrevista en Digitalizadas + link | |
-| Sáb 17/10 | **Reel R2 · ATS** ("Mando CV y nadie me llama") | Caja de preguntas (Digitalizadas) + encuesta "¿Vas a ir a la Expo Empleo?" (Sí / Quiero ir pero mi CV no está listo) | FILTRO · EXPO |
+| Sáb 17/10 | | Caja de preguntas (Digitalizadas) + encuesta "¿Vas a ir a la Expo Empleo?" (Sí / Quiero ir pero mi CV no está listo) | EXPO |
 | Dom 18/10 | Carrusel Digitalizadas (ya armado) | | |
-| Lun 19/10 | **Reel R1 · ¿Pongo que soy mamá?** | Respuestas a la caja de preguntas | LINKEDIN |
+| Lun 19/10 | | Respuestas a la caja de preguntas | |
 | Mar 20/10 | **Carrusel Expo 2:** "Qué decir en los 30 segundos frente a cada empresa" | Oferta "CV listo para la Expo" con fecha límite | EXPO |
-| Mié 21/10 | **Reel R3 · El error de poner todo** | Encuesta "En Digitalizadas hablamos de que LinkedIn es para todas" (ya armada) | CV |
-| Jue 22/10 | | **Último día** para pedir el CV con entrega normal antes de la Expo | EXPO |
-| Vie 23/10 | **Reel R4 · Tu titular es tu filtro ATS** | Testimonio + "te atiendo yo" | LINKEDIN |
+| Mié 21/10 | | Encuesta "En Digitalizadas hablamos de que LinkedIn es para todas" (ya armada) | CV |
+| Jue 22/10 | **Reel R2 · ATS** ("Mando CV y nadie me llama") | **Último día** para pedir el CV con entrega normal antes de la Expo | FILTRO · EXPO |
+| Vie 23/10 | | Testimonio + "te atiendo yo" | |
 | Sáb 24/10 | | Checklist "Qué llevar a la Expo" (3 historias) | EXPO |
-| Dom 25/10 | Carrusel: "Las 5 preguntas que te pueden hacer en la Expo (y cómo responderlas)" | | EXPO |
-| Lun 26/10 | **Reel R5 · LinkedIn es para todas** | "Todavía llegás: CV express en 24 hs" | AYUDA |
+| Dom 25/10 | Carrusel: "Las 5 preguntas que te pueden hacer en la Expo (y cómo responderlas)" + **Reel R1 · ¿Pongo que soy mamá?** | | EXPO · LINKEDIN |
+| Lun 26/10 | | "Todavía llegás: CV express en 24 hs" | EXPO |
 | Mar 27/10 | | "Mañana es la Expo": checklist final + cuenta regresiva | EXPO |
-| Mié 28/10 | | Día de la Expo: "¡Suerte hoy!" y, si vas, historias desde La Rural | |
+| Mié 28/10 | **Reel R3 · El error de poner todo** | Día de la Expo: "¡Suerte hoy!" y, si vas, historias desde La Rural | CV |
 | Jue 29/10 | Carrusel: "Fuiste a la Expo, ¿y ahora? Cómo hacer el seguimiento" | | CV |
-| Vie 30/10 | Reel R6 · Sección Servicios de LinkedIn (pendiente de edición) | | LINKEDIN |
+| Dom 1/11 | **Reel R4 · Tu titular es tu filtro ATS** | | LINKEDIN |
+| Mar 3/11 | **Reel R5 · LinkedIn es para todas** | | AYUDA |
+| Más adelante | Reel R6 · Sección Servicios de LinkedIn (pendiente de edición) | | LINKEDIN |
 
 LinkedIn personal: Post 1 el martes 20/10 y Post 2 el martes 27/10 (textos en `docs/contenido-digitalizadas.md`).
 
@@ -73,15 +75,15 @@ Escribime EXPO 👇
 
 ## Los reels: archivos listos para subir
 
-Cada reel tiene su video (1080×1920) y una portada con Valeria, el título y su nombre. Están guardados en la carpeta de la fecha en que se publican.
+Cada reel tiene su video (1080×1920) y una portada con Valeria, el título y su nombre. Están guardados en la carpeta de la fecha en que se publican. Las fechas esquivan los días que ya tienen un reel programado en Meta Business Suite (Ford 21/10, consultoras 24/10, McDonald's 27/10, Volkswagen 29/10, Coca-Cola 30/10 y Coto 31/10).
 
 | Fecha | Reel | Video | Portada | Duración |
 |---|---|---|---|---|
-| Sáb 17/10 | R2 · ATS | `public/social/reels/2026-10-17/reel-digitalizadas-r2-ats.mp4` | `public/social/reels/2026-10-17/portada-r2-ats.jpg` | 52 s |
-| Lun 19/10 | R1 · ¿Pongo que soy mamá? | `public/social/reels/2026-10-19/reel-digitalizadas-r1-mama.mp4` | `public/social/reels/2026-10-19/portada-r1-mama.jpg` | 29 s |
-| Mié 21/10 | R3 · El error de poner todo | `public/social/reels/2026-10-21/reel-digitalizadas-r3-error-cv.mp4` | `public/social/reels/2026-10-21/portada-r3-error-cv.jpg` | 51 s |
-| Vie 23/10 | R4 · Tu titular es tu filtro ATS | `public/social/reels/2026-10-23/reel-digitalizadas-r4-titular.mp4` | `public/social/reels/2026-10-23/portada-r4-titular.jpg` | 69 s |
-| Lun 26/10 | R5 · LinkedIn es para todas | `public/social/reels/2026-10-26/reel-digitalizadas-r5-para-todas.mp4` | `public/social/reels/2026-10-26/portada-r5-para-todas.jpg` | 48 s |
+| Jue 22/10 | R2 · ATS | `public/social/reels/2026-10-22/reel-digitalizadas-r2-ats.mp4` | `public/social/reels/2026-10-22/portada-r2-ats.jpg` | 52 s |
+| Dom 25/10 | R1 · ¿Pongo que soy mamá? | `public/social/reels/2026-10-25/reel-digitalizadas-r1-mama.mp4` | `public/social/reels/2026-10-25/portada-r1-mama.jpg` | 29 s |
+| Mié 28/10 | R3 · El error de poner todo | `public/social/reels/2026-10-28/reel-digitalizadas-r3-error-cv.mp4` | `public/social/reels/2026-10-28/portada-r3-error-cv.jpg` | 51 s |
+| Dom 1/11 | R4 · Tu titular es tu filtro ATS | `public/social/reels/2026-11-01/reel-digitalizadas-r4-titular.mp4` | `public/social/reels/2026-11-01/portada-r4-titular.jpg` | 69 s |
+| Mar 3/11 | R5 · LinkedIn es para todas | `public/social/reels/2026-11-03/reel-digitalizadas-r5-para-todas.mp4` | `public/social/reels/2026-11-03/portada-r5-para-todas.jpg` | 48 s |
 
 **Cómo publicarlos** (Meta Business Suite → Crear reel):
 1. Subí el video y en "Portada" elegí **Subir desde el dispositivo** con la portada del mismo día. El título queda dentro de la zona que se ve en la grilla del perfil.
@@ -91,7 +93,7 @@ Cada reel tiene su video (1080×1920) y una portada con Valeria, el título y su
 
 ## Textos de los reels (Instagram)
 
-**R2 · ATS** (sáb 17/10)
+**R2 · ATS** (jue 22/10)
 ```
 ¿Mandás CV y nadie te llama? 😩
 
@@ -104,7 +106,7 @@ Lo conté en mi entrevista en Digitalizadas 🎙️
 #ats #cv #busquedalaboral #empleo #recursoshumanos #trabajo
 ```
 
-**R1 · ¿Pongo que soy mamá?** (lun 19/10)
+**R1 · ¿Pongo que soy mamá?** (dom 25/10)
 ```
 ¿Ser mamá te juega en contra cuando buscás trabajo? 🤔
 
@@ -116,7 +118,7 @@ Me lo preguntaron en Digitalizadas: ¿se pone en LinkedIn? No hace falta. Si ten
 #linkedin #maternidad #mamasquetrabajan #empleo #cv #marcapersonal
 ```
 
-**R3 · El error de poner todo** (mié 21/10)
+**R3 · El error de poner todo** (mié 28/10)
 ```
 Tenés experiencia en mil cosas y tu CV no consigue entrevistas 😅
 
@@ -127,7 +129,7 @@ Gastronomía, atención al público, administración, emprendimiento… todo jun
 #cv #curriculum #empleo #busquedalaboral #cambioderubro
 ```
 
-**R4 · Titular = filtro ATS** (vie 23/10)
+**R4 · Titular = filtro ATS** (dom 1/11)
 ```
 ¿Tenés LinkedIn y no te escribe ningún reclutador? 👀
 
@@ -140,7 +142,7 @@ Lo charlamos con Sol en Digitalizadas 🎙️
 #linkedin #marcapersonal #ats #empleo #titular
 ```
 
-**R5 · LinkedIn es para todas** (lun 26/10)
+**R5 · LinkedIn es para todas** (mar 3/11)
 ```
 "LinkedIn es para los de corporativo" ❌
 
@@ -196,7 +198,7 @@ Si es tu primer trabajo, el Pack Primer Empleo está a $20.000.
 | Desde | Anuncio | Por día | Objetivo |
 |---|---|---|---|
 | 14/10 al 27/10 | Carrusel de la Expo Empleo (publicación existente) | US$ 8 | Mensajes · CABA y GBA, 18 a 35 años |
-| 17/10 | Reel R2 · ATS | US$ 8 | Mensajes |
-| 19/10 | Reel R1 · Mamá | US$ 7 | Mensajes |
+| 22/10 | Reel R2 · ATS | US$ 8 | Mensajes |
+| 25/10 | Reel R1 · Mamá | US$ 7 | Mensajes |
 
-A los 4 días, el reel con el costo por mensaje más alto le pasa su presupuesto al otro. El 28/10 se apaga la Expo y entra R5 como remarketing (personas que vieron más del 50% de R1 o R2).
+A los 4 días, el reel con el costo por mensaje más alto le pasa su presupuesto al otro. El 28/10 se apaga la Expo; desde el 3/11 entra R5 como remarketing (personas que vieron más del 50% de R1 o R2).

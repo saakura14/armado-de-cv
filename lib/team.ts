@@ -19,12 +19,17 @@ export type TeamTask = {
   letter: string | null
   notes: string | null
   due_on: string | null
+  /** Vale marked it as urgent: a small lightning bolt in his list. */
+  urgent?: boolean
   status: TaskStatus
   rate: number
   assigned_at: string
   started_at: string | null
   finished_at: string | null
   design_url: string | null
+  /** How far he got: per text, parts copied to Canva of the total, and when he last moved (his work mode reports it). */
+  progress?: Record<string, [number, number]>
+  progress_at?: string | null
   /** The payment that covered this CV (null = still to be paid). */
   paid_in: string | null
 }
@@ -32,10 +37,12 @@ export type TeamTask = {
 /** "pago" closes the batch (the counter starts again); "adelanto" is money ahead, discounted from the current batch. */
 export type TeamPayment = { id: string; member_id: string; kind: 'pago' | 'adelanto'; amount: number; paid_on: string; note: string | null; created_at: string; packs: number | null; settled_in: string | null }
 
-export const TASK_SELECT = 'id, member_id, order_id, order_item_id, order_number, client_name, pack_name, cv_modern, cv_ats, has_letter, letter, notes, due_on, status, rate, assigned_at, started_at, finished_at, design_url, paid_in'
+export const TASK_SELECT = 'id, member_id, order_id, order_item_id, order_number, client_name, pack_name, cv_modern, cv_ats, has_letter, letter, notes, due_on, urgent, status, rate, assigned_at, started_at, finished_at, design_url, paid_in, progress, progress_at'
 
 /** Only the CV packs are made by the team (LinkedIn, platforms, sessions and corrections stay with Vale). */
-export const TEAM_PACKS = ['cv-simple', 'cv-medium', 'cv-premium']
+export const TEAM_PACKS = ['cv-primer-empleo', 'cv-simple', 'cv-medium', 'cv-premium']
+/** Packs with only the ATS CV (no modern design): the first job pack. */
+export const ATS_ONLY_PACKS = ['cv-primer-empleo']
 /** Packs that come with a cover letter. */
 export const PACKS_WITH_LETTER = ['cv-medium', 'cv-premium']
 
@@ -47,13 +54,13 @@ export const TASK_STATUS: Record<TaskStatus, { label: string; tone: string }> = 
 
 const time = (value: string | null) => (value ? new Date(value).getTime() : 0)
 
-/** The batch in course: finished CVs not covered by a payment yet, what they add up to, and what is owed after unsettled advances. */
+/** The batch in course: finished CVs not covered by a payment yet, what they add up to, and what is owed after unsettled advances (or, when the advances are bigger, what the member still owes: each finished CV takes its rate off). */
 export function batchStats(member: Pick<TeamMember, 'batch_size'>, tasks: TeamTask[], payments: TeamPayment[]) {
   const unpaid = tasks.filter((task) => task.status === 'terminado' && !task.paid_in).sort((a, b) => time(a.finished_at) - time(b.finished_at))
   const earned = unpaid.reduce((sum, task) => sum + task.rate, 0)
   const advances = payments.filter((payment) => payment.kind === 'adelanto' && !payment.settled_in).reduce((sum, payment) => sum + payment.amount, 0)
   const lastPayment = payments.filter((payment) => payment.kind === 'pago').sort((a, b) => time(b.created_at) - time(a.created_at))[0]
-  return { count: unpaid.length, size: member.batch_size, unpaid, earned, advances, owed: Math.max(earned - advances, 0), lastPayment: lastPayment ?? null }
+  return { count: unpaid.length, size: member.batch_size, unpaid, earned, advances, owed: Math.max(earned - advances, 0), debt: Math.max(advances - earned, 0), lastPayment: lastPayment ?? null }
 }
 
 export type MonthRow = { key: string; label: string; packs: number; earned: number; paid: number }
@@ -72,9 +79,9 @@ export function monthlyStats(tasks: TeamTask[], payments: TeamPayment[]): MonthR
   return [...rows.values()].sort((a, b) => b.key.localeCompare(a.key))
 }
 
-/** Pending first by due date (the ones without date at the end), finished ones newest first. */
+/** Pending: the ones Vale marked urgent first, then by due date (the ones without date at the end), finished ones newest first. */
 export function sortTasks(tasks: TeamTask[]) {
-  const pending = tasks.filter((task) => task.status !== 'terminado').sort((a, b) => (a.due_on ?? '9999').localeCompare(b.due_on ?? '9999') || time(a.assigned_at) - time(b.assigned_at))
+  const pending = tasks.filter((task) => task.status !== 'terminado').sort((a, b) => Number(!!b.urgent) - Number(!!a.urgent) || (a.due_on ?? '9999').localeCompare(b.due_on ?? '9999') || time(a.assigned_at) - time(b.assigned_at))
   const finished = tasks.filter((task) => task.status === 'terminado').sort((a, b) => time(b.finished_at) - time(a.finished_at))
   return { pending, finished }
 }
