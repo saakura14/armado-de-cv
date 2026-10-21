@@ -2,10 +2,11 @@
 // campaign's status and daily budget, and the dólar cripto of the day (dolarapi.com; she buys the dollars with ARQ,
 // which follows it) to compare spend with sales in pesos. On Mondays ({ weekly: true }) it also writes the weekly
 // review (what to pause or lower by the rules of her savings plan, and the traffic light: how much to spend per day given
-// the sales that came from ads) and sends it to Vale as a push notification. On Thursdays ({ brake: true }) it checks the
-// week so far and warns her if half the weekly cap is gone and the ads are not selling. Every run also adds up the spend
+// the sales that came from ads) and sends it to Vale as a push notification. Her sales are strong Monday to Wednesday, so on
+// Sunday night ({ boost: true }) it reminds her to raise the ads and on Thursdays ({ brake: true }) to lower them (and
+// warns her if half the weekly cap is gone and the ads are not selling). Every run also adds up the spend
 // since Meta's last charge and warns her once it reaches the balance alert (US$75).
-// Called by pg_cron (x-cron-key) every 3 hours, on Mondays and Thursdays, and from the panel (admin session, up to 90 days back).
+// Called by pg_cron (x-cron-key) every 3 hours, on Mondays, Thursdays and Sunday nights, and from the panel (admin session, up to 90 days back).
 // Secrets: META_ADS_TOKEN (a System User token with ads_read) and optionally META_AD_ACCOUNT.
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.57.4'
 import webpush from 'npm:web-push@3.6.7'
@@ -49,6 +50,9 @@ async function rules(admin: SupabaseClient): Promise<Rules> {
 const LEVELS = [11, 8, 5]
 const needed = (level: number, targetPerSale: number) => Math.ceil((level * 7) / targetPerSale)
 const LIGHT: Record<number, string> = { 11: '🟢', 8: '🟡', 5: '🔴' }
+// Her sales are strong Monday to Wednesday and drop from Thursday (data of October 2026): the weekly cap goes 70% to
+// Sunday night–Wednesday and 30% to Thursday–Saturday. With US$80 a week that is 14 and 8 a day, all campaigns together.
+const rhythmOf = (plan: Rules) => ({ strong: Math.round((plan.weeklyCap * 0.7) / 4), weak: Math.round((plan.weeklyCap * 0.3) / 3) })
 
 /** Every page of a Graph API list. */
 async function graphList<T>(first: string, token: string): Promise<T[]> {
@@ -82,7 +86,7 @@ Deno.serve(async (request) => {
   }
   if (!allowed) return json(401, { error: 'No autorizado' })
 
-  const body = await request.json().catch(() => ({})) as { days?: number; weekly?: boolean; review?: boolean; brake?: boolean }
+  const body = await request.json().catch(() => ({})) as { days?: number; weekly?: boolean; review?: boolean; brake?: boolean; boost?: boolean }
   const days = Math.min(Math.max(Math.round(Number(body.days) || 3), 1), 90)
   const today = arDate(Date.now())
 
@@ -115,6 +119,8 @@ Deno.serve(async (request) => {
   const review = body.weekly || body.review ? await weeklyReview(admin, today, Boolean(token), body.weekly === true, plan) : null
   // Thursday: the week so far.
   const brake = body.brake ? await midweekBrake(admin, today, plan) : null
+  // Sunday night: the strong days start tomorrow.
+  if (body.boost) { const { strong } = rhythmOf(plan); await pushToAdmins(admin, '🟢 Mañana arrancan tus días fuertes', `Lunes a miércoles es cuando más vendés: subí a ${usd(strong)} por día entre todas las campañas, la mayor parte en la más barata por conversación. El jueves te aviso para bajar.`, '/admin#analisis') }
   // Every run: how much was spent since Meta's last charge, with a notification once it reaches the alert.
   const balance = await balanceCheck(admin, plan)
 
@@ -231,12 +237,12 @@ async function weeklyReview(admin: SupabaseClient, today: string, connected: boo
 
   const advice: Advice[] = []
   if (!knowsBudgets) advice.push({ kind: 'conectar', text: 'Meta no está conectado al panel: la revisión usa el gasto cargado a mano y no ve los presupuestos. Conectalo desde Análisis.' })
-  if (budget > cap) {
+  // The review comes on Monday, a strong day: the budgets may sum up to the strong-day level (the weak days balance it).
+  const { strong, weak } = rhythmOf(plan)
+  if (budget > strong) {
     const worst = active.filter((row) => row.budget).sort((a, b) => (b.perConversation ?? Infinity) - (a.perConversation ?? Infinity))[0]
-    advice.push({ kind: 'bajar', text: `Las campañas activas suman ${usd(budget)} por día y tu tope es ${usd(cap)}: bajá ${usd(budget - cap)}${worst ? `, empezando por "${worst.name}"` : ''}.` })
+    advice.push({ kind: 'bajar', text: `Las campañas activas suman ${usd(budget)} por día y para lunes a miércoles el tope es ${usd(strong)} (${usd(weak)} de jueves a sábado): bajá ${usd(budget - strong)}${worst ? `, empezando por "${worst.name}"` : ''}.` })
   }
-  // The week's total cap, looking ahead: what the active budgets would spend in 7 days.
-  else if (budget * 7 > plan.weeklyCap) advice.push({ kind: 'bajar', text: `Con ${usd(budget)} por día se van ${usd(budget * 7)} en la semana, más que tu tope de ${usd(plan.weeklyCap)}: bajá la campaña más cara.` })
   for (const row of active) {
     if (row.spend >= 5 && row.conversations === 0) advice.push({ kind: 'pausar', text: `Pausá "${row.name}": gastó ${usd(row.spend)} en la semana sin conversaciones.` })
     else if (row.perConversation !== null && row.spend >= 3 && row.perConversation > plan.maxPerConversation) {
@@ -266,7 +272,7 @@ async function weeklyReview(admin: SupabaseClient, today: string, connected: boo
     else if (back < 2) advice.push({ kind: 'ventas', text: `Cada $1.000 en anuncios trajo ${ars(back * 1000)} en ventas: es poco margen. No subas presupuesto; priorizá cerrar las conversaciones que ya tenés.` })
     else advice.push({ kind: 'ok', text: `Cada $1.000 en anuncios trajo ${ars(back * 1000)} en ventas (${sold} ${sold === 1 ? 'venta' : 'ventas'} en total).` })
   }
-  if (knowsBudgets && !advice.some((item) => item.kind === 'bajar' || item.kind === 'pausar' || item.kind === 'subir')) advice.unshift({ kind: 'ok', text: `Presupuestos en orden: ${usd(budget)} por día de un tope de ${usd(cap)}.` })
+  if (knowsBudgets && !advice.some((item) => item.kind === 'bajar' || item.kind === 'pausar' || item.kind === 'subir')) advice.unshift({ kind: 'ok', text: `Presupuestos en orden: ${usd(budget)} por día de un tope de ${usd(strong)} para lunes a miércoles.` })
 
   // The traffic light goes first: it is the decision of the week.
   const light = trafficLight(sales ?? [], plan)
@@ -291,7 +297,8 @@ function trafficLight(sales: { total: number; origin: string | null }[], plan: R
   return { adSales, level, text: `${LIGHT[level] ?? '🟡'} Semáforo: ${counted} (para US$${LEVELS[0]} por día hacen falta ${needed(LEVELS[0], plan.targetPerSale)}, para US$${LEVELS[1]}, ${needed(LEVELS[1], plan.targetPerSale)}): ${advice}.` }
 }
 
-/** Thursday: the week so far. If more than half of the weekly cap is gone and the ads sold too little for it, warn her. */
+/** Thursday: the weak days start, so always the reminder to lower the ads until Sunday night; plus, if more than half of
+ *  the weekly cap is gone and the ads sold too little for it, that warning too. */
 async function midweekBrake(admin: SupabaseClient, today: string, plan: Rules) {
   const monday = arDate(Date.now() - ((new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7) * DAY)
   const [{ data: rows }, { count }] = await Promise.all([
@@ -301,9 +308,11 @@ async function midweekBrake(admin: SupabaseClient, today: string, plan: Rules) {
   const spent = (rows ?? []).reduce((sum, row) => sum + Number(row.spend), 0)
   const adSales = count ?? 0
   const perSale = adSales ? spent / adSales : null
-  if (spent < plan.weeklyCap / 2 || (perSale !== null && perSale <= plan.targetPerSale)) return { spent, adSales, warned: false }
-  await pushToAdmins(admin, '🟡 Freno de anuncios', `Desde el lunes van ${usd(spent)} de ${usd(plan.weeklyCap)} y ${adSales} ${adSales === 1 ? 'venta' : 'ventas'} por anuncio${perSale !== null ? ` (${usd(perSale)} cada una)` : ''}. Bajá la campaña más cara hasta el lunes y cargá el origen de cada venta.`, '/admin#analisis')
-  return { spent, adSales, warned: true }
+  const { weak } = rhythmOf(plan)
+  const overspent = spent >= plan.weeklyCap / 2 && (perSale === null || perSale > plan.targetPerSale)
+  const extra = overspent ? ` Ojo: van ${usd(spent)} de ${usd(plan.weeklyCap)} con ${adSales} ${adSales === 1 ? 'venta' : 'ventas'} por anuncio: pausá la más cara.` : ''
+  await pushToAdmins(admin, '🔵 Jueves: modo fin de semana', `De jueves a sábado vendés menos: bajá a ${usd(weak)} por día entre todas las campañas. El domingo te aviso para subir.${extra}`, '/admin#analisis')
+  return { spent, adSales, warned: overspent }
 }
 
 async function pushToAdmins(admin: SupabaseClient, title: string, body: string, url: string) {
