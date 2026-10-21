@@ -99,9 +99,10 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
     // The member gets a notification on their phone. The order moves to "En proceso" in the database (team_task_starts_order).
     supabase.functions.invoke('notify-admin', { body: { task_id: (data as { id: string }).id, kind: 'task_assigned' } }).then(() => undefined, () => undefined)
     // The texts are now with the team: Claude's draft and the client's files go away (and a queued one isn't written).
-    const { data: draft } = await supabase.from('cv_drafts').select('files').eq('order_item_id', item.id).maybeSingle()
+    const { data: draft } = await supabase.from('cv_drafts').select('files, feedback_files').eq('order_item_id', item.id).maybeSingle()
     if (draft) {
-      if ((draft.files as string[]).length) await supabase.storage.from('cv-sources').remove(draft.files as string[])
+      const stored = [...(draft.files as string[]), ...((draft.feedback_files as string[] | null) ?? [])]
+      if (stored.length) await supabase.storage.from('cv-sources').remove(stored)
       await supabase.from('cv_drafts').delete().eq('order_item_id', item.id)
     }
     onSaved()
@@ -166,6 +167,8 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
   const [ats, setAts] = useState('')
   const [letter, setLetter] = useState('')
   const [feedback, setFeedback] = useState('')
+  // Screenshots that go with the correction (pasted or uploaded): stored paths plus a local preview of each.
+  const [shots, setShots] = useState<{ path: string; preview: string }[]>([])
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
 
@@ -212,12 +215,37 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
     if (draft) await supabase.from('cv_drafts').update({ files: rest }).eq('order_item_id', item.id)
   }
 
+  async function addShots(list: File[]) {
+    const images = list.filter((file) => file.type.startsWith('image/'))
+    if (!images.length) return
+    setBusy(true)
+    const added: { path: string; preview: string }[] = []
+    for (const [index, file] of images.entries()) {
+      const ext = (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg')
+      const path = `${order.id}/${item.id}/correccion-${Date.now()}-${index}.${ext}`
+      const { error } = await supabase.storage.from('cv-sources').upload(path, file, { contentType: file.type })
+      if (error) { flash.show('error', errorMessage(error)); continue }
+      added.push({ path, preview: URL.createObjectURL(file) })
+    }
+    setShots((current) => [...current, ...added])
+    setBusy(false)
+  }
+
+  async function removeShot(path: string) {
+    await supabase.storage.from('cv-sources').remove([path])
+    setShots((current) => current.filter((shot) => shot.path !== path))
+  }
+
   // From scratch with the material (first time, or "Rehacer desde cero").
   async function request() {
     setBusy(true)
+    // Starting over: screenshots of earlier corrections aren't needed anymore.
+    const { data: before } = await supabase.from('cv_drafts').select('feedback_files').eq('order_item_id', item.id).maybeSingle()
+    const old = (before?.feedback_files as string[] | null) ?? []
+    if (old.length) await supabase.storage.from('cv-sources').remove(old)
     const { error } = await supabase.from('cv_drafts').upsert({
       order_item_id: item.id, order_id: order.id, source_text: source.trim(), target_job: target.trim() || null, files,
-      has_letter: !atsOnly && hasLetter, ats_only: atsOnly, status: 'pedido', error: null, feedback: null, requested_at: new Date().toISOString(),
+      has_letter: !atsOnly && hasLetter, ats_only: atsOnly, status: 'pedido', error: null, feedback: null, feedback_files: [], requested_at: new Date().toISOString(),
     })
     setBusy(false)
     if (error) { flash.show('error', errorMessage(error)); return }
@@ -230,7 +258,11 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
   // Claude keeps what's right (and her own edits) and changes only what she points out.
   async function correct() {
     setBusy(true)
-    const { error } = await supabase.from('cv_drafts').update({ ...texts, feedback: feedback.trim(), status: 'corregir', error: null, requested_at: new Date().toISOString() }).eq('order_item_id', item.id)
+    // The screenshots of a previous correction are done: they go away so only the new ones reach Claude.
+    const { data: before } = await supabase.from('cv_drafts').select('feedback_files').eq('order_item_id', item.id).maybeSingle()
+    const old = ((before?.feedback_files as string[] | null) ?? []).filter((path) => !shots.some((shot) => shot.path === path))
+    if (old.length) await supabase.storage.from('cv-sources').remove(old)
+    const { error } = await supabase.from('cv_drafts').update({ ...texts, feedback: feedback.trim() || 'Mirá las imágenes que te adjunté.', feedback_files: shots.map((shot) => shot.path), status: 'corregir', error: null, requested_at: new Date().toISOString() }).eq('order_item_id', item.id)
     setBusy(false)
     if (error) { flash.show('error', errorMessage(error)); return }
     onSaved()
@@ -298,9 +330,24 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
               {!atsOnly && hasLetter && <Field label="Carta de presentación"><textarea value={letter} onChange={(event) => setLetter(event.target.value)} rows={8} className={inputClass} /></Field>}
               <div className="rounded-2xl border border-rosa/30 bg-petalo-wash/40 p-3">
                 <Field label="¿Algo está mal? Decile a Claude qué corregir">
-                  <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} rows={3} placeholder="Ej.: en el ATS sacá el trabajo de niñera, el título tiene que ser Administrativa contable, la carta más corta." className={inputClass} />
+                  <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} onPaste={(event) => { const pasted = Array.from(event.clipboardData.files); if (pasted.some((file) => file.type.startsWith('image/'))) { event.preventDefault(); addShots(pasted) } }} rows={3} placeholder="Ej.: en el ATS sacá el trabajo de niñera, el título tiene que ser Administrativa contable, la carta más corta. También podés pegar una captura acá (Ctrl+V)." className={inputClass} />
                 </Field>
-                <p className="mt-1 text-xs text-piedra">Corrige solo lo que le digas y respeta los cambios que hiciste a mano.</p>
+                {shots.length > 0 && (
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {shots.map((shot) => (
+                      <li key={shot.path} className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={shot.preview} alt="Captura para la corrección" className="h-20 w-20 rounded-xl border border-line object-cover" />
+                        <button type="button" onClick={() => removeShot(shot.path)} className="absolute -right-1.5 -top-1.5 rounded-full bg-ciruela p-0.5 text-white" aria-label="Quitar imagen"><X className="h-3.5 w-3.5" /></button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <label className="mt-2 inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-rosa/40 bg-white px-3.5 font-display text-xs font-bold text-rosa-deep hover:bg-petalo-wash">
+                  <Upload className="h-3.5 w-3.5" />Subir imagen
+                  <input type="file" multiple accept="image/*" className="sr-only" onChange={(event) => { addShots(Array.from(event.target.files ?? [])); event.target.value = '' }} />
+                </label>
+                <p className="mt-1 text-xs text-piedra">Corrige solo lo que le digas y respeta los cambios que hiciste a mano. Las imágenes le muestran qué está mal.</p>
               </div>
               <details className="rounded-2xl border border-line px-3 py-2">
                 <summary className="cursor-pointer text-sm font-semibold text-ink">Material del cliente</summary>
@@ -316,7 +363,7 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
           {flash.node && <div className="mb-2">{flash.node}</div>}
           {review ? (
             <div className="grid gap-2 sm:grid-cols-2">
-              <Button variant="secondary" busy={busy} disabled={!feedback.trim()} onClick={correct}><Sparkles className="h-4 w-4" />Pedir corrección</Button>
+              <Button variant="secondary" busy={busy} disabled={!feedback.trim() && !shots.length} onClick={correct}><Sparkles className="h-4 w-4" />Pedir corrección</Button>
               <Button busy={busy} disabled={!ats.trim() || (!atsOnly && !modern.trim())} onClick={approve}><Check className="h-4 w-4" />Aprobar y asignar</Button>
             </div>
           ) : (
