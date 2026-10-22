@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Check, Copy, FileText, Sparkles, Upload, X } from 'lucide-react'
 import type { Order, OrderItem } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
-import { Button, Field, inputClass, useFlash } from './ui'
+import { Button, Field, inputClass, useBackdropClose, useFlash } from './ui'
 
 /** The packs that include the LinkedIn profile. */
 export const LINKEDIN_PACKS = ['linkedin', 'cv-premium']
@@ -30,6 +30,7 @@ const fileLabel = (path: string) => path.split('/').pop()!.replace(/^\d+-/, '')
  * Claude wrote it, each block to review, fix and copy into LinkedIn.
  */
 function LinkedInDialog({ order, item, firstName, status, onClose, onSaved }: { order: Order; item: OrderItem; firstName: string; status: LinkedInState['status'] | undefined; onClose: () => void; onSaved: () => void }) {
+  const backdrop = useBackdropClose(onClose)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [source, setSource] = useState('')
@@ -166,8 +167,8 @@ function LinkedInDialog({ order, item, firstName, status, onClose, onSaved }: { 
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="li-title" onClick={onClose}>
-      <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-3xl sm:rounded-[28px]" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="li-title" {...backdrop}>
+      <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-3xl sm:rounded-[28px]">
         <div className="flex items-start justify-between gap-4 bg-ciruela px-5 py-4 text-white sm:px-7">
           <div>
             <p id="li-title" className="flex items-center gap-2 font-display text-lg font-bold"><Sparkles className="h-5 w-5" />{review ? 'Revisá el LinkedIn' : 'LinkedIn con Claude'}</p>
