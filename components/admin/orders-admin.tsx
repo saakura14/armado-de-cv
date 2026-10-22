@@ -3,14 +3,14 @@
 import { SaleItemsEditor, useSaleCatalog } from './sale-items'
 import type { SaleItem } from '@/lib/whatsapp-sale'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Inbox, Link2, Palette, Pencil, RefreshCw, Hourglass, Trash2, Video } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Copy, ExternalLink, FileText, Link2, Palette, Pencil, RefreshCw, Hourglass, Trash2, Video } from 'lucide-react'
 import { useHideMoney } from '@/lib/hide-money'
 import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, STATUS, formatDate, pendingSessions, type Order, type OrderStatus } from '@/lib/orders'
-import { deliveryDeadline, formatDue } from '@/lib/dashboard'
-import { STAGES, kindsOf, missingData, moveTo, needsTexts, sortForStage, stageOf, teamState, textsReason, toStage, todayReason, type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
+import { deliveryDeadline, formatDue, teamDueOn } from '@/lib/dashboard'
+import { STAGES, kindsOf, moveTo, needsTexts, sortForStage, stageOf, teamState, textsReason, toStage, todayReason, type Kind, type LegacyFilter, type Reason, type Stage } from '@/lib/order-stages'
 import { DeadlineChip } from './dashboard-admin'
 import { OrderLinkDialog } from './order-link-dialog'
 import { TeamRow, type DraftState, type OrderTask } from './assign-task'
@@ -18,7 +18,7 @@ import { LinkedInRow, type LinkedInState } from './linkedin-draft'
 
 // The admin also sees every Ualá checkout opened for the order (buyers can't read that table).
 type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null; team_tasks?: OrderTask[]; cv_drafts?: DraftState[]; linkedin_drafts?: LinkedInState[] }
-const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, started_at, team_members(name)), cv_drafts(order_item_id, status, error), linkedin_drafts(order_item_id, status, error), sessions(id, title, status, scheduled_at)`
+const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, started_at, due_on, team_members(name)), cv_drafts(order_item_id, status, error), linkedin_drafts(order_item_id, status, error), sessions(id, title, status, scheduled_at)`
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, inputClass, useFlash } from './ui'
 
@@ -211,17 +211,6 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
     onChanged()
   }
 
-  // The clock starts when Vale has everything from the customer; "faltan datos" takes it back to zero.
-  async function setDataReceived(received: boolean) {
-    if (!received && !window.confirm(`¿Todavía te faltan datos del pedido #${order.number}? El plazo vuelve a cero y arranca cuando marques "Ya tengo los datos".`)) return
-    setBusy('data')
-    const { error } = await supabase.rpc('admin_set_data_received', { p_order: order.id, p_received: received })
-    setBusy('')
-    if (error) { flash.show('error', errorMessage(error)); return }
-    flash.show('ok', received ? 'Listo: el plazo de entrega arranca hoy.' : 'Plazo frenado hasta que tengas los datos.')
-    onChanged()
-  }
-
   // A sale loaded twice by mistake: deleting it also takes it out of the metrics. Typing the number is the approval.
   async function deleteSale() {
     const typed = window.prompt(`Eliminar el pedido #${order.number} (${name}, ${formatARS(order.total)}) para siempre: sale de las métricas y no se puede deshacer.\n\nSi es una venta repetida, escribí ${order.number} para confirmar.`)
@@ -284,14 +273,13 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
   // A 1:1 session: its own product, or the Meet feedback of the vocational test.
   const session = order.order_items.some((item) => item.products?.delivery === 'session' || item.extras.some((extra) => extra.group_id === 'devolucion'))
   const deadline = service && (order.status === 'paid' || order.status === 'in_progress') ? deliveryDeadline(order) : null
-  const noData = missingData(order)
   const nextSession = pendingSessions(order)[0]
   // Ready-made message for the next step of this order.
   const template = order.status === 'pending_payment'
     ? { label: 'Recordar el pago', text: `¡Hola ${firstName}! Vi tu pedido #${order.number} (${products}) por ${formatARS(order.total)}. ¿Pudiste hacer la transferencia? Acá tenés los datos para pagar: https://armadodecv.com/cuenta/pedido/${order.id}\nCuando transfieras, mandame el comprobante por acá y arranco. Si tenés alguna duda, te ayudo.` }
     : service && (order.status === 'paid' || order.status === 'in_progress')
-      // Ask for the data while it's missing; after that, a plain WhatsApp button (Vale writes to them herself).
-      ? noData ? { label: 'Pedir los datos', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, pasame tu CV actual (si tenés) y contame a qué puesto o rubro apuntás. Apenas tenga todo, empieza a correr el plazo de entrega.` } : null
+      // Before starting, ask for the data; after that, a plain WhatsApp button (Vale writes to them herself).
+      ? order.status === 'paid' && !(order.team_tasks ?? []).length ? { label: 'Pedir los datos', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, pasame tu CV actual (si tenés) y contame a qué puesto o rubro apuntás.` } : null
       : session && (order.status === 'paid' || order.status === 'in_progress')
         ? { label: 'Coordinar la sesión', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 ¿Qué días y horarios te quedan cómodos para la sesión por Google Meet?` }
       // CV + session: once the CV is delivered, the session comes next.
@@ -334,7 +322,6 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
         </div>
         <p className="shrink-0 font-display text-lg font-extrabold text-ciruela">{money(order.total)}</p>
       </div>
-      {noData && <p className="mt-2 flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-papel px-3 py-1 font-display text-xs font-bold text-piedra"><Inbox className="h-3.5 w-3.5" />Faltan los datos</span><span className="text-xs text-piedra">El plazo arranca cuando tengas todo</span></p>}
       {deadline && <p className="mt-2 flex flex-wrap items-center gap-2"><DeadlineChip deadline={deadline} /><span className="text-xs text-piedra">{deadline.waiting ? `Plazo en pausa desde el ${formatDate(order.waiting_since!)}` : `Entregar el ${formatDue(deadline.due)}${deadline.express ? ' · Express' : ''}`}</span></p>}
       {order.status === 'pending_payment' && <UnpaidSince createdAt={order.created_at} />}
 
@@ -400,10 +387,7 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
         {(order.status === 'pending_payment' || order.status === 'payment_review') && (order.receipt_path
           ? <Button variant="success" className={action} busy={busy === 'paid'} onClick={() => setStatus('paid')}>Aprobar pago</Button>
           : <Button variant="success" className={action} busy={busy === 'paid'} onClick={approveOutsideWeb}>Me llegó el pago</Button>)}
-        {order.status === 'paid' && (noData
-          ? <Button variant="success" className={action} busy={busy === 'data'} onClick={() => setDataReceived(true)}>Ya tengo los datos</Button>
-          : <Button className={action} busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Pasar a En proceso</Button>)}
-        {order.status === 'in_progress' && noData && <Button variant="success" className={action} busy={busy === 'data'} onClick={() => setDataReceived(true)}>Ya tengo los datos</Button>}
+        {order.status === 'paid' && <Button className={action} busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Pasar a En proceso</Button>}
         {order.status === 'in_progress' && <Button className={action} busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>{service && session ? 'Marcar CV entregado' : 'Marcar entregado'}</Button>}
         {order.status === 'cancelled' && <Button variant="secondary" className={action} busy={busy === 'pending_payment'} onClick={() => setStatus('pending_payment')}>Reabrir</Button>}
         {(templateLink ?? whatsapp) && (
@@ -437,7 +421,6 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
             {template && whatsapp && <a href={whatsapp} onClick={(event) => openBusinessWhatsapp(event, whatsapp)} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 py-2 font-display text-sm font-bold text-ciruela"><WhatsAppIcon className="h-4 w-4" />Escribir sin mensaje</a>}
             {/* Fallback when the device opens the personal WhatsApp: copy and paste it in WhatsApp Business. */}
             <Button variant="secondary" onClick={() => copyMessage(template?.text ?? `¡Hola ${firstName}! Te escribo por tu pedido #${order.number} de Armado de CV.`)}><Copy className="h-4 w-4" />Copiar mensaje{phone ? ' y número' : ''}</Button>
-            {deadline && !order.waiting_since && order.status === 'paid' && !(order.team_tasks ?? []).length && <Button variant="secondary" busy={busy === 'data'} onClick={() => setDataReceived(false)}><Inbox className="h-4 w-4" />Todavía faltan datos</Button>}
             {order.status !== 'cancelled' && order.status !== 'delivered' && <Button variant="danger" busy={busy === 'cancelled'} onClick={() => setStatus('cancelled')}>Cancelar pedido</Button>}
             {order.payment_method !== 'card' && <Button variant="danger" busy={busy === 'delete'} onClick={deleteSale}><Trash2 className="h-4 w-4" />Eliminar venta repetida</Button>}
           </div>
@@ -503,6 +486,14 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
     setError(loadError ? errorMessage(loadError) : '')
     const list = (data as AdminOrder[] | null) ?? []
     setOrders(list)
+    // The team's date follows the order's (one business day before it is due), so their list keeps the same priority as hers.
+    for (const order of list) {
+      if (order.status !== 'paid' && order.status !== 'in_progress') continue
+      const due = teamDueOn(order)
+      for (const task of order.team_tasks ?? []) {
+        if (task.status !== 'terminado' && due && task.due_on !== due) await supabase.from('team_tasks').update({ due_on: due }).eq('id', task.id)
+      }
+    }
     const ids = [...new Set(list.flatMap((order) => (order.user_id ? [order.user_id] : [])))]
     if (ids.length) {
       const { data: profiles } = await supabase.from('profiles').select('id, email, full_name, phone').in('id', ids)
@@ -591,9 +582,7 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
     if (move.kind === 'status' && move.confirm === 'paid' && !window.confirm(`¿Ya te llegó el pago de ${formatARS(order.total)} del pedido #${order.number}?`)) return
     const { error: moveError } = move.kind === 'status'
       ? await supabase.rpc('admin_set_order_status', { p_order: order.id, p_status: move.status, p_note: null })
-      : move.kind === 'data'
-        ? await supabase.rpc('admin_set_data_received', { p_order: order.id, p_received: true })
-        : await supabase.rpc('admin_set_waiting', { p_order: order.id, p_waiting: move.waiting })
+      : await supabase.rpc('admin_set_waiting', { p_order: order.id, p_waiting: move.waiting })
     if (moveError) { flash.show('error', errorMessage(moveError)); return }
     flash.show('ok', `Pedido #${order.number} pasado a "${label}".`)
     load()

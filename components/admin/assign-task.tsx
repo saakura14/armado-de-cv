@@ -2,15 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Check, FileText, Sparkles, Upload, Users, X } from 'lucide-react'
-import { deliveryDeadline, hasExpress } from '@/lib/dashboard'
-import { isDayOff } from '@/lib/holidays'
+import { hasExpress, teamDueOn } from '@/lib/dashboard'
 import type { Order, OrderItem } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { ATS_ONLY_PACKS, PACKS_WITH_LETTER, TASK_STATUS, TEAM_PACKS, type TaskStatus, type TeamMember } from '@/lib/team'
 import { TaskStart } from './task-start'
 import { Button, Field, inputClass, useFlash } from './ui'
 
-export type OrderTask = { id: string; order_item_id: string; status: TaskStatus; started_at: string | null; team_members: { name: string } | { name: string }[] | null }
+export type OrderTask = { id: string; order_item_id: string; status: TaskStatus; started_at: string | null; due_on?: string | null; team_members: { name: string } | { name: string }[] | null }
 /** "Textos con Claude": where each pack's texts are (the scheduled task on Vale's computer writes them). */
 export type DraftState = { order_item_id: string; status: 'pedido' | 'generando' | 'corregir' | 'listo' | 'error'; error: string | null }
 type Draft = { source_text: string; target_job: string | null; files: string[]; has_letter: boolean; status: DraftState['status']; cv_modern: string | null; cv_ats: string | null; letter: string | null; error: string | null; feedback?: string | null }
@@ -24,17 +23,11 @@ const DRAFT_STATE: Record<DraftState['status'], { label: string; tone: string }>
 }
 const fileLabel = (path: string) => path.split('/').pop()!.replace(/^\d+-/, '')
 
-const DAY = 24 * 60 * 60 * 1000
 /** The order's delivery deadline minus one business day, so Vale has time to check it (never before today). */
 function suggestedDue(order: Order) {
-  // Assigning it means the client's data is in: if it wasn't marked yet, the clock starts now (as the database does).
-  const deadline = deliveryDeadline({ ...order, data_received_at: order.data_received_at ?? new Date().toISOString() })
+  const value = teamDueOn(order)
   const today = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
-  if (!deadline) return ''
-  let day = new Date(deadline.due.getTime() - DAY)
-  while (isDayOff(day)) day = new Date(day.getTime() - DAY)
-  const value = day.toISOString().slice(0, 10)
-  return value < today ? today : value
+  return !value ? '' : value < today ? today : value
 }
 
 /** The texts Vale used to send by WhatsApp, now saved as a task for the team member. */
