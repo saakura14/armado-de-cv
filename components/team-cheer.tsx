@@ -169,14 +169,9 @@ export function UrgentMark({ compact = false, short = false }: { compact?: boole
   return <span title={mark.label} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#d6342c] px-2 py-px font-display text-[11px] font-bold text-white"><span aria-hidden className={pop}>{mark.icon}</span>{short ? 'Urgente' : `Urgente · ${mark.label}`}</span>
 }
 
-/** What his character says each time he finishes a CV (written here, in each one's style): praise, or a friendly "threat" about the next one, for a laugh. */
+/** What his character says each time he finishes a CV (written here, in each one's style): a friendly "threat" about the next one, for a laugh. */
 const DONE_LINES: Record<CharacterId, string[]> = {
   freddie: [
-    '¡Bravo, darling! Otro CV y el público pide bis. 🎤',
-    'Ese CV fue un hit de estadio. 👑',
-    '¡Eeee-oh! Tema terminado, el show sigue. 🎸',
-    'Ovación de pie: CV entregado con estilo. ✨',
-    'Darling, eso no fue un CV: fue un clásico. 💛',
     '¡Bravo, darling! Pero si el próximo llega tarde, te corto el micrófono en pleno estadio. 🎤',
     'Fabuloso. Un atraso y les digo a mis gatos que fuiste vos el que se comió su comida. 🐈',
     'Ovación de pie. Si el próximo se demora, te toca afinar mi piano durante toda la gira. 🎹',
@@ -184,11 +179,6 @@ const DONE_LINES: Record<CharacterId, string[]> = {
     'Gran tema. Ahora, si el siguiente se atrasa, el bigote te lo dejás vos. 😼',
   ],
   snake: [
-    'Misión cumplida. CV entregado sin activar ninguna alarma. 📦',
-    '📡 Codec: Buen trabajo. El próximo objetivo ya está en el radar.',
-    'Objetivo asegurado. Volvé a la caja y preparate para la próxima. 📦',
-    'Infiltración perfecta: nadie te vio, pero el CV quedó impecable. ★',
-    'Rango de la misión: Big Boss. ★',
     'Misión cumplida. Pero si el próximo llega tarde, el ❗ va a aparecer arriba de TU cabeza.',
     'Buen trabajo. Un atraso y Otacon te esconde todas las raciones. 📦',
     'Rango Big Boss… por ahora. Un CV tarde y bajás directo a rango Gallina. 🐔',
@@ -196,11 +186,6 @@ const DONE_LINES: Record<CharacterId, string[]> = {
     'Objetivo asegurado. Ocelot ya está girando los revólveres esperando que te atrases. 🔫',
   ],
   ezio: [
-    'Salto de fe perfecto: el CV aterrizó impecable. 🍂',
-    'Sincronización 100% con este CV. 🦅',
-    'La Hermandad anota otro objetivo cumplido. 🗡️',
-    'Silencioso y preciso: así se entrega un CV. 🦅',
-    'Otro punto de vista conquistado. Seguimos, hermano. 🦅',
     'Objetivo cumplido. Si el próximo se atrasa, te tiro del salto de fe… y sin el carro de heno abajo. 🍂',
     'Sincronización 100%. Bajá de ahí y te desincronizo yo, hermano. 🦅',
     'Bien hecho. Un CV tarde y la hoja oculta va a querer tener una charlita con vos. 🗡️',
