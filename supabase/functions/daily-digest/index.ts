@@ -6,7 +6,7 @@ import webpush from 'npm:web-push@3.6.7'
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
-// ---- Same deadline rules as lib/dashboard.ts (4 business days, Express 1, from the day the customer's data arrived;
+// ---- Same deadline rules as lib/dashboard.ts (4 business days, Express 1, from the day the order came in;
 // after 5 pm, weekends or holidays start the next business day) ----
 const AR_OFFSET = 3 * 60 * 60 * 1000
 const DAY = 24 * 60 * 60 * 1000
