@@ -114,14 +114,13 @@ export const hasExpress = (order: Order) => order.order_items.some((item) => ite
 export type Deadline = { due: Date; remaining: number; express: boolean; waiting: boolean }
 
 /**
- * Packs take up to 4 business days (Express: 1). The clock starts when Vale has everything from the customer
- * (payment confirmed and CV/puesto received: no deadline while the data is missing);
+ * Packs take up to 4 business days (Express: 1). The clock starts when the order comes in (paid or loaded as a sale);
  * after 5 pm, on a weekend or on a holiday it starts the next business day, as the pack conditions say.
  * Days spent waiting for the customer (corrections, missing information) move the deadline; while waiting, the clock stops.
  */
 export function deliveryDeadline(order: Order, now = new Date()): Deadline | null {
-  if (!order.paid_at || !order.data_received_at) return null
-  const { day, hour } = arDay(new Date(order.data_received_at))
+  if (!order.paid_at) return null
+  const { day, hour } = arDay(new Date(order.paid_at))
   const start = isDayOff(day) || hour >= 17 ? addBusinessDays(day, 1) : day
   const express = hasExpress(order)
   const waiting = Boolean(order.waiting_since)
@@ -133,6 +132,15 @@ export function deliveryDeadline(order: Order, now = new Date()): Deadline | nul
     if (today > since) due = addBusinessDays(due, businessDaysUntil(since, today))
   }
   return { due, remaining: businessDaysUntil(arDay(now).day, due), express, waiting }
+}
+
+/** The date the team has for a CV: one business day before the order is due, so Vale has time to check it (YYYY-MM-DD). */
+export function teamDueOn(order: Order, now = new Date()) {
+  const deadline = deliveryDeadline(order, now)
+  if (!deadline) return null
+  let day = deadline.due
+  do day = new Date(day.getTime() - DAY); while (isDayOff(day))
+  return day.toISOString().slice(0, 10)
 }
 
 const dueFormat = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
