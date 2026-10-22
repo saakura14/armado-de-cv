@@ -1,10 +1,19 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 
 export const inputClass = 'mt-1 w-full rounded-xl border border-line bg-white px-3 py-2.5 text-base font-normal text-ink outline-none focus:border-rosa sm:text-sm'
 export const cardClass = 'rounded-3xl bg-white p-5 shadow-[0_18px_40px_-34px_rgba(67,32,44,0.6)]'
+
+/** Backdrop of a dialog: it closes only on a click that starts and ends outside the window, so selecting text and letting go outside it doesn't close it. */
+export function useBackdropClose(onClose: () => void) {
+  const pressed = useRef(false)
+  return {
+    onMouseDown: (event: React.MouseEvent) => { pressed.current = event.target === event.currentTarget },
+    onClick: (event: React.MouseEvent) => { if (pressed.current && event.target === event.currentTarget) onClose() },
+  }
+}
 
 export function Field({ label, children, className = '' }: { label: string; children: React.ReactNode; className?: string }) {
   return <label className={`block text-xs font-semibold uppercase tracking-wider text-piedra ${className}`}>{label}{children}</label>

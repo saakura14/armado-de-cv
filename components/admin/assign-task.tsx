@@ -1,13 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Check, FileText, Sparkles, Upload, Users, X } from 'lucide-react'
+import { Check, Copy, FileText, Sparkles, Upload, Users, X } from 'lucide-react'
 import { hasExpress, teamDueOn } from '@/lib/dashboard'
 import type { Order, OrderItem } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { ATS_ONLY_PACKS, PACKS_WITH_LETTER, TASK_STATUS, TEAM_PACKS, type TaskStatus, type TeamMember } from '@/lib/team'
 import { TaskStart } from './task-start'
-import { Button, Field, inputClass, useFlash } from './ui'
+import { Button, Field, inputClass, useBackdropClose, useFlash } from './ui'
 
 export type OrderTask = { id: string; order_item_id: string; status: TaskStatus; started_at: string | null; due_on?: string | null; team_members: { name: string } | { name: string }[] | null }
 /** "Textos con Claude": where each pack's texts are (the scheduled task on Vale's computer writes them). */
@@ -32,6 +32,7 @@ function suggestedDue(order: Order) {
 
 /** The texts Vale used to send by WhatsApp, now saved as a task for the team member. */
 function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Order; item: OrderItem; firstName: string; onClose: () => void; onSaved: () => void }) {
+  const backdrop = useBackdropClose(onClose)
   const [members, setMembers] = useState<TeamMember[] | null>(null)
   const [memberId, setMemberId] = useState('')
   const [modern, setModern] = useState('')
@@ -104,8 +105,8 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
 
   const ready = memberId && (atsOnly || modern.trim()) && ats.trim()
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="assign-title" onClick={onClose}>
-      <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-2xl sm:rounded-[28px]" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="assign-title" {...backdrop}>
+      <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-2xl sm:rounded-[28px]">
         <div className="flex items-start justify-between gap-4 bg-ciruela px-5 py-4 text-white sm:px-7">
           <div>
             <p id="assign-title" className="flex items-center gap-2 font-display text-lg font-bold"><Users className="h-5 w-5" />Asignar al equipo</p>
@@ -149,6 +150,7 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
  * to correct, or approve them and assign the CV.
  */
 function DraftDialog({ order, item, firstName, status, onClose, onSaved, onApprove }: { order: Order; item: OrderItem; firstName: string; status: DraftState['status'] | undefined; onClose: () => void; onSaved: () => void; onApprove: () => void }) {
+  const backdrop = useBackdropClose(onClose)
   const atsOnly = ATS_ONLY_PACKS.includes(item.product_id)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [loaded, setLoaded] = useState(false)
@@ -302,8 +304,8 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
   )
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="draft-title" onClick={onClose}>
-      <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-3xl sm:rounded-[28px]" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="draft-title" {...backdrop}>
+      <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-3xl sm:rounded-[28px]">
         <div className="flex items-start justify-between gap-4 bg-ciruela px-5 py-4 text-white sm:px-7">
           <div>
             <p id="draft-title" className="flex items-center gap-2 font-display text-lg font-bold"><Sparkles className="h-5 w-5" />{review ? 'Revisá los textos' : 'Textos con Claude'}</p>
@@ -376,6 +378,7 @@ type SentTask = { pack_name: string; cv_modern: string; cv_ats: string; has_lett
 
 /** What the team member got for a pack (read only), to check the finished CV against it. */
 function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; order: Order; firstName: string; onClose: () => void }) {
+  const backdrop = useBackdropClose(onClose)
   const [task, setTask] = useState<SentTask | null>(null)
   const [copied, setCopied] = useState('')
 
@@ -398,8 +401,8 @@ function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; orde
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="sent-title" onClick={onClose}>
-      <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-3xl sm:rounded-[28px]" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="sent-title" {...backdrop}>
+      <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-3xl sm:rounded-[28px]">
         <div className="flex items-start justify-between gap-4 bg-ciruela px-5 py-4 text-white sm:px-7">
           <div>
             <p id="sent-title" className="flex items-center gap-2 font-display text-lg font-bold"><FileText className="h-5 w-5" />Textos que le pasaste</p>
@@ -417,7 +420,22 @@ function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; orde
                 <h3 className="font-display text-sm font-bold text-ciruela">{section.label}</h3>
                 <button type="button" onClick={() => copy(section.label, section.text)} className="rounded-full border border-line px-3 py-1 font-display text-xs font-bold text-ciruela hover:bg-papel">{copied === section.label ? '¡Copiado!' : 'Copiar'}</button>
               </div>
-              <div className="mt-1.5 whitespace-pre-wrap rounded-2xl border border-line bg-white px-4 py-3 text-sm leading-relaxed text-ink">{section.text}</div>
+              {/* Each paragraph with its own copy button, to fix just one piece; the text can also be selected by hand. */}
+              <div className="mt-1.5 divide-y divide-line rounded-2xl border border-line bg-white">
+                {section.text.replace(/
+/g, '
+').split(/
+[ 	]*
++/).map((piece) => piece.trim()).filter(Boolean).map((piece, index) => {
+                  const id = `${section.label}-${index}`
+                  return (
+                    <div key={id} className="group flex items-start gap-2 px-4 py-2.5">
+                      <p className="min-w-0 flex-1 select-text whitespace-pre-wrap text-sm leading-relaxed text-ink">{piece}</p>
+                      <button type="button" onClick={() => copy(id, piece)} title="Copiar este párrafo" aria-label="Copiar este párrafo" className="shrink-0 rounded-full p-1.5 text-piedra hover:bg-papel hover:text-ciruela">{copied === id ? <Check className="h-4 w-4 text-whatsapp" /> : <Copy className="h-4 w-4" />}</button>
+                    </div>
+                  )
+                })}
+              </div>
             </section>
           ))}
         </div>
