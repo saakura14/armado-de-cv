@@ -422,11 +422,7 @@ function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; orde
               </div>
               {/* Each paragraph with its own copy button, to fix just one piece; the text can also be selected by hand. */}
               <div className="mt-1.5 divide-y divide-line rounded-2xl border border-line bg-white">
-                {section.text.replace(/
-/g, '
-').split(/
-[ 	]*
-+/).map((piece) => piece.trim()).filter(Boolean).map((piece, index) => {
+                {section.text.replace(/\r\n/g, '\n').split(/\n[ \t]*\n+/).map((piece) => piece.trim()).filter(Boolean).map((piece, index) => {
                   const id = `${section.label}-${index}`
                   return (
                     <div key={id} className="group flex items-start gap-2 px-4 py-2.5">
