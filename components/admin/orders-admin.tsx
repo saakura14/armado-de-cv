@@ -14,7 +14,8 @@ import { STAGES, kindsOf, moveTo, needsTexts, sortForStage, stageOf, teamState, 
 import { DeadlineChip } from './dashboard-admin'
 import { OrderLinkDialog } from './order-link-dialog'
 import { TeamRow, type DraftState, type OrderTask } from './assign-task'
-import { LinkedInRow, type LinkedInState } from './linkedin-draft'
+import { LINKEDIN_PACKS, LinkedInRow, type LinkedInState } from './linkedin-draft'
+import { TEAM_PACKS } from '@/lib/team'
 
 // The admin also sees every Ualá checkout opened for the order (buyers can't read that table).
 type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null; team_tasks?: OrderTask[]; cv_drafts?: DraftState[]; linkedin_drafts?: LinkedInState[] }
@@ -233,6 +234,16 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
     onChanged()
   }
 
+  // CV delivered, LinkedIn still to coordinate: the clock stops and the order stays in sight until the LinkedIn is done.
+  async function setLinkedInPending(pending: boolean) {
+    setBusy(pending ? 'linkedin-pending' : 'linkedin-done')
+    const { error } = await supabase.rpc('admin_set_linkedin_pending', { p_order: order.id, p_pending: pending })
+    setBusy('')
+    if (error) { flash.show('error', errorMessage(error)); return }
+    flash.show('ok', pending ? 'CV entregado: el plazo dejó de correr. El pedido queda a mano hasta que hagas el LinkedIn.' : 'LinkedIn entregado: pedido completo.')
+    onChanged()
+  }
+
   // The customer paid but sent the receipt by WhatsApp instead of uploading it: approve after checking the bank.
   function approveOutsideWeb() {
     if (!window.confirm(`¿Ya viste los ${formatARS(order.total)} del pedido #${order.number} en tu cuenta del banco? Se aprueba aunque no tenga comprobante en la web.`)) return
@@ -272,6 +283,8 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
   const service = order.order_items.some((item) => item.products?.delivery === 'service')
   // A 1:1 session: its own product, or the Meet feedback of the vocational test.
   const session = order.order_items.some((item) => item.products?.delivery === 'session' || item.extras.some((extra) => extra.group_id === 'devolucion'))
+  // CV and LinkedIn in the same order (Premium, or a pack plus the LinkedIn profile): the CV can go first.
+  const withLinkedIn = order.order_items.some((item) => LINKEDIN_PACKS.includes(item.product_id)) && order.order_items.some((item) => TEAM_PACKS.includes(item.product_id))
   const deadline = service && (order.status === 'paid' || order.status === 'in_progress') ? deliveryDeadline(order) : null
   const nextSession = pendingSessions(order)[0]
   // Ready-made message for the next step of this order.
@@ -323,6 +336,7 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
         <p className="shrink-0 font-display text-lg font-extrabold text-ciruela">{money(order.total)}</p>
       </div>
       {deadline && <p className="mt-2 flex flex-wrap items-center gap-2"><DeadlineChip deadline={deadline} /><span className="text-xs text-piedra">{deadline.waiting ? `Plazo en pausa desde el ${formatDate(order.waiting_since!)}` : `Entregar el ${formatDue(deadline.due)}${deadline.express ? ' · Express' : ''}`}</span></p>}
+      {order.status === 'delivered' && order.linkedin_pending && <p className="mt-2 flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-arena px-3 py-1 font-display text-xs font-bold text-ciruela"><Link2 className="h-3.5 w-3.5" />Falta el LinkedIn</span><span className="text-xs text-piedra">CV entregado{order.delivered_at ? ` el ${formatDate(order.delivered_at)}` : ''}: el plazo ya no corre</span></p>}
       {order.status === 'pending_payment' && <UnpaidSince createdAt={order.created_at} />}
 
       {order.payment_check === 'pending' && (
@@ -389,6 +403,8 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
           : <Button variant="success" className={action} busy={busy === 'paid'} onClick={approveOutsideWeb}>Me llegó el pago</Button>)}
         {order.status === 'paid' && <Button className={action} busy={busy === 'in_progress'} onClick={() => setStatus('in_progress')}>Pasar a En proceso</Button>}
         {order.status === 'in_progress' && <Button className={action} busy={busy === 'delivered'} onClick={() => setStatus('delivered')}>{service && session ? 'Marcar CV entregado' : 'Marcar entregado'}</Button>}
+        {order.status === 'in_progress' && withLinkedIn && <Button variant="secondary" className={action} busy={busy === 'linkedin-pending'} onClick={() => setLinkedInPending(true)}>CV entregado, falta LinkedIn</Button>}
+        {order.status === 'delivered' && order.linkedin_pending && <Button variant="success" className={action} busy={busy === 'linkedin-done'} onClick={() => setLinkedInPending(false)}>LinkedIn entregado</Button>}
         {order.status === 'cancelled' && <Button variant="secondary" className={action} busy={busy === 'pending_payment'} onClick={() => setStatus('pending_payment')}>Reabrir</Button>}
         {(templateLink ?? whatsapp) && (
           <a href={(templateLink ?? whatsapp)!} onClick={(event) => openBusinessWhatsapp(event, (templateLink ?? whatsapp)!)} target="_blank" rel="noreferrer" title={template?.text ?? 'Se abre en WhatsApp Business (11 5106-0953)'} className={`${action} inline-flex items-center justify-center gap-2 rounded-full border border-whatsapp/40 px-3 py-2 font-display text-[13px] font-bold text-whatsapp hover:bg-whatsapp hover:text-white`}>

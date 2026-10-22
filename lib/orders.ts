@@ -52,8 +52,10 @@ export type Order = {
   waiting_since?: string | null
   /** Business days the order waited for the customer, added to the deadline. */
   paused_days?: number
-  /** When Vale got everything from the customer (CV, puesto): the delivery clock starts here, not at payment. */
+  /** No longer used for the deadline (it counts from the payment since 22/10). */
   data_received_at?: string | null
+  /** CV delivered but the LinkedIn profile still to do: the order is delivered (no clock) and stays in sight until it is done. */
+  linkedin_pending?: boolean
   order_items: OrderItem[]
   /** 1:1 sessions of the order (admin select only): they go on after the CV is delivered. */
   sessions?: OrderSession[]
