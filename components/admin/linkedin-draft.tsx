@@ -247,7 +247,8 @@ export function LinkedInRow({ order, drafts, firstName, onChanged }: { order: Or
   const [open, setOpen] = useState<OrderItem | null>(null)
   const close = useCallback(() => setOpen(null), [])
   const packs = order.order_items.filter((item) => LINKEDIN_PACKS.includes(item.product_id))
-  if (!packs.length || ['cancelled', 'pending_payment', 'payment_review', 'delivered'].includes(order.status)) return null
+  // After delivery only while the LinkedIn is still to do (CV delivered first).
+  if (!packs.length || ['cancelled', 'pending_payment', 'payment_review'].includes(order.status) || (order.status === 'delivered' && !order.linkedin_pending)) return null
   return (
     <div className="mt-3 rounded-2xl border border-line px-3.5 py-2.5">
       <p className="flex items-center gap-1.5 font-display text-[11px] font-semibold uppercase tracking-wider text-piedra"><Sparkles className="h-3.5 w-3.5 text-rosa" />LinkedIn</p>

@@ -130,7 +130,9 @@ export default function OrderPage() {
           </ul>
           <p className="mt-4 flex items-baseline justify-between border-t border-line pt-3 font-display font-extrabold text-ciruela"><span className="text-sm">{awaitingPayment ? 'Total a transferir' : 'Total'}</span><span className="text-2xl">{formatARS(order.total)}</span></p>
           {order.payment_method === 'card' && order.card_total && <p className="mt-1 text-right text-xs text-piedra">Pagado con tarjeta: {formatARS(order.card_total)} (incluye el costo de Ualá)</p>}
-          <p className="mt-4 text-sm text-piedra">{order.status === 'delivered' && order.order_items.some((item) => item.products?.delivery === 'session') && order.order_items.some((item) => item.products?.delivery === 'service')
+          <p className="mt-4 text-sm text-piedra">{order.status === 'delivered' && order.linkedin_pending
+            ? '¡Tu CV está entregado! Ahora sigue tu perfil de LinkedIn: te escribo por WhatsApp para coordinarlo.'
+            : order.status === 'delivered' && order.order_items.some((item) => item.products?.delivery === 'session') && order.order_items.some((item) => item.products?.delivery === 'service')
             ? '¡Tu CV está entregado! Ahora sigue tu sesión por Google Meet: el día y el link los ves en Mi cuenta.'
             : status.text}</p>
           {order.admin_note && <p className="mt-2 rounded-xl bg-papel px-3 py-2 text-sm text-ink">{order.admin_note}</p>}

@@ -56,6 +56,8 @@ export function stageOf(order: Order, now = Date.now()): WorkStage {
   if (order.status === 'delivered') {
     // CV delivered but the session is still ahead: it stays in sight until the session is done.
     if (pendingSessions(order).length > 0) return 'entregados'
+    // Same with the LinkedIn profile still to do.
+    if (order.linkedin_pending) return 'entregados'
     const at = new Date(order.delivered_at ?? order.paid_at ?? order.created_at).getTime()
     return now - at <= WEEK ? 'entregados' : 'archivo'
   }
@@ -102,6 +104,7 @@ export function todayReason(order: Order, unseen: boolean, now = new Date()): Re
   }
   if (order.status === 'paid') return { label: 'Para arrancar', tone: 'arena', rank: 5 }
   if (order.status === 'delivered' && pendingSessions(order).some((session) => session.status === 'to_schedule')) return { label: 'Agendar la asesoría', tone: 'arena', rank: 5 }
+  if (order.status === 'delivered' && order.linkedin_pending) return { label: 'Falta el LinkedIn', tone: 'arena', rank: 5 }
   if (order.status === 'pending_payment' && now.getTime() - new Date(order.created_at).getTime() > 24 * 60 * 60 * 1000) return { label: 'Recordar el pago', tone: 'arena', rank: 6 }
   return null
 }
