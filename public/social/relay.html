@@ -1,16 +1,18 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>Armado de CV · imágenes</title>
-<!-- Hands this site's own social images (public files under /social/) to the Meta Business Suite window that opened or framed it,
-     so a carousel can be loaded into the Meta composer. Only sends to business.facebook.com and only /social/ files. -->
+<!-- Hands this site's own social images (public files under /social/) to the Meta Business Suite or Ads Manager window that
+     opened or framed it, so posts and ads can be loaded into Meta. Only sends to those two origins and only /social/ files. -->
 <p id="s">Cargando…</p>
 <script>
 const params = new URLSearchParams(location.search)
-const files = (params.get('f') || '').split(',').filter((path) => /^posts\/[\w.\/-]+\.(png|jpe?g|mp4)$/.test(path))
+const files = (params.get('f') || '').split(',').filter((path) => /^(posts|ads)\/[\w.\/-]+\.(png|jpe?g|mp4)$/.test(path))
 Promise.all(files.map((path) => fetch('/social/' + path).then((response) => response.arrayBuffer()).then((buffer) => ({ name: path.split('/').pop(), type: path.endsWith('.mp4') ? 'video/mp4' : path.endsWith('.png') ? 'image/png' : 'image/jpeg', buffer }))))
   .then((list) => {
     const target = window.opener || (window.parent !== window ? window.parent : null)
-    if (target) target.postMessage({ kind: 'acv-files', list }, 'https://business.facebook.com')
+    const allowed = ['https://business.facebook.com', 'https://adsmanager.facebook.com']
+    const origin = allowed.find((item) => (location.ancestorOrigins?.[0] ?? document.referrer).startsWith(item)) ?? allowed[0]
+    if (target) target.postMessage({ kind: 'acv-files', list }, origin)
     document.getElementById('s').textContent = list.length + ' archivos enviados. Podés cerrar esta ventana.'
   })
   .catch((error) => { document.getElementById('s').textContent = 'Error: ' + error.message })
