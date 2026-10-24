@@ -9,7 +9,7 @@ export const metadata: Metadata = pageMetadata({ path: '/links', title: 'Links',
 
 const LINKS = [
   { href: '/test-ats', icon: FileCheck2, title: '¿Tu CV pasa los filtros?', text: 'Hacé el test ATS gratis en 2 minutos', tone: 'bg-ciruela text-white', sub: 'text-white/80' },
-  { href: '/#precios', icon: Sparkles, title: 'Packs de CV y LinkedIn', text: 'Tu CV moderno + CV ATS, desde $20.000', tone: 'bg-rosa text-white', sub: 'text-white/85' },
+  { href: '/#precios', icon: Sparkles, title: 'Packs de CV y LinkedIn', text: 'Tu CV moderno + CV ATS, desde $35.000', tone: 'bg-rosa text-white', sub: 'text-white/85' },
   { href: '/#guias', icon: BookOpen, title: 'Guías para tu búsqueda', text: 'LinkedIn, portales, filtros ATS · desde $5.900', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
   { href: '/#etapas', icon: BookOpen, title: 'Guías según tu edad', text: 'A los 20, 30, 40 y 50+ · $12.000', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
   { href: '/gratis', icon: Gift, title: 'Checklist gratis', text: 'Revisá tu CV en 10 minutos', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
