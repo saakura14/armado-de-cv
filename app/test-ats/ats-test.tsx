@@ -42,6 +42,22 @@ function PackOffer({ score }: { score: number }) {
   return <ProductGrid products={packs} scroll />
 }
 
+/** For whoever would rather fix the CV alone: the ATS guide and the kit, cheaper than a pack (the guides sold almost nothing from Instagram). */
+function GuideOffer() {
+  const [guides, setGuides] = useState<Product[] | null>(null)
+  useEffect(() => {
+    getProducts(['guias']).then((list) => setGuides(['guia-ats', 'kit-busqueda'].flatMap((id) => list.filter((product) => product.id === id))))
+  }, [])
+  if (!guides?.length) return null
+  return (
+    <div className="rounded-[32px] bg-arena/40 p-5 sm:p-8">
+      <p className="font-display text-xl font-extrabold text-ciruela">¿Preferís arreglarlo vos?</p>
+      <p className="mt-2 text-ink">En la guía <b className="text-ciruela">CV a prueba de filtros ATS</b> te explico paso a paso cómo corregir cada punto que marcó el test, con ejemplos. La descargás apenas pagás, sin crear cuenta.</p>
+      <ProductGrid products={guides} tone="asesorias" scroll />
+    </div>
+  )
+}
+
 function RecordCard({ result }: { result: AtsResult }) {
   const record = result.record!
   const row = (label: string, value: React.ReactNode, ok: boolean, warn?: string) => (
@@ -258,6 +274,8 @@ export function AtsTest() {
           </div>
         </div>
       )}
+
+      {stage !== 'puntaje' && <GuideOffer />}
 
       <button type="button" onClick={restart} className="inline-flex items-center gap-2 text-sm font-semibold text-piedra hover:text-ciruela"><RotateCcw className="h-4 w-4" />Analizar otro CV</button>
     </div>
