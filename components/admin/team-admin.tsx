@@ -58,8 +58,8 @@ function PaymentForm({ member, batch, onSaved }: { member: TeamMember; batch: Re
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
-  // What N packs add up to (each with the rate of the day it was assigned), minus the advances.
-  const amountFor = (count: number) => Math.max(batch.unpaid.slice(0, count).reduce((sum, task) => sum + task.rate, 0) - batch.advances, 0)
+  // What N new packs add up to (each with the rate of the day it was assigned) plus the ones the advances already covered, minus the advances.
+  const amountFor = (count: number) => Math.max(batch.unpaid.slice(0, batch.covered + count).reduce((sum, task) => sum + task.rate, 0) - batch.advances, 0)
 
   function open(next: 'pago' | 'adelanto') {
     setKind(next); setNote(''); setAmountTouched(false)
@@ -75,9 +75,9 @@ function PaymentForm({ member, batch, onSaved }: { member: TeamMember; batch: Re
   async function save() {
     if (!kind) return
     if (kind === 'pago') {
-      if (!window.confirm(`¿Registrar el pago de ${formatARS(Number(amount))} a ${member.name} por ${packs} ${packs === '1' ? 'CV' : 'CVs'}?${batch.advances ? ` Se descuentan los ${formatARS(batch.advances)} de adelanto.` : ''}`)) return
+      if (!window.confirm(`¿Registrar el pago de ${formatARS(Number(amount))} a ${member.name} por ${packs} ${packs === '1' ? 'CV' : 'CVs'}?${batch.advances ? ` Se descuentan los ${formatARS(batch.advances)} de adelanto${batch.covered ? ` (ya cubrían ${batch.covered} ${batch.covered === 1 ? 'CV' : 'CVs'})` : ''}.` : ''}`)) return
       setBusy(true)
-      const { error } = await supabase.rpc('admin_team_pay', { p_member: member.id, p_packs: Number(packs), p_amount: Number(amount), p_note: note.trim() || null })
+      const { error } = await supabase.rpc('admin_team_pay', { p_member: member.id, p_packs: batch.covered + Number(packs), p_amount: Number(amount), p_note: note.trim() || null })
       setBusy(false)
       if (error) { flash.show('error', errorMessage(error)); return }
     } else {
@@ -106,7 +106,7 @@ function PaymentForm({ member, batch, onSaved }: { member: TeamMember; batch: Re
             <Field label="Monto"><input inputMode="numeric" value={amount} onChange={(event) => { setAmount(event.target.value.replace(/\D/g, '')); setAmountTouched(true) }} className={inputClass} /></Field>
             <div className={kind === 'pago' ? 'col-span-2' : ''}><Field label="Nota (opcional)"><input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Ej: transferencia" className={inputClass} /></Field></div>
           </div>
-          {kind === 'pago' && <p className="text-xs text-piedra">Quedan pagos los {packs} CVs terminados más viejos{batch.advances ? ` y se descuentan los ${formatARS(batch.advances)} de adelanto` : ''}. Los que terminó después siguen sumando para el próximo cobro. Lo mensual no se borra.</p>}
+          {kind === 'pago' && <p className="text-xs text-piedra">Quedan pagos los {packs} CVs terminados más viejos{batch.covered ? ` (además de los ${batch.covered} que ya cubrió el adelanto)` : ''}{batch.advances ? ` y se descuentan los ${formatARS(batch.advances)} de adelanto` : ''}. Los que terminó después siguen sumando para el próximo cobro. Lo mensual no se borra.</p>}
           <div className="flex gap-2">
             <Button busy={busy} disabled={!(Number(amount) > 0) || (kind === 'pago' && !(Number(packs) > 0))} onClick={save}>Guardar</Button>
             <Button variant="secondary" onClick={() => setKind(null)}>Cancelar</Button>
@@ -383,7 +383,7 @@ export function TeamAdmin() {
                 <p className="text-right font-display text-sm font-bold text-ciruela">{batch.count}<span className="font-normal text-piedra"> de {batch.size} CVs</span></p>
               </div>
               <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${batch.count >= batch.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(batch.count / batch.size, 1) * 100}%` }} /></div>
-              <p className="mt-2 text-xs text-piedra">{batch.debt ? `Le adelantaste ${money(batch.advances)} y ya cubrió ${money(batch.earned)} con ${batch.count} ${batch.count === 1 ? 'CV' : 'CVs'}. Cada CV que termina descuenta ${money(member.rate)}: le faltan ${Math.ceil(batch.debt / Math.max(member.rate, 1))} para saldarlo.` : batch.count >= batch.size ? <b className="text-whatsapp">Completó la tanda: te toca pagarle.</b> : batch.advances ? `Ya le adelantaste ${money(batch.advances)}.` : batch.lastPayment ? `Último pago: ${formatDate(`${batch.lastPayment.paid_on}T12:00:00-03:00`)}.` : 'Todavía no le pagaste.'}</p>
+              <p className="mt-2 text-xs text-piedra">{batch.debt ? `Le adelantaste ${money(batch.advances)} y ya cubrió ${money(batch.earned)} con ${batch.unpaid.length} ${batch.unpaid.length === 1 ? 'CV' : 'CVs'}. Cada CV que termina descuenta ${money(member.rate)}: le faltan ${Math.ceil(batch.debt / Math.max(member.rate, 1))} para saldarlo.` : batch.count >= batch.size ? <b className="text-whatsapp">Completó la tanda: te toca pagarle.</b> : batch.advances ? `Ya le adelantaste ${money(batch.advances)}${batch.covered ? `: cubre sus primeros ${batch.covered} ${batch.covered === 1 ? 'CV' : 'CVs'}, que no cuentan para la tanda` : ''}.` : batch.lastPayment ? `Último pago: ${formatDate(`${batch.lastPayment.paid_on}T12:00:00-03:00`)}.` : 'Todavía no le pagaste.'}</p>
               <div className="mt-3"><PaymentForm key={`pay-${member.id}`} member={member} batch={batch} onSaved={load} /></div>
             </section>
 

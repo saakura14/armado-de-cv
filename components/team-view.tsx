@@ -164,7 +164,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   // A party when he completes the CVs of a payment: once per batch on his device (the batch is named by its last CV).
   // In the preview Vale can try it with a button.
   const [celebrate, setCelebrate] = useState(false)
-  const completing = batch.size > 0 && batch.count >= batch.size ? batch.unpaid[batch.size - 1]?.id : undefined
+  const completing = batch.size > 0 && batch.count >= batch.size ? batch.unpaid[batch.covered + batch.size - 1]?.id : undefined
   useEffect(() => {
     if (preview || !completing) return
     const key = `acv-festejo-${completing}`
@@ -330,7 +330,9 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
               <h2 id="batch-title" className="font-display text-base font-bold text-ciruela">Tu próximo cobro</h2>
               <p className="mt-1 font-display text-2xl font-extrabold text-ciruela">{batch.count}<span className="text-sm text-piedra"> de {batch.size} CVs</span></p>
               <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${batch.count >= batch.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(batch.count / batch.size, 1) * 100}%` }} /></div>
-              <p className="mt-2 text-xs leading-snug text-piedra">{batch.unpaid.every((task) => task.rate === member.rate) ? `${batch.count} ${batch.count === 1 ? 'CV' : 'CVs'} × ${formatARS(member.rate)}` : `${batch.count} ${batch.count === 1 ? 'CV' : 'CVs'} (${formatARS(batch.earned)})`}{batch.advances ? ` − ${formatARS(batch.advances)} de adelanto` : ''} = <b className="text-ink">{formatARS(batch.owed)}</b></p>
+              <p className="mt-2 text-xs leading-snug text-piedra">{batch.unpaid.every((task) => task.rate === member.rate) ? `${batch.unpaid.length} ${batch.unpaid.length === 1 ? 'CV' : 'CVs'} × ${formatARS(member.rate)}` : `${batch.unpaid.length} ${batch.unpaid.length === 1 ? 'CV' : 'CVs'} (${formatARS(batch.earned)})`}{batch.advances ? ` − ${formatARS(batch.advances)} de adelanto` : ''} = <b className="text-ink">{formatARS(batch.owed)}</b></p>
+              {/* The CVs the advance already paid for: they don't count for the next payment. */}
+              {batch.covered > 0 && batch.debt === 0 && <p className="mt-2 text-xs leading-snug text-piedra">Tus primeros {batch.covered} {batch.covered === 1 ? 'CV ya lo cubrió' : 'CVs ya los cubrió'} el adelanto: la cuenta de arriba es de los que siguen.</p>}
               {/* The advance not covered yet: each CV he finishes takes its rate off. */}
               {batch.debt > 0 && <p className="mt-2 rounded-xl bg-papel/70 px-3 py-2 text-xs leading-snug text-ink">Adelanto por cubrir: <b>{formatARS(batch.debt)}</b>. Cada CV que terminás lo baja {formatARS(member.rate)}: te faltan {Math.ceil(batch.debt / Math.max(member.rate, 1))}.</p>}
             </section>
