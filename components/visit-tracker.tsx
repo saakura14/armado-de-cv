@@ -39,7 +39,7 @@ export function VisitTracker() {
 }
 
 /** Funnel step for the admin dashboard, counted once per browser session. */
-export function countStep(event: 'lo_quiero' | 'checkout' | 'whatsapp') {
+export function countStep(event: 'lo_quiero' | 'checkout' | 'whatsapp' | 'test_subido' | 'test_puntaje') {
   try {
     if (sessionStorage.getItem(`acv-step-${event}`)) return
     sessionStorage.setItem(`acv-step-${event}`, '1')
