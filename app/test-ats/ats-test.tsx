@@ -9,6 +9,7 @@ import { OTHER_AREA, ROLE_AREAS } from '@/lib/ats-roles'
 import { getProducts, whatsappUrl, type Product } from '@/lib/catalog'
 import { ProductGrid } from '@/components/product-grid'
 import { track } from '@/lib/pixel'
+import { countStep } from '@/components/visit-tracker'
 import { errorMessage, supabase } from '@/lib/supabase'
 
 type Stage = 'subir' | 'leyendo' | 'puntaje' | 'detalle' | 'usado'
@@ -114,10 +115,12 @@ export function AtsTest() {
     if (file.size > 10 * 1024 * 1024) { setError('El archivo pesa más de 10 MB. Exportalo de nuevo como PDF y probá otra vez.'); return }
     setFileName(file.name)
     setStage('leyendo')
+    countStep('test_subido')
     try {
       const data = await readPdf(file)
       setResult(analyzeCv(data, { jobAd: ad, area }))
       setStage('puntaje')
+      countStep('test_puntaje')
       track('ViewContent', { content_name: 'Test ATS' })
     } catch {
       setError('No pude abrir ese PDF. Probá exportarlo de nuevo o subí otro archivo.')
