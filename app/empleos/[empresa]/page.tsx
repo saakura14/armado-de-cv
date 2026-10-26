@@ -68,8 +68,9 @@ export default async function EmpleosPage({ params }: { params: Promise<{ empres
               Te las junté acá, con el link directo para postularte a cada una.
             </p>
           </div>
-          <div className="rounded-[28px] bg-white p-8 shadow-[0_30px_60px_-40px_rgba(67,32,44,0.55)]">
-            <Image src={company.logo} alt={company.legalName} width={960} height={521} priority className="mx-auto h-auto w-full max-w-xs" />
+          {/* Always a white card: the brand logo is dark and must stay readable in the dark theme. */}
+          <div className="rounded-[28px] bg-[#fff] p-5 shadow-[0_30px_60px_-40px_rgba(67,32,44,0.55)] sm:p-8">
+            <Image src={company.logo} alt={company.legalName} width={960} height={521} priority className="mx-auto h-auto w-full max-w-[220px] sm:max-w-xs" />
           </div>
         </div>
       </section>
