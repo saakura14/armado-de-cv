@@ -17,9 +17,9 @@ const nextConfig = {
   env: { NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA || 'dev' },
   images: { unoptimized: true },
   poweredByHeader: false,
-  // Short links for the Instagram carousels ("armadodecv.com/laanonima").
+  // Short links for the Instagram carousels ("armadodecv.com/starbucks").
   async redirects() {
-    return [{ source: '/laanonima', destination: '/empleos/laanonima', permanent: false }]
+    return ['starbucks', 'laanonima'].map((empresa) => ({ source: `/${empresa}`, destination: `/empleos/${empresa}`, permanent: false }))
   },
   async headers() {
     return [
