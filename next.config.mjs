@@ -17,9 +17,9 @@ const nextConfig = {
   env: { NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA || 'dev' },
   images: { unoptimized: true },
   poweredByHeader: false,
-  // Short links for the Instagram carousels ("armadodecv.com/quilmes").
+  // Short links for the Instagram carousels ("armadodecv.com/laanonima").
   async redirects() {
-    return [{ source: '/quilmes', destination: '/empleos/quilmes', permanent: false }]
+    return [{ source: '/laanonima', destination: '/empleos/laanonima', permanent: false }]
   },
   async headers() {
     return [

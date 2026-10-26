@@ -37,7 +37,7 @@ function OpeningList({ items }: { items: Opening[] }) {
             <span className="font-display font-bold text-ciruela">{job.title}</span>
             <span className="mt-1 flex items-center gap-1 text-sm text-piedra"><MapPin className="h-4 w-4 shrink-0" />{job.place}</span>
             <span className="mt-3 flex items-center justify-between text-xs text-piedra">
-              <span>Publicada: {job.posted}</span>
+              <span>{job.posted && `Publicada: ${job.posted}`}</span>
               <span className="inline-flex items-center gap-1 font-semibold text-rosa-deep">Postularme<ExternalLink className="h-3.5 w-3.5" /></span>
             </span>
           </a>
@@ -70,7 +70,7 @@ export default async function EmpleosPage({ params }: { params: Promise<{ empres
           </div>
           {/* Always a white card: the brand logo is dark and must stay readable in the dark theme. */}
           <div className="rounded-[28px] bg-[#fff] p-5 shadow-[0_30px_60px_-40px_rgba(67,32,44,0.55)] sm:p-8">
-            <Image src={company.logo} alt={company.legalName} width={960} height={521} priority className="mx-auto h-auto w-full max-w-[220px] sm:max-w-xs" />
+            <Image src={company.logo} alt={company.legalName} width={960} height={514} priority className="mx-auto h-auto w-full max-w-[220px] sm:max-w-xs" />
           </div>
         </div>
       </section>
@@ -81,8 +81,8 @@ export default async function EmpleosPage({ params }: { params: Promise<{ empres
             <>
               {entry.length > 0 && (
                 <>
-                  <p className="font-script text-4xl leading-none text-rosa">Sin título universitario</p>
-                  <p className="mt-2 text-sm text-piedra">Ventas, góndola, planta y bancos de talento. Casi todas piden secundario completo; leé los requisitos de cada aviso.</p>
+                  <p className="font-script text-4xl leading-none text-rosa">{company.entryTitle}</p>
+                  <p className="mt-2 text-sm text-piedra">{company.entryText}</p>
                   <OpeningList items={entry} />
                 </>
               )}
@@ -92,7 +92,7 @@ export default async function EmpleosPage({ params }: { params: Promise<{ empres
           ) : (
             <a href={company.portal} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-ciruela px-6 py-3 font-display font-bold text-white hover:bg-rosa">Ver las búsquedas en el portal oficial<ExternalLink className="h-4 w-4" /></a>
           )}
-          <p className="mt-6 text-sm text-piedra">También publican búsquedas y programas para estudiantes en su <a href={company.linkedin} target="_blank" rel="noopener noreferrer" className="font-semibold text-rosa-deep underline">página de LinkedIn</a>.</p>
+          <p className="mt-6 text-sm text-piedra">¿No encontrás tu zona? En el <a href={company.portal + '/jobs'} target="_blank" rel="noopener noreferrer" className="font-semibold text-rosa-deep underline">portal oficial</a> también podés dejar tu CV para futuras búsquedas.</p>
         </div>
       </section>
 
