@@ -19,7 +19,7 @@ export type OpenTarget = { tab: 'pedidos' | 'sesiones' | 'analisis'; filter?: St
 
 type Task = { order: Order; kind: 'pago' | 'verificar' | 'entrega' | 'sesion'; deadline: Deadline | null }
 
-const PAGES: Record<string, string> = { '/': 'Inicio (Armado de CV)', '/asesorias': 'Asesorías', '/gratis': 'Checklist gratis', '/test-ats': 'Test ATS', '/guias/cv-ats': 'Guía ATS (anuncio)', '/links': 'Links de la bio', '/cursos': 'Cursos', '/terminos': 'Términos', '/privacidad': 'Privacidad', '/arrepentimiento': 'Arrepentimiento', '/otras': 'Otras' }
+const PAGES: Record<string, string> = { '/': 'Inicio (Armado de CV)', '/asesorias': 'Asesorías', '/gratis': 'Checklist gratis', '/test-ats': 'Test ATS', '/guias/cv-ats': 'Guía ATS (anuncio)', '/links': 'Links de la bio', '/empleos/quilmes': 'Trabajar en Quilmes', '/cursos': 'Cursos', '/terminos': 'Términos', '/privacidad': 'Privacidad', '/arrepentimiento': 'Arrepentimiento', '/otras': 'Otras' }
 const number = new Intl.NumberFormat('es-AR')
 const percent = new Intl.NumberFormat('es-AR', { style: 'percent', maximumFractionDigits: 1 })
 
