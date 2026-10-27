@@ -31,7 +31,7 @@ function suggestedDue(order: Order) {
 }
 
 /** The texts Vale used to send by WhatsApp, now saved as a task for the team member. */
-function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Order; item: OrderItem; firstName: string; onClose: () => void; onSaved: () => void }) {
+function AssignDialog({ order, item, clientName, onClose, onSaved }: { order: Order; item: OrderItem; clientName: string; onClose: () => void; onSaved: () => void }) {
   const backdrop = useBackdropClose(onClose)
   const [members, setMembers] = useState<TeamMember[] | null>(null)
   const [memberId, setMemberId] = useState('')
@@ -84,7 +84,7 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
     setBusy(true)
     const { data, error } = await supabase.from('team_tasks').insert({
       member_id: member.id, order_id: order.id, order_item_id: item.id, order_number: order.number,
-      client_name: firstName, pack_name: item.product_name,
+      client_name: clientName, pack_name: item.product_name,
       cv_modern: atsOnly ? '' : modern.trim(), cv_ats: ats.trim(), has_letter: !atsOnly && hasLetter, letter: !atsOnly && hasLetter ? letter.trim() || null : null,
       notes: notes.trim() || null, due_on: due || null, urgent, rate: rate === '' ? member.rate : Number(rate),
     }).select('id').single()
@@ -110,7 +110,7 @@ function AssignDialog({ order, item, firstName, onClose, onSaved }: { order: Ord
         <div className="flex items-start justify-between gap-4 bg-ciruela px-5 py-4 text-white sm:px-7">
           <div>
             <p id="assign-title" className="flex items-center gap-2 font-display text-lg font-bold"><Users className="h-5 w-5" />Asignar al equipo</p>
-            <p className="text-sm text-white/85">Pedido #{order.number} · {item.product_name} de {firstName}. Solo ve estos textos y el nombre de pila.</p>
+            <p className="text-sm text-white/85">Pedido #{order.number} · {item.product_name} de {clientName}. Solo ve estos textos y el nombre y apellido.</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-full bg-white/15 p-2 hover:bg-white/25" aria-label="Cerrar"><X className="h-5 w-5" /></button>
         </div>
@@ -441,7 +441,8 @@ function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; orde
 }
 
 /** On a CV order: each pack with who is building it, or a button to assign it. */
-export function TeamRow({ order, tasks, drafts = [], firstName, onChanged }: { order: Order; tasks: OrderTask[]; drafts?: DraftState[]; firstName: string; onChanged: () => void }) {
+/** clientName (nombre y apellido) is what the team sees, so two clients with the same first name don't get mixed up. */
+export function TeamRow({ order, tasks, drafts = [], firstName, clientName, onChanged }: { order: Order; tasks: OrderTask[]; drafts?: DraftState[]; firstName: string; clientName: string; onChanged: () => void }) {
   const [assigning, setAssigning] = useState<OrderItem | null>(null)
   const [drafting, setDrafting] = useState<OrderItem | null>(null)
   const close = useCallback(() => setAssigning(null), [])
@@ -492,7 +493,7 @@ export function TeamRow({ order, tasks, drafts = [], firstName, onChanged }: { o
           )
         })}
       </ul>
-      {assigning && <AssignDialog order={order} item={assigning} firstName={firstName} onClose={close} onSaved={onChanged} />}
+      {assigning && <AssignDialog order={order} item={assigning} clientName={clientName} onClose={close} onSaved={onChanged} />
       {viewing && <SentTexts taskId={viewing} order={order} firstName={firstName} onClose={closeViewing} />}
       {drafting && <DraftDialog order={order} item={drafting} firstName={firstName} status={drafts.find((row) => row.order_item_id === drafting.id)?.status} onClose={closeDraft} onSaved={onChanged} onApprove={() => { setAssigning(drafting); setDrafting(null) }} />}
     </div>

@@ -498,7 +498,7 @@ export function TaskRow({ task, action, onOpen, children, reported }: { task: Te
         <div className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 pr-2.5">
           <button type="button" onClick={toggle} disabled={!toggle} aria-expanded={children && !onOpen ? expanded : undefined} className="min-w-0 flex-1 text-left">
             <p className="flex items-baseline gap-2 whitespace-nowrap">
-              <span className={`truncate text-[15px] font-bold ${urgent ? 'text-[#d6342c]' : 'text-ink'}`}>{task.client_name}</span>
+              <span title={task.client_name} className={`truncate text-[15px] font-bold ${urgent ? 'text-[#d6342c]' : 'text-ink'}`}>{task.client_name}</span>
               <span className="shrink-0 text-xs text-piedra">{task.order_number ? `#${task.order_number}` : 'Ejemplo'}</span>
               {task.status === 'haciendo' && <span className="shrink-0 font-display text-[11px] font-bold text-rosa-deep">· En curso</span>}
             </p>
