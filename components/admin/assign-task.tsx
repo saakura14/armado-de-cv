@@ -493,7 +493,7 @@ export function TeamRow({ order, tasks, drafts = [], firstName, clientName, onCh
           )
         })}
       </ul>
-      {assigning && <AssignDialog order={order} item={assigning} clientName={clientName} onClose={close} onSaved={onChanged} />
+      {assigning && <AssignDialog order={order} item={assigning} clientName={clientName} onClose={close} onSaved={onChanged} />}
       {viewing && <SentTexts taskId={viewing} order={order} firstName={firstName} onClose={closeViewing} />}
       {drafting && <DraftDialog order={order} item={drafting} firstName={firstName} status={drafts.find((row) => row.order_item_id === drafting.id)?.status} onClose={closeDraft} onSaved={onChanged} onApprove={() => { setAssigning(drafting); setDrafting(null) }} />}
     </div>
