@@ -278,6 +278,8 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
   // Bought without an account: the email is on the order, not on a profile.
   const email = order.customer_email || buyer?.email || null
   const firstName = name.split(' ')[0]
+  // What the team sees: nombre y apellido when we have them (never the email), without notes like "- CV para el hijo".
+  const clientName = (order.customer_name || buyer?.full_name || '').split(/\s+[-–(]/)[0].trim().replace(/\s+/g, ' ') || firstName
   const products = order.order_items.map((item) => item.product_name).join(' + ')
   const whatsapp = waLink(phone, `¡Hola ${firstName}! Te escribo por tu pedido #${order.number} de Armado de CV.`)
   const service = order.order_items.some((item) => item.products?.delivery === 'service')
@@ -391,7 +393,7 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
         </ul>
       )}
       {service && order.status !== 'cancelled' && order.status !== 'pending_payment' && <CanvaLink order={order} />}
-      <TeamRow order={order} tasks={order.team_tasks ?? []} drafts={order.cv_drafts ?? []} firstName={firstName} onChanged={onChanged} />
+      <TeamRow order={order} tasks={order.team_tasks ?? []} drafts={order.cv_drafts ?? []} firstName={firstName} clientName={clientName} onChanged={onChanged} />
       <LinkedInRow order={order} drafts={order.linkedin_drafts ?? []} firstName={firstName} onChanged={onChanged} />
 
       {/* One main action (the next step), one WhatsApp button (with the message for this step) and the rest under "Más opciones". */}
