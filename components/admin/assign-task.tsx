@@ -257,7 +257,17 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
     const { data: before } = await supabase.from('cv_drafts').select('feedback_files').eq('order_item_id', item.id).maybeSingle()
     const old = ((before?.feedback_files as string[] | null) ?? []).filter((path) => !shots.some((shot) => shot.path === path))
     if (old.length) await supabase.storage.from('cv-sources').remove(old)
-    const { error } = await supabase.from('cv_drafts').update({ ...texts, feedback: feedback.trim() || 'Mirá las imágenes que te adjunté.', feedback_files: shots.map((shot) => shot.path), status: 'corregir', error: null, requested_at: new Date().toISOString() }).eq('order_item_id', item.id)
+    const { error } = await supabase.from('cv_drafts').update({ ...texts, has_letter: !atsOnly && hasLetter, feedback: feedback.trim() || 'Mirá las imágenes que te adjunté.', feedback_files: shots.map((shot) => shot.path), status: 'corregir', error: null, requested_at: new Date().toISOString() }).eq('order_item_id', item.id)
+    setBusy(false)
+    if (error) { flash.show('error', errorMessage(error)); return }
+    onSaved()
+    onClose()
+  }
+
+  // The pack has a letter but the texts came without one (the box was unticked): Claude writes only the letter.
+  async function askLetter() {
+    setBusy(true)
+    const { error } = await supabase.from('cv_drafts').update({ ...texts, letter: null, has_letter: true, feedback: 'Falta la carta de presentación: escribila para el puesto objetivo, con los datos del CV. No cambies el CV moderno ni el CV ATS.', feedback_files: [], status: 'corregir', error: null, requested_at: new Date().toISOString() }).eq('order_item_id', item.id)
     setBusy(false)
     if (error) { flash.show('error', errorMessage(error)); return }
     onSaved()
@@ -323,6 +333,12 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
               {!atsOnly && <Field label="CV moderno"><textarea value={modern} onChange={(event) => setModern(event.target.value)} rows={12} className={inputClass} /></Field>}
               <Field label="CV ATS"><textarea value={ats} onChange={(event) => setAts(event.target.value)} rows={12} className={inputClass} /></Field>
               {!atsOnly && hasLetter && <Field label="Carta de presentación"><textarea value={letter} onChange={(event) => setLetter(event.target.value)} rows={8} className={inputClass} /></Field>}
+              {!atsOnly && !hasLetter && PACKS_WITH_LETTER.includes(item.product_id) && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-papel px-4 py-3 text-sm text-ink">
+                  <span><b>Este pack lleva carta</b> y se pidió sin ella.</span>
+                  <Button variant="secondary" busy={busy} onClick={askLetter}><Sparkles className="h-4 w-4" />Pedir la carta a Claude</Button>
+                </div>
+              )}
               <div className="rounded-2xl border border-rosa/30 bg-petalo-wash/40 p-3">
                 <Field label="¿Algo está mal? Decile a Claude qué corregir">
                   <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} onPaste={(event) => { const pasted = Array.from(event.clipboardData.files); if (pasted.some((file) => file.type.startsWith('image/'))) { event.preventDefault(); addShots(pasted) } }} rows={3} placeholder="Ej.: en el ATS sacá el trabajo de niñera, el título tiene que ser Administrativa contable, la carta más corta. También podés pegar una captura acá (Ctrl+V)." className={inputClass} />
