@@ -1,8 +1,9 @@
 // "Textos con Claude": Claude on Vale's computer (the scheduled task "textos-cv-claude") calls this through pg_net
 // (x-cron-key, never a key on her computer). {action:'pending'} returns the CV packs and the LinkedIn profiles waiting
-// for texts or a correction, with short-lived links to the client's files and the correction's screenshots;
-// {action:'notify', order_item_id, kind?: 'linkedin'} tells Vale on her phone that the texts are ready (Claude saves
-// them by SQL).
+// for texts or a correction, with short-lived links to the client's files and the correction's screenshots, and the
+// CVs to build in Canva ("Armarlo yo") with their base template;
+// {action:'notify', order_item_id, kind?: 'linkedin' | 'build'} tells Vale on her phone that the texts (or the CV built in
+// Canva) are ready (Claude saves them by SQL).
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.57.4'
 import webpush from 'npm:web-push@3.6.7'
 
@@ -27,15 +28,21 @@ Deno.serve(async (request) => {
     // Asked for (new texts or a correction), or stuck "generando" for more than 20 minutes (a run that didn't finish).
     const stale = new Date(Date.now() - 20 * 60 * 1000).toISOString()
     const waiting = `status.in.(pedido,corregir),and(status.eq.generando,requested_at.lt.${stale})`
-    const [cv, li] = await Promise.all([
+    const [cv, li, builds, templates] = await Promise.all([
       admin.from('cv_drafts')
         .select('order_item_id, order_id, source_text, target_job, files, has_letter, ats_only, status, requested_at, feedback, feedback_files, cv_modern, cv_ats, letter, orders(number, customer_name), order_items(product_id, product_name)')
         .or(waiting).order('requested_at'),
       admin.from('linkedin_drafts')
         .select('order_item_id, order_id, source_text, target_job, files, status, requested_at, feedback, feedback_files, sections, orders(number, customer_name), order_items(product_id, product_name)')
         .or(waiting).order('requested_at'),
+      // "Armarlo yo": CVs to build in Canva (or stuck "armando" for more than 20 minutes), with the base templates.
+      admin.from('cv_builds')
+        .select('order_item_id, client_name, gender, pages, languages, cv_modern, cv_ats, letter, notes, orders(number), order_items(product_name)')
+        .or(`status.eq.pedido,and(status.eq.armando,requested_at.lt.${stale})`).order('requested_at'),
+      admin.from('cv_templates').select('gender, design_id'),
     ])
-    if (cv.error || li.error) return json({ error: (cv.error ?? li.error)!.message }, 500)
+    const failed = cv.error ?? li.error ?? builds.error ?? templates.error
+    if (failed) return json({ error: failed.message }, 500)
     const drafts = []
     for (const draft of cv.data ?? []) {
       const order = draft.orders as unknown as { number: number; customer_name: string | null } | null
@@ -62,7 +69,22 @@ Deno.serve(async (request) => {
         current: draft.feedback ? draft.sections : null,
       })
     }
-    return json({ drafts, linkedin })
+    const base = Object.fromEntries((templates.data ?? []).map((row) => [row.gender, row.design_id]))
+    const build = (builds.data ?? []).map((row) => {
+      const { orders, order_items, ...rest } = row as unknown as Record<string, unknown> & { orders: { number: number } | null; order_items: { product_name: string } | null }
+      return { ...rest, order_number: orders?.number, pack: order_items?.product_name, template_design_id: base[row.gender] }
+    })
+    return json({ drafts, linkedin, builds: build })
+  }
+
+  // "Armarlo yo": the CV is built in Canva (or it couldn't be) — the client's own link is already on cv_builds.
+  if (body.action === 'notify' && body.order_item_id && body.kind === 'build') {
+    const { data: build } = await admin.from('cv_builds').select('status, client_name, error, orders(number)').eq('order_item_id', body.order_item_id).maybeSingle()
+    if (!build) return json({ error: 'No encontré ese armado' }, 404)
+    const order = build.orders as unknown as { number: number } | null
+    if (build.status === 'listo') await pushToAdmins(admin, `🎨 CV armado en Canva · pedido #${order?.number}`, `Claude armó el CV de ${build.client_name}. Revisalo, poné la foto y descargalo.`, '/admin#pedidos')
+    else if (build.status === 'error') await pushToAdmins(admin, `⚠️ No se pudo armar el CV · pedido #${order?.number}`, build.error ?? 'Entrá a la placa para ver qué pasó.', '/admin#pedidos')
+    return json({ ok: true })
   }
 
   if (body.action === 'notify' && body.order_item_id) {
