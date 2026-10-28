@@ -16,7 +16,7 @@ const scoreTone = (score: number) => (score >= 85 ? 'bg-[#1f9d5a]' : score >= 65
 function message(lead: Lead) {
   const first = lead.name.trim().split(/\s+/)[0]
   const top = lead.issues.slice(0, 2).map((id) => CHECK_LABELS[id]?.toLowerCase()).filter(Boolean)
-  return `¡Hola ${first}! Soy Vale, de Armado de CV 🌸 Vi que hiciste el test ATS y tu CV sacó ${lead.score}/100.${top.length ? ` Lo que más le suma corregir: ${top.join(' y ')}.` : ''} ¿Querés que te lo deje listo para pasar los filtros? Te cuento cómo trabajo.`
+  return `¡Hola ${first}! Soy Vale, de Armado de CV 🌸 Vi que hiciste el test ATS y tu CV sacó ${lead.score}/100.${top.length ? ` Lo que más le suma corregir: ${top.join(' y ')}.` : ''} Te lo dejo listo para pasar los filtros: CV moderno + CV ATS a $35.000, en 3 a 4 días hábiles (o en 24 hs con Express, +$15.000). ¿Para qué puesto te estás postulando?`
 }
 
 /** People who did the free ATS test (/test-ats) and left their WhatsApp: who to write to, with the message ready. */
