@@ -8,6 +8,7 @@ import { pageMetadata } from '@/lib/seo'
 export const metadata: Metadata = pageMetadata({ path: '/links', title: 'Links', description: 'Test ATS gratis, packs de CV, guías para tu búsqueda laboral y WhatsApp de Armado de CV.' })
 
 const LINKS = [
+  { href: '/empleos/aeropuertos', icon: Briefcase, title: 'Trabajar en Aeropuertos Argentina', text: 'Búsquedas abiertas en aeropuertos de todo el país y cómo postularte', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
   { href: '/empleos/starbucks', icon: Briefcase, title: 'Trabajar en Starbucks', text: 'Búsquedas de barista local por local y cómo postularte', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
   { href: '/test-ats', icon: FileCheck2, title: '¿Tu CV pasa los filtros?', text: 'Hacé el test ATS gratis en 2 minutos', tone: 'bg-ciruela text-white', sub: 'text-white/80' },
   { href: '/#precios', icon: Sparkles, title: 'Packs de CV y LinkedIn', text: 'Tu CV moderno + CV ATS, desde $35.000', tone: 'bg-rosa text-white', sub: 'text-white/85' },
