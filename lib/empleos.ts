@@ -10,8 +10,8 @@ type Company = {
   legalName: string
   logo: string
   logoSize: [number, number]
-  /** Where the openings come from: a HiringRoom portal (20 per page at /jobs/index/<page>) or a Genoma.work jobs site. */
-  source: { kind: 'hiringroom'; portal: string } | { kind: 'genoma'; slug: string }
+  /** Where the openings come from: a HiringRoom portal (20 per page at /jobs/index/<page>), a Genoma.work jobs site or a SuccessFactors career site (its public XML feed). */
+  source: { kind: 'hiringroom'; portal: string } | { kind: 'genoma'; slug: string } | { kind: 'successfactors'; host: string; company: string }
   /** Public page with all the openings, for the fallback link and the "your zone isn't listed" note. */
   portal: string
   /** "Hoy <legalName> tiene <n> <countText> en su portal oficial." */
@@ -56,6 +56,23 @@ export const COMPANIES: Record<string, Company> = {
       'Te escribe INDI, su asistente virtual, por WhatsApp: respondé sus preguntas rápido y completo.',
     ],
     more: '¿No encontrás tu zona? En el portal oficial también podés subir tu CV a su base general.',
+  },
+  aeropuertos: {
+    name: 'Aeropuertos Argentina',
+    legalName: 'Aeropuertos Argentina',
+    logo: '/img/empresas/aeropuertos.png',
+    logoSize: [1152, 144],
+    source: { kind: 'successfactors', host: 'https://career19.sapsf.com', company: 'aeropuerto' },
+    portal: 'https://career19.sapsf.com/career?company=aeropuerto',
+    countText: 'búsquedas abiertas',
+    group: { by: 'entry', entry: /auxiliar|asistente|operario|nivel \d|mantenimiento/i, title: 'En los aeropuertos', text: 'Operaciones y mantenimiento en aeropuertos de todo el país. Casi todas piden secundario completo y disponibilidad para turnos rotativos; leé los requisitos de cada aviso.' },
+    steps: [
+      'Elegí la búsqueda que va con tu perfil y tu zona.',
+      'Tocá "Postularme": se abre su portal oficial de empleos.',
+      'Creá tu usuario y cargá tu CV en PDF, sin columnas ni tablas, para que el sistema lo lea bien.',
+      'Revisá tu mail (y el spam): por ahí te avisan si avanzás a la entrevista.',
+    ],
+    more: 'Las búsquedas son de su portal oficial, el mismo al que lleva "Trabajá con nosotros" de aeropuertosargentina.com.',
   },
 }
 
@@ -107,13 +124,53 @@ async function genoma(slug: string): Promise<Opening[] | null> {
   })
 }
 
+const KEEP_UPPER = new Set(['C', 'SR', 'SSR', 'JR', 'RRHH'])
+
+/** "AUXILIAR C DE MANTENIMIENTO" -> "Auxiliar C de mantenimiento"; titles already in mixed case stay as they are. */
+function sentenceCase(title: string) {
+  if (title !== title.toUpperCase()) return title.replace(/\.$/, '')
+  const words = title.toLowerCase().split(' ').map((word) => (KEEP_UPPER.has(word.toUpperCase()) ? word.toUpperCase() : word))
+  return words.join(' ').replace(/^./, (first) => first.toUpperCase())
+}
+
+function stripTags(html: string) {
+  return clean(html.replace(/<[^>]*>/g, ' ').replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, ''))
+}
+
+async function successfactors(host: string, company: string, entry: RegExp | null): Promise<Opening[] | null> {
+  const response = await fetch(`${host}/career?company=${company}&career_ns=job_listing_summary&resultType=XML&rcm_site_locale=es_ES`, { next: { revalidate: 3600 } })
+  if (!response.ok) return null
+  const xml = await response.text()
+  return xml.split('<Job>').slice(1).map((job) => {
+    const raw = clean(job.match(/<JobTitle><!\[CDATA\[([^\]]*)\]\]>/)?.[1] ?? '')
+    const id = job.match(/<ReqId>(\d+)</)?.[1] ?? ''
+    const description = job.match(/<Job-Description><!\[CDATA\[([\s\S]*?)\]\]>/)?.[1] ?? ''
+    // "AUXILIAR C DE OPERACIONES - Jujuy": the airport goes in the title; the rest say where in "Ubicación:".
+    const [name, airport] = raw.split(/\s+-\s+/)
+    // Some postings are just called "NIVEL 1": their first heading says what the job is.
+    const heading = /^nivel \d/i.test(name) ? stripTags(description.match(/<h[12]>([^<]*)</)?.[1] ?? '') : ''
+    const where = stripTags(description.match(/(?:Ubicaci[oó]n|Lugar de [Tt]rabajo)\s*:?\s*(?:<\/strong>)?\s*:?([^<]*)/)?.[1] ?? '')
+    const title = heading || sentenceCase(name)
+    return {
+      title,
+      place: airport ? `Aeropuerto de ${airport.replace(/^Rio /, 'Río ')}` : 'Buenos Aires',
+      detail: airport ? '' : where,
+      posted: '',
+      url: `${host}/career?career_ns=job_listing&company=${company}&career_job_req_id=${id}&rcm_site_locale=es_ES`,
+      entry: entry?.test(title) ?? true,
+    }
+  })
+}
+
 /** All open positions, or null when the portal doesn't answer (the page then links to the portal). */
 export async function getOpenings(slug: string): Promise<Opening[] | null> {
   const company = COMPANIES[slug]
   if (!company) return null
   try {
     if (company.source.kind === 'genoma') return await genoma(company.source.slug)
-    return await hiringroom(company.source.portal, company.group.by === 'entry' ? company.group.entry : null)
+    const entry = company.group.by === 'entry' ? company.group.entry : null
+    if (company.source.kind === 'successfactors') return await successfactors(company.source.host, company.source.company, entry)
+    return await hiringroom(company.source.portal, entry)
   } catch {
     return null
   }

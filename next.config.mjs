@@ -19,7 +19,7 @@ const nextConfig = {
   poweredByHeader: false,
   // Short links for the Instagram carousels ("armadodecv.com/starbucks").
   async redirects() {
-    return ['starbucks', 'laanonima'].map((empresa) => ({ source: `/${empresa}`, destination: `/empleos/${empresa}`, permanent: false }))
+    return ['starbucks', 'laanonima', 'aeropuertos'].map((empresa) => ({ source: `/${empresa}`, destination: `/empleos/${empresa}`, permanent: false }))
   },
   async headers() {
     return [
