@@ -6,6 +6,7 @@ import { hasExpress, teamDueOn } from '@/lib/dashboard'
 import type { Order, OrderItem } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { ATS_ONLY_PACKS, PACKS_WITH_LETTER, TASK_STATUS, TEAM_PACKS, type TaskStatus, type TeamMember } from '@/lib/team'
+import { BuildButton, BuildDialog, type BuildState } from './build-cv'
 import { TaskStart } from './task-start'
 import { Button, Field, inputClass, useBackdropClose, useFlash } from './ui'
 
@@ -458,8 +459,10 @@ function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; orde
 
 /** On a CV order: each pack with who is building it, or a button to assign it. */
 /** clientName (nombre y apellido) is what the team sees, so two clients with the same first name don't get mixed up. */
-export function TeamRow({ order, tasks, drafts = [], firstName, clientName, onChanged }: { order: Order; tasks: OrderTask[]; drafts?: DraftState[]; firstName: string; clientName: string; onChanged: () => void }) {
+export function TeamRow({ order, tasks, drafts = [], builds = [], firstName, clientName, onChanged }: { order: Order; tasks: OrderTask[]; drafts?: DraftState[]; builds?: BuildState[]; firstName: string; clientName: string; onChanged: () => void }) {
   const [assigning, setAssigning] = useState<OrderItem | null>(null)
+  const [building, setBuilding] = useState<OrderItem | null>(null)
+  const closeBuild = useCallback(() => setBuilding(null), [])
   const [drafting, setDrafting] = useState<OrderItem | null>(null)
   const close = useCallback(() => setAssigning(null), [])
   const closeDraft = useCallback(() => setDrafting(null), [])
@@ -478,6 +481,7 @@ export function TeamRow({ order, tasks, drafts = [], firstName, clientName, onCh
         {rows.map((item) => {
           const task = tasks.find((row) => row.order_item_id === item.id)
           const draft = drafts.find((row) => row.order_item_id === item.id)
+          const build = builds.find((row) => row.order_item_id === item.id)
           const member = task ? (Array.isArray(task.team_members) ? task.team_members[0] : task.team_members) : null
           // Same pack twice: number them so each line is clear.
           const twins = packs.filter((other) => other.product_name === item.product_name)
@@ -491,6 +495,8 @@ export function TeamRow({ order, tasks, drafts = [], firstName, clientName, onCh
                   <span className={`rounded-full px-2 py-0.5 font-display text-[11px] font-bold ${TASK_STATUS[task.status].tone}`}>{TASK_STATUS[task.status].label}</span>
                   {/* The texts he got, to check the finished CV against them. */}
                   <button type="button" onClick={() => setViewing(task.id)} className="inline-flex min-h-8 items-center gap-1 rounded-full border border-line px-3 font-display text-xs font-bold text-ciruela hover:bg-papel"><FileText className="h-3.5 w-3.5 text-rosa" />Ver textos</button>
+                  {/* An urgent one the team can't get to: she builds it herself in Canva with the same texts. */}
+                  <BuildButton build={build} onOpen={() => setBuilding(item)} />
                 </span>
               ) : (
                 <span className="flex flex-wrap items-center justify-end gap-1.5">
@@ -501,6 +507,7 @@ export function TeamRow({ order, tasks, drafts = [], firstName, clientName, onCh
                   <button type="button" onClick={() => setAssigning(item)} className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-rosa/40 px-3 font-display text-xs font-bold text-rosa-deep hover:bg-petalo-wash">
                     Asignar
                   </button>
+                  <BuildButton build={build} onOpen={() => setBuilding(item)} />
                 </span>
               )}
               {/* When he started it, and a reset in case it was a mistaken tap. */}
@@ -510,6 +517,7 @@ export function TeamRow({ order, tasks, drafts = [], firstName, clientName, onCh
         })}
       </ul>
       {assigning && <AssignDialog order={order} item={assigning} clientName={clientName} onClose={close} onSaved={onChanged} />}
+      {building && <BuildDialog order={order} item={building} clientName={clientName} onClose={closeBuild} onSaved={onChanged} />}
       {viewing && <SentTexts taskId={viewing} order={order} firstName={firstName} onClose={closeViewing} />}
       {drafting && <DraftDialog order={order} item={drafting} firstName={firstName} status={drafts.find((row) => row.order_item_id === drafting.id)?.status} onClose={closeDraft} onSaved={onChanged} onApprove={() => { setAssigning(drafting); setDrafting(null) }} />}
     </div>

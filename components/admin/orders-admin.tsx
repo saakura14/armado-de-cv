@@ -14,12 +14,13 @@ import { STAGES, kindsOf, moveTo, needsTexts, sortForStage, stageOf, teamState, 
 import { DeadlineChip } from './dashboard-admin'
 import { OrderLinkDialog } from './order-link-dialog'
 import { TeamRow, type DraftState, type OrderTask } from './assign-task'
+import type { BuildState } from './build-cv'
 import { LINKEDIN_PACKS, LinkedInRow, type LinkedInState } from './linkedin-draft'
 import { TEAM_PACKS } from '@/lib/team'
 
 // The admin also sees every Ualá checkout opened for the order (buyers can't read that table).
-type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null; team_tasks?: OrderTask[]; cv_drafts?: DraftState[]; linkedin_drafts?: LinkedInState[] }
-const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, started_at, due_on, team_members(name)), cv_drafts(order_item_id, status, error), linkedin_drafts(order_item_id, status, error), sessions(id, title, status, scheduled_at)`
+type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null; team_tasks?: OrderTask[]; cv_drafts?: DraftState[]; cv_builds?: BuildState[]; linkedin_drafts?: LinkedInState[] }
+const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, started_at, due_on, team_members(name)), cv_drafts(order_item_id, status, error), cv_builds(order_item_id, status, edit_url, error), linkedin_drafts(order_item_id, status, error), sessions(id, title, status, scheduled_at)`
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, inputClass, useFlash } from './ui'
 
@@ -393,7 +394,7 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
         </ul>
       )}
       {service && order.status !== 'cancelled' && order.status !== 'pending_payment' && <CanvaLink order={order} />}
-      <TeamRow order={order} tasks={order.team_tasks ?? []} drafts={order.cv_drafts ?? []} firstName={firstName} clientName={clientName} onChanged={onChanged} />
+      <TeamRow order={order} tasks={order.team_tasks ?? []} drafts={order.cv_drafts ?? []} builds={order.cv_builds ?? []} firstName={firstName} clientName={clientName} onChanged={onChanged} />
       <LinkedInRow order={order} drafts={order.linkedin_drafts ?? []} firstName={firstName} onChanged={onChanged} />
 
       {/* One main action (the next step), one WhatsApp button (with the message for this step) and the rest under "Más opciones". */}
@@ -527,7 +528,7 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
     let timer: number | undefined
     const soon = () => { window.clearTimeout(timer); timer = window.setTimeout(load, 700) }
     // Team tasks too: a CV finished by the team shows up in Hoy.
-    const channelSub = supabase.channel('admin-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'cv_drafts' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'linkedin_drafts' }, soon).subscribe()
+    const channelSub = supabase.channel('admin-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'cv_drafts' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'cv_builds' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'linkedin_drafts' }, soon).subscribe()
     return () => { window.clearTimeout(timer); supabase.removeChannel(channelSub) }
   }, [load])
 
