@@ -95,7 +95,7 @@ export function BuildDialog({ order, item, clientName, onClose, onSaved }: { ord
         <div className="flex items-start justify-between gap-4 bg-ciruela px-5 py-4 text-white sm:px-7">
           <div>
             <p id="build-title" className="flex items-center gap-2 font-display text-lg font-bold"><Palette className="h-5 w-5" />Armarlo yo en Canva</p>
-            <p className="text-sm text-white/85">Pedido #{order.number} · {item.product_name} de {clientName}. Claude copia tu plantilla, la nombra &quot;Cv - {clientName.toUpperCase()}&quot; y pone estos textos.</p>
+            <p className="text-sm text-white/85">Pedido #{order.number} · {item.product_name} de {clientName}. Claude copia tu plantilla, la nombra &quot;Cv - &quot; con el nombre completo del CV y pone estos textos.</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-full bg-white/15 p-2 hover:bg-white/25" aria-label="Cerrar"><X className="h-5 w-5" /></button>
         </div>
