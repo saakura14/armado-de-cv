@@ -36,18 +36,12 @@ const steps = [
 
 const RANKS = ['El más elegido', '2º más elegido', '3º más elegido']
 
-// "Ver packs · desde $X" quotes the cheapest CV work (packs and LinkedIn), not the 1 a 1 sessions listed in the same section.
-function packFrom(products: Awaited<ReturnType<typeof getProducts>>) {
-  const prices = products.filter((product) => product.delivery === 'service').map((product) => product.price)
-  return prices.length > 0 ? Math.min(...prices) : null
-}
-
 export default async function Home() {
   const [cvProducts, guides, stageGuides, faqs] = await Promise.all([getProducts(['cv']), getProducts(['guias']), getProducts(['etapas']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
   const extraPrice = (id: string) => cvProducts.flatMap((product) => product.extras).find((group) => group.id === id)?.unitPrice ?? 15000
   const top = await getTopProducts(cvProducts)
   const badges = Object.fromEntries(top.products.slice(0, top.ranked).map((product, index) => [product.id, RANKS[index]]))
-  const price = { language: extraPrice('idiomas'), express: extraPrice('express'), from: packFrom(cvProducts) }
+  const price = { language: extraPrice('idiomas'), express: extraPrice('express'), main: cvProducts.find((product) => product.id === 'cv-simple')?.price ?? null }
   return (
     <>
       {/* Hero */}
@@ -60,7 +54,7 @@ export default async function Home() {
             <h1 className="mt-3 text-[34px] font-extrabold leading-[1.1] text-ciruela sm:text-5xl">Tu CV listo para pasar los filtros y llegar a la entrevista</h1>
             <p className="mt-5 text-lg leading-relaxed text-piedra">CV modernos y optimizados para ATS, perfil de LinkedIn, cartas de presentación y carga en plataformas de empleo. Armado para vos, no con plantillas.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a href="#precios" className="inline-flex min-h-12 items-center justify-center rounded-full bg-rosa px-7 py-3.5 font-display font-bold text-white shadow-lg shadow-rosa/25 transition-colors hover:bg-rosa-deep">{price.from ? `Ver packs · desde ${formatARS(price.from)}` : 'Ver packs y precios'}</a>
+              <a href="#precios" className="inline-flex min-h-12 items-center justify-center rounded-full bg-rosa px-7 py-3.5 font-display font-bold text-white shadow-lg shadow-rosa/25 transition-colors hover:bg-rosa-deep">{price.main ? `Ver packs · CV + CV ATS ${formatARS(price.main)}` : 'Ver packs y precios'}</a>
               <a href={whatsappUrl('¡Hola! Quiero consultar por el armado de mi CV.')} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-ciruela/15 px-6 py-3 font-display font-bold text-ciruela hover:border-whatsapp hover:text-whatsapp"><WhatsAppIcon className="h-5 w-5" />Consultar</a>
             </div>
             <p className="mt-6 flex items-center gap-2 text-sm text-piedra"><Clock className="h-4 w-4 text-rosa" />3 a 4 días hábiles · Express en 24 hs hábiles · <a href="#urgente" className="font-semibold text-rosa-deep hover:underline">¿Urgente?</a></p>

@@ -8,7 +8,7 @@ import { HideMoneyButton } from './hide-money-button'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { formatARS } from '@/lib/catalog'
 import { ORDER_SELECT, needsCoordination, type Order } from '@/lib/orders'
-import { stageOf, type LegacyFilter, type Stage } from '@/lib/order-stages'
+import { notStarted, priorityReason, stageOf, type LegacyFilter, type Stage } from '@/lib/order-stages'
 import { SALE_SELECT, bestSellers, funnel, change, deliveryDeadline, formatDue, nextDueText, isTestOrder, monthKey, monthLabel, monthStats, salesByOrigin, salesInMonth, shiftMonth, shortMonthLabel, weeksOfMonth, welcome, type Deadline, type EventRow, type Sale, type VisitRow } from '@/lib/dashboard'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, cardClass } from './ui'
@@ -148,7 +148,7 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
   const load = useCallback(async () => {
     setLoading(true)
     const [open, paid, traffic, sessions, steps, created, delivered, unpaid, fresh] = await Promise.all([
-      supabase.from('orders').select(`${ORDER_SELECT}, team_tasks(status)`).or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending').order('created_at'),
+      supabase.from('orders').select(`${ORDER_SELECT}, team_tasks(status, started_at)`).or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending').order('created_at'),
       supabase.from('orders').select(SALE_SELECT).not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000),
       supabase.from('site_visits').select('day, path, visits, views').order('day'),
       countSessionsToSchedule(),
@@ -245,6 +245,9 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
   const teamWorking = count('equipo')
   const waiting = count('esperando')
   const reviews = count('cobrar')
+  // Paid CVs nobody started: how many, and how many of those are already late.
+  const unstarted = data.orders.filter((order) => notStarted(order) && !order.waiting_since)
+  const late = unstarted.filter((order) => priorityReason(order).rank === 0).length
   const deliveredMonth = data.delivered.filter((at) => monthKey(at) === current).length
   const upcoming = tasks.slice(0, 3)
 
@@ -291,6 +294,12 @@ export function DashboardView({ firstName, data, loading, loadError, onReload, o
         {data.fresh > 0 && (
           <button type="button" onClick={() => onOpen({ tab: 'pedidos', filter: 'activos' })} className="mt-3 flex w-full items-center justify-between gap-3 rounded-2xl bg-rosa px-4 py-3 text-left text-sm text-white shadow-lg shadow-rosa/25">
             <span className="flex items-center gap-2"><ShoppingBag className="h-4 w-4 shrink-0" /><span><b>{data.fresh === 1 ? '¡Tenés un pedido nuevo!' : `¡Tenés ${data.fresh} pedidos nuevos!`}</b> {data.fresh === 1 ? 'Entró por la web y todavía no lo viste.' : 'Entraron por la web y todavía no los viste.'}</span></span>
+            <ArrowRight className="h-4 w-4 shrink-0" />
+          </button>
+        )}
+        {unstarted.length > 0 && (
+          <button type="button" onClick={() => onOpen({ tab: 'pedidos', filter: 'prioridad' })} className={`mt-3 flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left text-sm ${late ? 'bg-rosa text-white shadow-lg shadow-rosa/25' : 'bg-papel text-ciruela'}`}>
+            <span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 shrink-0" /><span><b>{unstarted.length} CV sin empezar</b>{late ? `, ${late} ${late === 1 ? 'atrasado' : 'atrasados'}` : ''}. Miralos por prioridad.</span></span>
             <ArrowRight className="h-4 w-4 shrink-0" />
           </button>
         )}
