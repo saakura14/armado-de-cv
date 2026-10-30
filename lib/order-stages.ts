@@ -4,13 +4,14 @@ import { TEAM_PACKS } from './team'
 
 /**
  * The orders board, in the order Vale works: each order is in one work stage.
- * "Hoy" and "Nuevos" are views across stages (what needs her today, and web orders not opened yet).
+ * "Hoy", "Por prioridad" and "Nuevos" are views across stages (what needs her today, what nobody started yet, and web orders not opened yet).
  */
-export type Stage = 'hoy' | 'nuevos' | 'textos' | 'cobrar' | 'arrancar' | 'proceso' | 'revisar' | 'equipo' | 'esperando' | 'entregados' | 'archivo'
-export type WorkStage = Exclude<Stage, 'hoy' | 'nuevos' | 'textos'>
+export type Stage = 'hoy' | 'prioridad' | 'nuevos' | 'textos' | 'cobrar' | 'arrancar' | 'proceso' | 'revisar' | 'equipo' | 'esperando' | 'entregados' | 'archivo'
+export type WorkStage = Exclude<Stage, 'hoy' | 'prioridad' | 'nuevos' | 'textos'>
 
 export const STAGES: { id: Stage; label: string; hint: string }[] = [
   { id: 'hoy', label: 'Hoy', hint: 'Lo que necesita tu atención hoy: pedidos nuevos, pagos a revisar, recordatorios y entregas que vencen.' },
+  { id: 'prioridad', label: 'Por prioridad', hint: 'Los CV pagados que nadie empezó todavía, del más urgente al más nuevo: atrasados, los que vencen hoy, los Express y después por fecha de entrega. Los que esperan al cliente van al final.' },
   { id: 'nuevos', label: 'Nuevos', hint: 'Pedidos de la web que todavía no abriste.' },
   { id: 'textos', label: 'Textos para el equipo', hint: 'CVs pagados que todavía no le pasaste al equipo, primero los Express y después en orden de pedido: empezá por el primero. Los que esperan al cliente quedan marcados.' },
   { id: 'cobrar', label: 'Por cobrar', hint: 'Sin pagar, comprobantes por revisar y transferencias por verificar.' },
@@ -129,12 +130,34 @@ export function textsReason(order: Order): Reason {
   return { label: 'Listo para escribir', tone: 'rosa', rank: 3 }
 }
 
+/** A paid CV that nobody started: Vale hasn't begun it (nor passed it to the team), or the team has it but didn't open it yet. */
+export function notStarted(order: Order) {
+  if (isTest(order) || !hasDeadline(order)) return false
+  const tasks = (order as Order & { team_tasks?: { status: string; started_at: string | null }[] }).team_tasks ?? []
+  if (!tasks.length) return order.status === 'paid'
+  return tasks.some((task) => task.status !== 'terminado' && !task.started_at)
+}
+
+/** On the priority list: how urgent it is, and who has to start it. */
+export function priorityReason(order: Order, now = new Date()): Reason {
+  if (order.waiting_since) return { label: 'Esperando al cliente', tone: 'arena', rank: 9 }
+  const team = teamState(order) === 'working' ? ' · el equipo no lo empezó' : ''
+  const deadline = deliveryDeadline(order, now)
+  if (deadline && deadline.remaining < 0) return { label: `Atrasado ${-deadline.remaining} ${deadline.remaining === -1 ? 'día' : 'días'}${team}`, tone: 'rojo', rank: 0 }
+  if (deadline && deadline.remaining === 0) return { label: `Vence hoy${team}`, tone: 'rojo', rank: 1 }
+  if (deadline?.express) return { label: `⚡ Express${team}`, tone: 'naranja', rank: 2 }
+  if (deadline && deadline.remaining === 1) return { label: `${nextDueText(deadline.due, now)}${team}`, tone: 'naranja', rank: 3 }
+  return { label: deadline ? `Faltan ${deadline.remaining} días hábiles${team}` : `Para arrancar${team}`, tone: 'rosa', rank: 4 }
+}
+
 /** The order that makes sense for each stage. */
 export function sortForStage(stage: Stage, orders: Order[], reasons: Map<string, Reason | null>): Order[] {
   const list = [...orders]
   switch (stage) {
     // The one due first goes first (Express has the shortest deadline), then in order of purchase.
     case 'textos': return list.sort((a, b) => dueTime(a) - dueTime(b) || a.number - b.number)
+    // Waiting for the client last; the rest by how soon they are due (Express first on the same day), then by payment.
+    case 'prioridad': return list.sort((a, b) => Number(Boolean(a.waiting_since)) - Number(Boolean(b.waiting_since)) || dueTime(a) - dueTime(b) || Number(hasExpress(b)) - Number(hasExpress(a)) || time(a.paid_at) - time(b.paid_at))
     case 'hoy': return list.sort((a, b) => (reasons.get(a.id)?.rank ?? 9) - (reasons.get(b.id)?.rank ?? 9) || dueTime(a) - dueTime(b) || time(a.created_at) - time(b.created_at))
     case 'cobrar': return list.sort((a, b) => Number(b.status === 'payment_review' || b.payment_check === 'pending') - Number(a.status === 'payment_review' || a.payment_check === 'pending') || time(a.created_at) - time(b.created_at))
     case 'arrancar': case 'proceso': case 'revisar': case 'equipo': return list.sort((a, b) => dueTime(a) - dueTime(b) || time(a.paid_at) - time(b.paid_at))
