@@ -398,6 +398,9 @@ function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; orde
   const backdrop = useBackdropClose(onClose)
   const [task, setTask] = useState<SentTask | null>(null)
   const [copied, setCopied] = useState('')
+  // Paragraphs ticked to copy together (ids "label-index"), and sections shown as one block to select by hand.
+  const [picked, setPicked] = useState<string[]>([])
+  const [whole, setWhole] = useState<string[]>([])
 
   useEffect(() => {
     supabase.from('team_tasks').select('pack_name, cv_modern, cv_ats, has_letter, letter, notes, design_url, assigned_at').eq('id', taskId).maybeSingle().then(({ data }) => setTask(data as SentTask | null))
@@ -417,6 +420,13 @@ function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; orde
     navigator.clipboard.writeText(text).then(() => { setCopied(label); window.setTimeout(() => setCopied(''), 1500) }, () => undefined)
   }
 
+  // The ticked paragraphs in the order they appear, a blank line between them (as in the original text).
+  function copyPicked() {
+    const text = sections.flatMap((section) => section.text.replace(/\r\n/g, '\n').split(/\n[ \t]*\n+/).map((piece) => piece.trim()).filter(Boolean).map((piece, index) => ({ id: `${section.label}-${index}`, piece })))
+      .filter((item) => picked.includes(item.id)).map((item) => item.piece).join('\n\n')
+    copy('picked', text)
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="sent-title" {...backdrop}>
       <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-3xl sm:rounded-[28px]">
@@ -431,27 +441,49 @@ function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; orde
           {!task && <p className="text-sm text-piedra">Cargando…</p>}
           {task?.notes && <p className="rounded-2xl bg-papel px-4 py-3 text-sm text-ink"><b>Notas:</b> {task.notes}</p>}
           {task?.design_url && <p className="text-sm"><a href={task.design_url} target="_blank" rel="noreferrer" className="font-semibold text-rosa-deep underline">Abrir el diseño en Canva</a> para compararlo.</p>}
-          {sections.map((section) => (
-            <section key={section.label}>
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-display text-sm font-bold text-ciruela">{section.label}</h3>
-                <button type="button" onClick={() => copy(section.label, section.text)} className="rounded-full border border-line px-3 py-1 font-display text-xs font-bold text-ciruela hover:bg-papel">{copied === section.label ? '¡Copiado!' : 'Copiar'}</button>
-              </div>
-              {/* Each paragraph with its own copy button, to fix just one piece; the text can also be selected by hand. */}
-              <div className="mt-1.5 divide-y divide-line rounded-2xl border border-line bg-white">
-                {section.text.replace(/\r\n/g, '\n').split(/\n[ \t]*\n+/).map((piece) => piece.trim()).filter(Boolean).map((piece, index) => {
-                  const id = `${section.label}-${index}`
-                  return (
-                    <div key={id} className="group flex items-start gap-2 px-4 py-2.5">
-                      <p className="min-w-0 flex-1 select-text whitespace-pre-wrap text-sm leading-relaxed text-ink">{piece}</p>
-                      <button type="button" onClick={() => copy(id, piece)} title="Copiar este párrafo" aria-label="Copiar este párrafo" className="shrink-0 rounded-full p-1.5 text-piedra hover:bg-papel hover:text-ciruela">{copied === id ? <Check className="h-4 w-4 text-whatsapp" /> : <Copy className="h-4 w-4" />}</button>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-          ))}
+          {sections.map((section) => {
+            const pieces = section.text.replace(/\r\n/g, '\n').split(/\n[ \t]*\n+/).map((piece) => piece.trim()).filter(Boolean)
+            const together = whole.includes(section.label)
+            return (
+              <section key={section.label}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-display text-sm font-bold text-ciruela">{section.label}</h3>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setWhole((current) => (together ? current.filter((label) => label !== section.label) : [...current, section.label]))} className="rounded-full border border-line px-3 py-1 font-display text-xs font-bold text-piedra hover:bg-papel hover:text-ciruela">{together ? 'Ver por párrafo' : 'Ver todo junto'}</button>
+                    <button type="button" onClick={() => copy(section.label, section.text)} className="rounded-full border border-line px-3 py-1 font-display text-xs font-bold text-ciruela hover:bg-papel">{copied === section.label ? '¡Copiado!' : 'Copiar'}</button>
+                  </div>
+                </div>
+                {together ? (
+                  // All in one block: easy to select by hand any part, across paragraphs, on the phone too.
+                  <p className="mt-1.5 select-text whitespace-pre-wrap rounded-2xl border border-line bg-white px-4 py-3 text-sm leading-relaxed text-ink">{section.text.trim()}</p>
+                ) : (
+                  // Each paragraph with its own copy button; tick several to copy them together (to fix more than one piece).
+                  <div className="mt-1.5 divide-y divide-line rounded-2xl border border-line bg-white">
+                    {pieces.map((piece, index) => {
+                      const id = `${section.label}-${index}`
+                      const ticked = picked.includes(id)
+                      return (
+                        <div key={id} className={`group flex items-start gap-2 px-3 py-2.5 ${ticked ? 'bg-petalo-wash/50' : ''}`}>
+                          <input type="checkbox" checked={ticked} onChange={() => setPicked((current) => (ticked ? current.filter((item) => item !== id) : [...current, id]))} aria-label="Elegir este párrafo para copiar varios juntos" className="mt-1 h-4 w-4 shrink-0 accent-rosa" />
+                          <p className="min-w-0 flex-1 select-text whitespace-pre-wrap text-sm leading-relaxed text-ink">{piece}</p>
+                          <button type="button" onClick={() => copy(id, piece)} title="Copiar este párrafo" aria-label="Copiar este párrafo" className="shrink-0 rounded-full p-1.5 text-piedra hover:bg-papel hover:text-ciruela">{copied === id ? <Check className="h-4 w-4 text-whatsapp" /> : <Copy className="h-4 w-4" />}</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </section>
+            )
+          })}
         </div>
+        {picked.length > 0 && (
+          <div className="flex items-center gap-2 border-t border-line bg-white px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 sm:px-7">
+            <button type="button" onClick={copyPicked} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-rosa px-4 font-display text-sm font-bold text-white hover:bg-rosa-deep">
+              {copied === 'picked' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}{copied === 'picked' ? '¡Copiado!' : `Copiar los ${picked.length} elegidos`}
+            </button>
+            <button type="button" onClick={() => setPicked([])} className="rounded-full border border-line px-4 py-2.5 font-display text-sm font-bold text-piedra hover:text-ciruela">Destildar</button>
+          </div>
+        )}
       </div>
     </div>
   )
