@@ -262,21 +262,20 @@ export function AtsTest() {
         </div>
       )}
 
-      {stage !== 'puntaje' && (
-        <div className="rounded-[32px] bg-petalo-wash p-5 sm:p-8">
-          <p className="font-display text-xl font-extrabold text-ciruela">{result.score >= 85 ? '¿Querés una opinión honesta de verdad?' : '¿Querés que lo deje listo por vos?'}</p>
-          <p className="mt-2 text-ink"><b className="text-ciruela">Este test es una guía automática:</b> mira el formato y los puntos básicos, pero no sabe si tu experiencia está bien contada, si tu perfil vende ni si convencés a un reclutador. Eso lo reviso yo, persona a persona, en cada pack.</p>
-          <p className="mt-2 text-ink">{result.score >= 85
-            ? 'Con el Pack Premium reviso y potencio tu CV, y sumás tu perfil de LinkedIn y la carta de presentación.'
-            : 'Te armo dos CV: una versión moderna con foto, para mandar por mail o entregar, y otra optimizada para ATS, sin foto, que pasa los filtros. En 3 a 4 días hábiles.'}</p>
-          <p className="mt-2 text-sm text-piedra">Lo pedís acá mismo en 2 minutos, sin crear cuenta, y pagás por transferencia o con tarjeta.</p>
-          <PackOffer score={result.score} />
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link href="/#precios" className="inline-flex min-h-12 items-center rounded-full border-2 border-ciruela px-6 py-3 font-display text-sm font-bold text-ciruela hover:bg-white">Ver todos los packs</Link>
-            <a href={sales} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-whatsapp px-6 py-3 font-display text-sm font-bold text-white hover:brightness-95"><WhatsAppIcon className="h-4 w-4" />Escribirle a Vale</a>
-          </div>
+      {/* The packs show right with the score too: most people don't leave their details, and they can still buy here. */}
+      <div className="rounded-[32px] bg-petalo-wash p-5 sm:p-8">
+        <p className="font-display text-xl font-extrabold text-ciruela">{result.score >= 85 ? '¿Querés una opinión honesta de verdad?' : '¿Querés que lo deje listo por vos?'}</p>
+        <p className="mt-2 text-ink"><b className="text-ciruela">Este test es una guía automática:</b> mira el formato y los puntos básicos, pero no sabe si tu experiencia está bien contada, si tu perfil vende ni si convencés a un reclutador. Eso lo reviso yo, persona a persona, en cada pack.</p>
+        <p className="mt-2 text-ink">{result.score >= 85
+          ? 'Con el Pack Premium reviso y potencio tu CV, y sumás tu perfil de LinkedIn y la carta de presentación.'
+          : 'Te armo dos CV: una versión moderna con foto, para mandar por mail o entregar, y otra optimizada para ATS, sin foto, que pasa los filtros. En 3 a 4 días hábiles.'}</p>
+        <p className="mt-2 text-sm text-piedra">Lo pedís acá mismo en 2 minutos, sin crear cuenta, y pagás por transferencia o con tarjeta.</p>
+        <PackOffer score={result.score} />
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link href="/#precios" className="inline-flex min-h-12 items-center rounded-full border-2 border-ciruela px-6 py-3 font-display text-sm font-bold text-ciruela hover:bg-white">Ver todos los packs</Link>
+          <a href={sales} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 items-center gap-2 rounded-full bg-whatsapp px-6 py-3 font-display text-sm font-bold text-white hover:brightness-95"><WhatsAppIcon className="h-4 w-4" />Escribirle a Vale</a>
         </div>
-      )}
+      </div>
 
       {stage !== 'puntaje' && <GuideOffer />}
 
