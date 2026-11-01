@@ -5,7 +5,7 @@
 // the sales that came from ads) and sends it to Vale as a push notification. Her sales are strong Monday to Wednesday, so on
 // Sunday night ({ boost: true }) it reminds her to raise the ads and on Thursdays ({ brake: true }) to lower them (and
 // warns her if half the weekly cap is gone and the ads are not selling). Every run also adds up the spend
-// since Meta's last charge and warns her once it reaches the balance alert (US$75).
+// since Meta's last charge (estimating the days not loaded yet) and warns her at US$60 and US$75, before Meta charges at US$85.
 // Called by pg_cron (x-cron-key) every 3 hours, on Mondays, Thursdays and Sunday nights, and from the panel (admin session, up to 90 days back).
 // Secrets: META_ADS_TOKEN (a System User token with ads_read) and optionally META_AD_ACCOUNT.
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.57.4'
@@ -121,33 +121,59 @@ Deno.serve(async (request) => {
   const brake = body.brake ? await midweekBrake(admin, today, plan) : null
   // Sunday night: the strong days start tomorrow.
   if (body.boost) { const { strong } = rhythmOf(plan); await pushToAdmins(admin, '🟢 Mañana arrancan tus días fuertes', `Lunes a miércoles es cuando más vendés: subí a ${usd(strong)} por día entre todas las campañas, la mayor parte en la más barata por conversación. El jueves te aviso para bajar.`, '/admin#analisis') }
-  // Every run: how much was spent since Meta's last charge, with a notification once it reaches the alert.
-  const balance = await balanceCheck(admin, plan)
+  // Every run: the balance building up until Meta's charge at US$85, with warnings at US$60 and US$75.
+  const balance = await balanceCheck(admin, plan, today)
 
   if (syncError) return json(502, { connected: true, error: syncError, rate, review, balance })
   return json(200, { connected: Boolean(token), rate, ...(synced ?? {}), review, brake, balance })
 })
 
-/** Spend since the last charge (or balance added) that Meta took: the "saldo" that builds up until the next charge. Once
- *  it reaches the alert (US$75, before Meta charges at about US$85) Vale gets one notification per cycle, so she has
- *  dollars in ARQ when the charge comes, and can stop to look at what is spending. */
-async function balanceCheck(admin: SupabaseClient, plan: Rules) {
+// Meta charges the card by itself when the balance reaches this (Billing: "Pagarás cuando tu saldo llegue a US$85").
+const THRESHOLD = 85
+const nextDay = (day: string) => new Date(Date.parse(`${day}T12:00:00Z`) + DAY).toISOString().slice(0, 10)
+
+/** The "saldo" that builds up until Meta charges it at US$85. It starts from the balance last noted from Billing (by Vale
+ *  or the daily task), or from Meta's last charge; then adds the spend loaded day by day and, for the days not loaded yet
+ *  (that task only runs with her computer on), the daily budgets of the active campaigns. Past US$85 Meta charges the
+ *  card (or tries to), so it counts again from zero. Two warnings per cycle, at US$60 and at the alert (US$75), so she has
+ *  dollars on the card in time or lowers the ads; it runs every 3 hours on the server, also with her computer off. */
+async function balanceCheck(admin: SupabaseClient, plan: Rules, today: string) {
   const { data: last } = await admin.from('meta_payments').select('day, amount_usd').order('day', { ascending: false }).order('created_at', { ascending: false }).limit(1).maybeSingle()
-  if (!last) return null
-  // The balance she noted from Billing is exact up to its day; after that (or without one), the spend loaded day by day.
-  const noted = plan.balanceUsd !== null && plan.balanceOn !== null && plan.balanceOn >= last.day
-  const { data: rows } = await admin.from('ad_spend').select('spend').gt('day', noted ? plan.balanceOn! : last.day)
-  const spent = (noted ? plan.balanceUsd! : 0) + (rows ?? []).reduce((sum, row) => sum + Number(row.spend), 0)
-  const key = `saldo-${last.day}-${last.amount_usd}`
-  if (spent >= plan.balanceAlert) {
-    const { data: sent } = await admin.from('ad_alerts').select('key').eq('key', key).maybeSingle()
-    if (!sent) {
-      await admin.from('ad_alerts').insert({ key })
-      await pushToAdmins(admin, `💸 Meta ya gastó ${usd(spent)}`, `Desde el último cobro (${last.day.slice(8)}/${last.day.slice(5, 7)}) llevás ${usd(spent)} de gasto. Meta te cobra cerca de US$85: tené los dólares en ARQ y mirá en Análisis qué campaña conviene frenar.`, '/admin#analisis')
+  // The balance noted from Billing is exact up to its day; after that, the spend loaded or estimated day by day.
+  const noted = plan.balanceUsd !== null && plan.balanceOn !== null && (!last || plan.balanceOn >= last.day)
+  if (!noted && !last) return null
+  const from = noted ? plan.balanceOn! : last!.day
+  const [{ data: rows }, { data: campaigns }] = await Promise.all([
+    admin.from('ad_spend').select('day, spend').gt('day', from),
+    admin.from('ad_campaigns').select('daily_budget, status'),
+  ])
+  const loaded = (rows ?? []).reduce((sum, row) => sum + Number(row.spend), 0)
+  const lastLoaded = (rows ?? []).reduce((max, row) => (row.day > max ? row.day : max), from)
+  const perDay = (campaigns ?? []).filter((campaign) => campaign.status === 'ACTIVE').reduce((sum, campaign) => sum + Number(campaign.daily_budget ?? 0), 0)
+  // Days after the last one loaded: whole days at the full budget, today by the hours gone (Argentine time).
+  const hoursGone = ((Date.now() - 3 * 60 * 60 * 1000) % DAY) / (60 * 60 * 1000)
+  let estimated = 0
+  for (let day = nextDay(lastLoaded); day <= today; day = nextDay(day)) estimated += day === today ? (perDay * hoursGone) / 24 : perDay
+  const spent = (noted ? plan.balanceUsd! : 0) + loaded + estimated
+  const cycle = Math.floor(spent / THRESHOLD)
+  const balance = spent - cycle * THRESHOLD
+  const base = `saldo-${from}-${noted ? plan.balanceUsd : last!.amount_usd}-${cycle}`
+  // Only the highest warning reached goes out; the lower one is marked too, so it doesn't come after.
+  const levels = [plan.balanceAlert - 15, plan.balanceAlert].filter((level) => balance >= level)
+  if (levels.length) {
+    const keys = levels.map((level) => `${base}-${level}`)
+    const { data: sent } = await admin.from('ad_alerts').select('key').in('key', keys)
+    const top = keys[keys.length - 1]
+    if (!(sent ?? []).some((row) => row.key === top)) {
+      await admin.from('ad_alerts').upsert(keys.map((key) => ({ key })), { onConflict: 'key', ignoreDuplicates: true })
+      const left = THRESHOLD - balance
+      const days = perDay ? left / perDay : null
+      await pushToAdmins(admin, `💸 Meta: saldo en ${usd(balance)} de ${usd(THRESHOLD)}`, `Meta te cobra solo al llegar a ${usd(THRESHOLD)}: faltan ${usd(left)}${days !== null ? `, más o menos ${days < 1 ? 'hoy mismo' : `${Math.floor(days)} ${Math.floor(days) === 1 ? 'día' : 'días'}`} a ${usd(perDay)} por día` : ''}${estimated ? ' (calculado con tus presupuestos)' : ''}. Tené los dólares en la tarjeta o bajá los anuncios.`, '/admin#analisis')
     }
   }
-  return { since: last.day, spent, alert: plan.balanceAlert, reached: spent >= plan.balanceAlert }
+  return { since: from, spent, balance, estimated, perDay, threshold: THRESHOLD, alert: plan.balanceAlert, reached: balance >= plan.balanceAlert }
 }
+
 
 async function sync(admin: SupabaseClient, token: string, account: string, days: number, today: string) {
   const since = arDate(Date.now() - (days - 1) * DAY)
