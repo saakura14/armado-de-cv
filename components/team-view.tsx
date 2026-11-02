@@ -9,10 +9,10 @@ import { CodecCall, PANEL_THEMES, ThemeBackdrop, ThemeStrip } from '@/components
 import { TeamChat, TeamChatBubble, TeamChatWindow, useTeamUnread, type ChatTask } from '@/components/team-chat'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
-import { monthKey, shiftMonth } from '@/lib/dashboard'
+import { monthKey, monthLabel, shiftMonth } from '@/lib/dashboard'
 import { formatDate } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
-import { MIN_WORK_MINUTES, batchStats, formatMinutes, monthReports, recordCheck, sortTasks, streakDays, timesByPack, todayWork, workMinutes, type MonthReport, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
+import { MIN_WORK_MINUTES, batchStats, formatMinutes, monthBatch, monthReports, recordCheck, sortTasks, streakDays, timesByPack, todayWork, workMinutes, type MonthReport, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
 
 export function TeamLogo() {
   return (
@@ -222,6 +222,11 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   const currentKey = monthKey(new Date())
   const thisMonth = months.find((row) => row.key === currentKey)
   const finishedThisMonth = finished.filter((task) => task.finished_at && monthKey(task.finished_at) === currentKey)
+  // His marks, streak, advances and payments start again each month too (earlier months live in "Mis meses").
+  const monthTasks = [...pending, ...finishedThisMonth]
+  const money = monthBatch(member, tasks, payments, currentKey)
+  const monthPayments = payments.filter((payment) => payment.paid_on.slice(0, 7) === currentKey)
+  const monthName = monthLabel(currentKey).toLowerCase()
   // The first week of a month, the month that just closed shows up on top.
   const closed = new Date(Date.now() - 3 * 3600e3).getUTCDate() <= 7 ? months.find((row) => row.key === shiftMonth(currentKey, -1) && row.packs > 0) : undefined
   // Only the urgent ones (24 h Express) go first, in red; a regular CV due today shows "Para hoy" but is not the same.
@@ -256,7 +261,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
     const minutes = done.started_at ? Math.round((Date.now() - new Date(done.started_at).getTime()) / 60000) : null
     let mark = '✅ ¡Listo!'
     if (minutes !== null && minutes >= MIN_WORK_MINUTES) {
-      const { best, isRecord, first } = recordCheck(done, minutes, tasks)
+      const { best, isRecord, first } = recordCheck(done, minutes, monthTasks)
       mark = isRecord ? `🏆 ¡Nueva marca! ${done.pack_name} en ${formatMinutes(minutes)} (antes ${formatMinutes(best!)}).`
         : first ? `⏱ Primer ${done.pack_name}: ${formatMinutes(minutes)}. ¡Esa es tu marca a superar!`
         : `✅ Listo en ${formatMinutes(minutes)} · tu marca: ${formatMinutes(best!)}.`
@@ -270,15 +275,15 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   useEffect(() => { if (!finishNote) return; const timer = window.setTimeout(() => setFinishNote(null), 7500); return () => window.clearTimeout(timer) }, [finishNote])
 
   // His marks (Vale sees the full times in her panel).
-  const records = timesByPack(tasks)
-  const streak = streakDays(tasks)
+  const records = timesByPack(monthTasks)
+  const streak = streakDays(monthTasks)
   const todayDone = todayWork(tasks)
 
   const stats = [
     { icon: ListTodo, label: 'Para hacer', value: String(pending.length), strong: true },
     { icon: CalendarClock, label: 'Urgentes', value: String(urgent) },
     { icon: CheckCircle2, label: 'Este mes', value: String(thisMonth?.packs ?? 0) },
-    { icon: Wallet, label: 'A cobrar', value: formatARS(batch.owed) },
+    { icon: Wallet, label: 'A cobrar', value: formatARS(money.owed) },
   ]
 
   return (
@@ -369,13 +374,13 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
           {/* Money and history: beside the CVs on a tablet, under them on a phone. */}
           <aside className="space-y-4 @3xl:sticky @3xl:top-20">
             {/* One of his favorite characters cheers him up, with what he made this month. */}
-            <TeamCheer pending={pending.length} today={todayDone.count} month={thisMonth?.earned ?? 0} count={batch.count} size={batch.size} />
+            <TeamCheer pending={pending.length} today={todayDone.count} month={thisMonth?.earned ?? 0} count={money.count} size={money.size} />
             {preview && <button type="button" onClick={() => setCelebrate(true)} className="-mt-2 w-full rounded-2xl border border-dashed border-rosa/50 bg-white/90 px-3 py-2 text-xs font-bold text-rosa-deep hover:bg-petalo-wash">🎉 Probar el festejo de los {batch.size} CVs</button>}
             {preview && <button type="button" onClick={() => setFinishNote({ at: Date.now(), text: '✅ Listo en 1 h 05 min · tu marca: 15 min. Seguimos con el próximo.' })} className="-mt-2 w-full rounded-2xl border border-dashed border-rosa/50 bg-white/90 px-3 py-2 text-xs font-bold text-rosa-deep hover:bg-petalo-wash">💬 Probar el mensaje al terminar un CV</button>}
             {/* His own marks, game style: streak of days, today's count and his best time per pack (no averages: those are Vale's). */}
             {records.length > 0 && (
               <section className={cardClass} aria-labelledby="marks-title">
-                <h2 id="marks-title" className="font-display text-base font-bold text-ciruela">Tus marcas 🏆</h2>
+                <h2 id="marks-title" className="font-display text-base font-bold text-ciruela">Tus marcas de {monthName} 🏆</h2>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <div className="rounded-2xl bg-petalo-wash/60 px-3 py-2"><p className="font-display text-[11px] font-bold uppercase tracking-wider text-piedra">Racha</p><p className="font-display text-xl font-extrabold text-ciruela">🔥 {streak} {streak === 1 ? 'día' : 'días'}</p></div>
                   <div className="rounded-2xl bg-papel px-3 py-2"><p className="font-display text-[11px] font-bold uppercase tracking-wider text-piedra">Hoy</p><p className="font-display text-xl font-extrabold text-ciruela">{todayDone.count} {todayDone.count === 1 ? 'CV' : 'CVs'}</p></div>
@@ -383,25 +388,29 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
                 <ul className="mt-3 space-y-1.5 text-sm">
                   {records.map((row) => <li key={row.pack} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5 first:border-0 first:pt-0"><span className="text-ink">{row.pack}</span><b className="font-display text-ciruela">⏱ {formatMinutes(row.best)}</b></li>)}
                 </ul>
-                <p className="mt-2 text-[11px] leading-snug text-piedra">Tu mejor tiempo por pack, de &quot;Empecé&quot; a &quot;Terminé&quot;. ¡A superarlo!</p>
+                <p className="mt-2 text-[11px] leading-snug text-piedra">Tu mejor tiempo por pack este mes, de &quot;Empecé&quot; a &quot;Terminé&quot;. Cada mes arranca de cero: ¡a superarlo!</p>
               </section>
             )}
             <section className={cardClass} aria-labelledby="batch-title">
               <h2 id="batch-title" className="font-display text-base font-bold text-ciruela">Tu próximo cobro</h2>
-              <p className="mt-1 font-display text-2xl font-extrabold text-ciruela">{batch.count}<span className="text-sm text-piedra"> de {batch.size} CVs</span></p>
-              <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${batch.count >= batch.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(batch.count / batch.size, 1) * 100}%` }} /></div>
-              <p className="mt-2 text-xs leading-snug text-piedra">{batch.unpaid.every((task) => task.rate === member.rate) ? `${batch.unpaid.length} ${batch.unpaid.length === 1 ? 'CV' : 'CVs'} × ${formatARS(member.rate)}` : `${batch.unpaid.length} ${batch.unpaid.length === 1 ? 'CV' : 'CVs'} (${formatARS(batch.earned)})`}{batch.advances ? ` − ${formatARS(batch.advances)} de adelanto` : ''} = <b className="text-ink">{formatARS(batch.owed)}</b></p>
-              {/* The CVs the advance already paid for: they don't count for the next payment. */}
-              {batch.covered > 0 && batch.debt === 0 && <p className="mt-2 text-xs leading-snug text-piedra">Tus primeros {batch.covered} {batch.covered === 1 ? 'CV ya lo cubrió' : 'CVs ya los cubrió'} el adelanto: la cuenta de arriba es de los que siguen.</p>}
+              <p className="mt-1 font-display text-2xl font-extrabold text-ciruela">{money.count}<span className="text-sm text-piedra"> de {money.size} CVs de {monthName}</span></p>
+              <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${money.count >= money.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(money.count / Math.max(money.size, 1), 1) * 100}%` }} /></div>
+              {/* This month's account; what earlier months left goes in one line, so the money still adds up. */}
+              <p className="mt-2 text-xs leading-snug text-piedra">
+                {money.current.every((task) => task.rate === member.rate) ? `${money.count} ${money.count === 1 ? 'CV' : 'CVs'} × ${formatARS(member.rate)}` : `${money.count} ${money.count === 1 ? 'CV' : 'CVs'} (${formatARS(money.earned)})`}
+                {money.advanced ? ` − ${formatARS(money.advanced)} de adelanto` : ''}
+                {money.carry > 0 ? ` + ${formatARS(money.carry)} que te quedaron de antes` : money.carry < 0 ? ` − ${formatARS(-money.carry)} de adelanto de antes` : ''}
+                {' '}= <b className="text-ink">{formatARS(money.owed)}</b>
+              </p>
               {/* The advance not covered yet: each CV he finishes takes its rate off. */}
-              {batch.debt > 0 && <p className="mt-2 rounded-xl bg-papel/70 px-3 py-2 text-xs leading-snug text-ink">Adelanto por cubrir: <b>{formatARS(batch.debt)}</b>. Cada CV que terminás lo baja {formatARS(member.rate)}: te faltan {Math.ceil(batch.debt / Math.max(member.rate, 1))}.</p>}
+              {money.debt > 0 && <p className="mt-2 rounded-xl bg-papel/70 px-3 py-2 text-xs leading-snug text-ink">Adelanto por cubrir: <b>{formatARS(money.debt)}</b>. Cada CV que terminás lo baja {formatARS(member.rate)}: te faltan {Math.ceil(money.debt / Math.max(member.rate, 1))}.</p>}
             </section>
 
-            {payments.length > 0 && (
+            {monthPayments.length > 0 && (
               <section className={cardClass} aria-labelledby="payments-title">
-                <h2 id="payments-title" className="font-display text-base font-bold text-ciruela">Tus cobros</h2>
+                <h2 id="payments-title" className="font-display text-base font-bold text-ciruela">Tus cobros de {monthName}</h2>
                 <ul className="mt-2 space-y-2 text-sm">
-                  {payments.slice(0, 8).map((payment) => (
+                  {monthPayments.map((payment) => (
                     <li key={payment.id} className="flex items-baseline justify-between gap-2 border-t border-line pt-2 first:border-0 first:pt-0">
                       <span><b className="text-ink">{payment.kind === 'pago' ? 'Pago' : 'Adelanto'}</b> · {formatDate(`${payment.paid_on}T12:00:00-03:00`)}</span>
                       <span className="font-display font-bold text-ciruela">{formatARS(payment.amount)}</span>
