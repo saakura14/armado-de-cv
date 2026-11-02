@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Copy, FileText, Sparkles, Upload, X } from 'lucide-react'
+import { Check, Copy, FileText, Mic, Sparkles, Upload, X } from 'lucide-react'
 import type { Order, OrderItem } from '@/lib/orders'
+import { SOURCE_ACCEPT, isAudio, sourceLabel, uploadSource, withTranscript } from '@/lib/source-files'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, Field, inputClass, useBackdropClose, useFlash } from './ui'
 
@@ -23,7 +24,6 @@ const STATE: Record<LinkedInState['status'], { label: string; tone: string }> = 
 // LinkedIn's character limits, shown under the blocks that have one.
 const LIMITS: [RegExp, number][] = [[/^titular/i, 220], [/^acerca/i, 2600], [/^experiencia/i, 2000]]
 const limitOf = (label: string) => LIMITS.find(([pattern]) => pattern.test(label))?.[1] ?? null
-const fileLabel = (path: string) => path.split('/').pop()!.replace(/^\d+-/, '')
 
 /**
  * The LinkedIn profile for a pack: the client's material (the same as for the CV, if it was already loaded), and once
@@ -71,19 +71,25 @@ function LinkedInDialog({ order, item, firstName, status, onClose, onSaved }: { 
     if (!valid.length) return
     setBusy(true)
     for (const [index, file] of valid.entries()) {
-      const safe = file.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.-]+/g, '_').slice(-80)
-      const path = correction ? `${order.id}/${item.id}/linkedin-correccion-${Date.now()}-${index}.${(file.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}` : `${order.id}/${item.id}/${Date.now()}-${safe}`
+      if (!correction) {
+        // The client's material: an audio also brings its transcription (see lib/source-files).
+        const { paths, error } = await uploadSource(`${order.id}/${item.id}`, file)
+        if (error) flash.show('error', error)
+        setFiles((current) => [...current, ...paths])
+        continue
+      }
+      const path = `${order.id}/${item.id}/linkedin-correccion-${Date.now()}-${index}.${(file.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`
       const { error } = await supabase.storage.from('cv-sources').upload(path, file, { contentType: file.type || undefined })
       if (error) { flash.show('error', `${file.name}: ${errorMessage(error)}`); continue }
-      if (correction) setShots((current) => [...current, { path, preview: URL.createObjectURL(file) }])
-      else setFiles((current) => [...current, path])
+      setShots((current) => [...current, { path, preview: URL.createObjectURL(file) }])
     }
     setBusy(false)
   }
 
   async function removeFile(path: string) {
     // The CV draft may share the file: only the list changes here, the file stays until the order is done.
-    const rest = files.filter((row) => row !== path)
+    const gone = withTranscript(path)
+    const rest = files.filter((row) => !gone.includes(row))
     setFiles(rest)
     if (draft) await supabase.from('linkedin_drafts').update({ files: rest }).eq('order_item_id', item.id)
   }
@@ -144,21 +150,22 @@ function LinkedInDialog({ order, item, firstName, status, onClose, onSaved }: { 
         <textarea value={source} onChange={(event) => setSource(event.target.value)} rows={review ? 6 : 9} placeholder="Pegá el CV, el formulario o lo que te contó el cliente…" className={inputClass} />
       </Field>
       <div>
-        <p className="text-sm font-semibold text-ink">Archivos (PDF, Word o fotos del CV)</p>
+        <p className="text-sm font-semibold text-ink">Archivos (PDF, Word, fotos del CV o audios)</p>
         {files.length > 0 && (
           <ul className="mt-1.5 space-y-1">
             {files.map((path) => (
               <li key={path} className="flex items-center justify-between gap-2 rounded-xl bg-papel/70 px-3 py-1.5 text-sm">
-                <span className="flex min-w-0 items-center gap-1.5"><FileText className="h-4 w-4 shrink-0 text-rosa" /><span className="truncate">{fileLabel(path)}</span></span>
-                <button type="button" onClick={() => removeFile(path)} className="rounded-full p-1 text-piedra hover:bg-white" aria-label={`Quitar ${fileLabel(path)}`}><X className="h-4 w-4" /></button>
+                <span className="flex min-w-0 items-center gap-1.5">{isAudio(path) ? <Mic className="h-4 w-4 shrink-0 text-rosa" /> : <FileText className="h-4 w-4 shrink-0 text-rosa" />}<span className="truncate">{sourceLabel(path)}</span></span>
+                <button type="button" onClick={() => removeFile(path)} className="rounded-full p-1 text-piedra hover:bg-white" aria-label={`Quitar ${sourceLabel(path)}`}><X className="h-4 w-4" /></button>
               </li>
             ))}
           </ul>
         )}
-        <label className="mt-1.5 inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border border-rosa/40 px-4 font-display text-sm font-bold text-rosa-deep hover:bg-petalo-wash">
-          <Upload className="h-4 w-4" />Subir archivos
-          <input type="file" multiple accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*" className="sr-only" onChange={(event) => { upload(Array.from(event.target.files ?? [])); event.target.value = '' }} />
+        <label className={`mt-1.5 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-rosa/40 px-4 font-display text-sm font-bold text-rosa-deep hover:bg-petalo-wash ${busy ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}>
+          <Upload className="h-4 w-4" />{busy ? 'Subiendo…' : 'Subir archivos'}
+          <input type="file" multiple accept={SOURCE_ACCEPT} className="sr-only" onChange={(event) => { upload(Array.from(event.target.files ?? [])); event.target.value = '' }} />
         </label>
+        <p className="mt-1 text-xs text-piedra">Los audios se pasan a texto solos al subirlos: Claude lee la transcripción.</p>
       </div>
       <Field label="Puesto objetivo y lo que pidió el cliente">
         <textarea value={target} onChange={(event) => setTarget(event.target.value)} rows={3} placeholder="Ej.: Administrativa contable. Quiere que la encuentren reclutadores de zona norte." className={inputClass} />
