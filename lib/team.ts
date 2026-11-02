@@ -74,6 +74,23 @@ export function batchStats(member: Pick<TeamMember, 'batch_size'>, tasks: TeamTa
   return { count: unpaid.length - covered, covered, size: member.batch_size, unpaid, earned, advances, owed: Math.max(earned - advances, 0), debt: Math.max(advances - earned, 0), lastPayment: lastPayment ?? null }
 }
 
+/**
+ * The same money as batchStats, but as he sees it in his panel: every month starts from zero. This month's finished CVs
+ * not paid yet and this month's advances, plus one line with what the earlier months left (`carry`: positive when Vale
+ * still owes him, negative when an advance is still to be covered). The total is the same as the batch's.
+ */
+export function monthBatch(member: Pick<TeamMember, 'batch_size'>, tasks: TeamTask[], payments: TeamPayment[], key: string) {
+  const unpaid = tasks.filter((task) => task.status === 'terminado' && !task.paid_in && task.finished_at)
+  const current = unpaid.filter((task) => monthKey(task.finished_at!) === key)
+  const advances = payments.filter((payment) => payment.kind === 'adelanto' && !payment.settled_in)
+  const sum = <T,>(rows: T[], value: (row: T) => number) => rows.reduce((total, row) => total + value(row), 0)
+  const carry = sum(unpaid.filter((task) => monthKey(task.finished_at!) < key), (task) => task.rate) - sum(advances.filter((payment) => payment.paid_on.slice(0, 7) < key), (payment) => payment.amount)
+  const earned = sum(current, (task) => task.rate)
+  const advanced = sum(advances.filter((payment) => payment.paid_on.slice(0, 7) >= key), (payment) => payment.amount)
+  const balance = carry + earned - advanced
+  return { count: current.length, size: member.batch_size, current, earned, advanced, carry, owed: Math.max(balance, 0), debt: Math.max(-balance, 0) }
+}
+
 export type MonthRow = { key: string; label: string; packs: number; earned: number; paid: number }
 
 /** Month by month (never reset): packs finished and what they add up to, and what was paid (payments and advances). */
