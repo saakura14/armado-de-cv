@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Wallet, X } from 'lucide-react'
+import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Trophy, Wallet, X } from 'lucide-react'
 import { TaskRow, TaskTexts, TaskWorkspace } from '@/components/team-task-card'
 import { progressShare } from '@/components/admin/task-progress'
 import { FinishCheer, TeamCelebration, TeamCheer, useCheerCharacter } from '@/components/team-cheer'
@@ -9,10 +9,10 @@ import { CodecCall, PANEL_THEMES, ThemeBackdrop, ThemeStrip } from '@/components
 import { TeamChat, TeamChatBubble, TeamChatWindow, useTeamUnread, type ChatTask } from '@/components/team-chat'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
-import { monthKey } from '@/lib/dashboard'
+import { monthKey, shiftMonth } from '@/lib/dashboard'
 import { formatDate } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
-import { MIN_WORK_MINUTES, batchStats, formatMinutes, monthlyStats, recordCheck, sortTasks, streakDays, timesByPack, todayWork, workMinutes, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
+import { MIN_WORK_MINUTES, batchStats, formatMinutes, monthReports, recordCheck, sortTasks, streakDays, timesByPack, todayWork, workMinutes, type MonthReport, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
 
 export function TeamLogo() {
   return (
@@ -120,11 +120,57 @@ export const EXAMPLE_TASK: TeamTask = {
  * The team member's screen. It is the same in their app and in Vale's "Ver como él" preview (with `preview`, buttons don't save).
  * It adapts to the width of its box, not the window, so the preview shows exactly the phone or tablet layout.
  */
+const dayFormat = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: 'UTC' })
+
+/** "Mis meses": one card per month, the one in course first, with what he made, earned and his marks of that month. */
+function MonthCards({ months, currentKey }: { months: MonthReport[]; currentKey: string }) {
+  if (!months.length) return <p className="mt-3 rounded-2xl bg-white p-6 text-center text-sm text-piedra">Cuando termines tu primer CV, acá vas a ver tu resumen de cada mes.</p>
+  return (
+    <ul className="mt-3 grid items-start gap-3 @5xl:grid-cols-2">
+      {months.map((month) => {
+        const figures = [
+          { label: 'CVs', value: String(month.packs) },
+          { label: 'Ganado', value: formatARS(month.earned) },
+          { label: 'Cobrado', value: formatARS(month.paid) },
+          { label: 'Días', value: String(month.days) },
+        ]
+        return (
+          <li key={month.key} className={cardClass}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-display text-lg font-bold text-ciruela">{month.label}</h2>
+              {month.key === currentKey ? <span className="rounded-full bg-papel px-2.5 py-0.5 font-display text-[11px] font-bold text-piedra">En curso</span>
+                : month.record ? <span className="rounded-full bg-rosa px-2.5 py-0.5 font-display text-[11px] font-bold text-white">🏆 Tu mejor mes</span> : null}
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 @lg:grid-cols-4">
+              {figures.map((figure) => (
+                <div key={figure.label} className="rounded-2xl bg-petalo-wash/50 px-3 py-2">
+                  <p className="font-display text-[11px] font-bold uppercase tracking-wider text-piedra">{figure.label}</p>
+                  <p className="font-display text-lg font-extrabold text-ciruela">{figure.value}</p>
+                </div>
+              ))}
+            </div>
+            <ul className="mt-3 space-y-1 text-sm text-ink">
+              {month.bestDay && <li>📅 Mejor día: <b>{month.bestDay.count} {month.bestDay.count === 1 ? 'CV' : 'CVs'}</b> el {dayFormat.format(new Date(`${month.bestDay.day}T12:00:00Z`)).replace(/\./g, '')}</li>}
+              {month.urgent > 0 && <li>⚡ <b>{month.urgent}</b> {month.urgent === 1 ? 'urgente resuelto' : 'urgentes resueltos'}</li>}
+              {month.averageMinutes !== null && <li>⏱ Promedio por CV: <b>{formatMinutes(month.averageMinutes)}</b>{month.fastest ? ` · el más rápido: ${month.fastest.pack} en ${formatMinutes(month.fastest.minutes)}` : ''}</li>}
+            </ul>
+            {month.byPack.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {month.byPack.map((row) => <span key={row.pack} className="rounded-full bg-papel px-2.5 py-1 text-xs font-semibold text-ciruela">{row.pack} · {row.count}</span>)}
+              </div>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 export function TeamView({ member, tasks, payments, preview, headerRight, setup, onChanged }: {
   member: TeamMember; tasks: TeamTask[]; payments: TeamPayment[]; preview?: boolean
   headerRight?: React.ReactNode; setup?: React.ReactNode; onChanged: () => void
 }) {
-  const [view, setView] = useState<'pendientes' | 'terminados'>('pendientes')
+  const [view, setView] = useState<'pendientes' | 'terminados' | 'meses'>('pendientes')
   // The panel dresses as the character he picked on his cheering card (background, titles, animations).
   const character = useCheerCharacter()
   const theme = PANEL_THEMES[character]
@@ -171,14 +217,19 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
     try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1') } catch { return }
     setCelebrate(true)
   }, [preview, completing])
-  const months = monthlyStats(tasks, payments)
-  const thisMonth = months.find((row) => row.key === monthKey(new Date()))
+  // Every month starts from zero: "Terminados" shows this month's, and each month (closed or in course) has its card in "Mis meses".
+  const months = monthReports(tasks, payments)
+  const currentKey = monthKey(new Date())
+  const thisMonth = months.find((row) => row.key === currentKey)
+  const finishedThisMonth = finished.filter((task) => task.finished_at && monthKey(task.finished_at) === currentKey)
+  // The first week of a month, the month that just closed shows up on top.
+  const closed = new Date(Date.now() - 3 * 3600e3).getUTCDate() <= 7 ? months.find((row) => row.key === shiftMonth(currentKey, -1) && row.packs > 0) : undefined
   // Only the urgent ones (24 h Express) go first, in red; a regular CV due today shows "Para hoy" but is not the same.
   const isUrgent = (task: TeamTask) => !!task.urgent
   const urgent = pending.filter(isUrgent).length
   // In the preview, an example card shows how a new CV arrives.
   const shownPending = preview && pending.length === 0 ? [EXAMPLE_TASK] : pending
-  const list = view === 'pendientes' ? shownPending : finished.slice(0, 30)
+  const list = view === 'pendientes' ? shownPending : finishedThisMonth
   // Closes by itself when the CV is finished (it leaves the pending list).
   const working = workingId ? shownPending.find((task) => task.id === workingId) ?? null : null
   // "Empezar" marks it as started (Vale sees it "Haciéndolo") and opens the work mode; "Seguir" just opens it.
@@ -269,17 +320,26 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
 
         <div className="grid gap-4 @3xl:grid-cols-[minmax(0,1fr)_300px] @3xl:items-start">
           <section className="min-w-0">
-            <div role="tablist" className="inline-flex rounded-full bg-white p-1 shadow-sm">
-              {(['pendientes', 'terminados'] as const).map((id) => (
-                <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`rounded-full px-4 py-1.5 font-display text-sm font-bold transition-colors ${view === id ? 'bg-ciruela text-white' : 'text-piedra hover:text-ciruela'}`}>
-                  {id === 'pendientes' ? `Para hacer (${pending.length})` : `Terminados (${finished.length})`}
+            {closed && view !== 'meses' && (
+              <button type="button" onClick={() => setView('meses')} className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-ciruela px-4 py-3 text-left text-white shadow-lg">
+                <Trophy className="h-6 w-6 shrink-0 text-petalo" />
+                <span className="min-w-0 flex-1 text-sm"><b>¡Cerraste {closed.label.toLowerCase()}!</b> {closed.packs} {closed.packs === 1 ? 'CV' : 'CVs'} y {formatARS(closed.earned)} ganados{closed.record ? ': tu mejor mes 🏆' : ''}. Mirá tu resumen.</span>
+                <ChevronRight className="h-5 w-5 shrink-0" />
+              </button>
+            )}
+            <div role="tablist" className="inline-flex max-w-full overflow-x-auto rounded-full bg-white p-1 shadow-sm">
+              {(['pendientes', 'terminados', 'meses'] as const).map((id) => (
+                <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`shrink-0 rounded-full px-4 py-1.5 font-display text-sm font-bold transition-colors ${view === id ? 'bg-ciruela text-white' : 'text-piedra hover:text-ciruela'}`}>
+                  {id === 'pendientes' ? `Para hacer (${pending.length})` : id === 'terminados' ? `Este mes (${finishedThisMonth.length})` : 'Mis meses'}
                 </button>
               ))}
             </div>
             {view === 'pendientes' && <ThemeStrip id={character} urgent={pending.filter(isUrgent)} pending={pending} />}
             {preview && view === 'pendientes' && pending.length === 0 && <p className={`mt-3 text-xs font-semibold ${theme.label}`}>Ejemplo: así le llega un CV cuando se lo asignás (no es un pedido real).</p>}
-            {list.length === 0 ? (
-              <p className="mt-3 rounded-2xl bg-white p-6 text-center text-sm text-piedra">{view === 'pendientes' ? theme.empty : 'Todavía no terminaste ningún CV.'}</p>
+            {view === 'meses' ? (
+              <MonthCards months={months} currentKey={currentKey} />
+            ) : list.length === 0 ? (
+              <p className="mt-3 rounded-2xl bg-white p-6 text-center text-sm text-piedra">{view === 'pendientes' ? theme.empty : 'Todavía no terminaste ningún CV este mes. Los de meses anteriores están en "Mis meses".'}</p>
             ) : view === 'pendientes' ? (
               // The urgent ones first, apart, so it's clear what to do today.
               <div className="mt-3 space-y-4">
@@ -335,16 +395,6 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
               {batch.covered > 0 && batch.debt === 0 && <p className="mt-2 text-xs leading-snug text-piedra">Tus primeros {batch.covered} {batch.covered === 1 ? 'CV ya lo cubrió' : 'CVs ya los cubrió'} el adelanto: la cuenta de arriba es de los que siguen.</p>}
               {/* The advance not covered yet: each CV he finishes takes its rate off. */}
               {batch.debt > 0 && <p className="mt-2 rounded-xl bg-papel/70 px-3 py-2 text-xs leading-snug text-ink">Adelanto por cubrir: <b>{formatARS(batch.debt)}</b>. Cada CV que terminás lo baja {formatARS(member.rate)}: te faltan {Math.ceil(batch.debt / Math.max(member.rate, 1))}.</p>}
-            </section>
-
-            <section className={cardClass} aria-labelledby="months-title">
-              <h2 id="months-title" className="font-display text-base font-bold text-ciruela">Mes a mes</h2>
-              {months.length === 0 ? <p className="mt-1 text-sm text-piedra">Acá vas a ver cuántos CVs hiciste y lo que cobraste cada mes.</p> : (
-                <table className="mt-2 w-full text-sm">
-                  <thead><tr className="text-left text-[11px] uppercase tracking-wider text-piedra"><th className="pb-1.5 font-semibold">Mes</th><th className="pb-1.5 text-right font-semibold">CVs</th><th className="pb-1.5 text-right font-semibold">Cobrado</th></tr></thead>
-                  <tbody>{months.map((row) => <tr key={row.key} className="border-t border-line"><td className="py-1.5 font-semibold text-ink">{row.label}</td><td className="py-1.5 text-right">{row.packs}</td><td className="py-1.5 text-right">{formatARS(row.paid)}</td></tr>)}</tbody>
-                </table>
-              )}
             </section>
 
             {payments.length > 0 && (

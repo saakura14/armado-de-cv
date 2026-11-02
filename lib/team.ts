@@ -90,6 +90,47 @@ export function monthlyStats(tasks: TeamTask[], payments: TeamPayment[]): MonthR
   return [...rows.values()].sort((a, b) => b.key.localeCompare(a.key))
 }
 
+export type MonthReport = MonthRow & {
+  byPack: { pack: string; count: number }[]
+  /** Days with at least one CV finished, and the one with the most. */
+  days: number
+  bestDay: { day: string; count: number } | null
+  urgent: number
+  averageMinutes: number | null
+  fastest: { pack: string; minutes: number } | null
+  /** The month with the most CVs of all (only when there is more than one month to compare). */
+  record: boolean
+}
+
+/** His month in detail, for "Mis meses": what he made and by pack, his best day, his times, and whether it was his best month. */
+export function monthReports(tasks: TeamTask[], payments: TeamPayment[]): MonthReport[] {
+  const rows = monthlyStats(tasks, payments)
+  const most = Math.max(0, ...rows.map((row) => row.packs))
+  const tied = rows.filter((row) => row.packs === most).length
+  return rows.map((row) => {
+    const done = tasks.filter((task) => task.status === 'terminado' && task.finished_at && monthKey(task.finished_at) === row.key)
+    const packs = new Map<string, number>()
+    const perDay = new Map<string, number>()
+    for (const task of done) {
+      packs.set(task.pack_name, (packs.get(task.pack_name) ?? 0) + 1)
+      const day = arDay(task.finished_at!)
+      perDay.set(day, (perDay.get(day) ?? 0) + 1)
+    }
+    const times = done.flatMap((task) => { const minutes = workMinutes(task); return minutes === null ? [] : [{ pack: task.pack_name, minutes }] })
+    const bestDay = [...perDay.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]
+    return {
+      ...row,
+      byPack: [...packs.entries()].map(([pack, count]) => ({ pack, count })).sort((a, b) => b.count - a.count),
+      days: perDay.size,
+      bestDay: bestDay ? { day: bestDay[0], count: bestDay[1] } : null,
+      urgent: done.filter((task) => task.urgent).length,
+      averageMinutes: times.length ? Math.round(times.reduce((sum, item) => sum + item.minutes, 0) / times.length) : null,
+      fastest: times.length ? times.reduce((best, item) => (item.minutes < best.minutes ? item : best)) : null,
+      record: rows.length > 1 && row.packs > 0 && row.packs === most && tied === 1,
+    }
+  })
+}
+
 /** Pending: the ones Vale marked urgent first, then by due date (the ones without date at the end), finished ones newest first. */
 export function sortTasks(tasks: TeamTask[]) {
   const pending = tasks.filter((task) => task.status !== 'terminado').sort((a, b) => Number(!!b.urgent) - Number(!!a.urgent) || (a.due_on ?? '9999').localeCompare(b.due_on ?? '9999') || time(a.assigned_at) - time(b.assigned_at))
