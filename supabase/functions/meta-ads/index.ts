@@ -33,9 +33,9 @@ type Insight = { campaign_id: string; campaign_name: string; date_start: string;
 type Campaign = { id: string; name: string; effective_status: string; daily_budget?: string; adsets?: { data: { daily_budget?: string; effective_status: string }[] } }
 
 // Plan of 19/10 (spend less, sell the same): the rules live in savings_goal so they can change without a deploy.
-type Rules = { cap: number; weeklyCap: number; maxPerConversation: number; targetPerSale: number; balanceAlert: number; balanceUsd: number | null; balanceOn: string | null }
+type Rules = { cap: number; weeklyCap: number; maxPerConversation: number; targetPerSale: number; balanceAlert: number; balanceUsd: number | null; balanceOn: string | null; limitUsd: number | null; limitSpent: number; limitOn: string | null }
 async function rules(admin: SupabaseClient): Promise<Rules> {
-  const { data } = await admin.from('savings_goal').select('ad_cap_usd, weekly_cap_usd, max_per_conversation_usd, target_per_sale_usd, balance_alert_usd, meta_balance_usd, meta_balance_on').eq('id', 1).maybeSingle()
+  const { data } = await admin.from('savings_goal').select('ad_cap_usd, weekly_cap_usd, max_per_conversation_usd, target_per_sale_usd, balance_alert_usd, meta_balance_usd, meta_balance_on, meta_limit_usd, meta_limit_spent_usd, meta_limit_on').eq('id', 1).maybeSingle()
   return {
     cap: Number(data?.ad_cap_usd ?? 11),
     weeklyCap: Number(data?.weekly_cap_usd ?? 80),
@@ -45,6 +45,10 @@ async function rules(admin: SupabaseClient): Promise<Rules> {
     // The "Saldo actual" from Billing, noted by hand on a day.
     balanceUsd: data?.meta_balance_usd === null || data?.meta_balance_usd === undefined ? null : Number(data.meta_balance_usd),
     balanceOn: data?.meta_balance_on ?? null,
+    // The account spending limit (Billing): when the spend since its last reset reaches it, Meta stops the ads.
+    limitUsd: data?.meta_limit_usd === null || data?.meta_limit_usd === undefined ? null : Number(data.meta_limit_usd),
+    limitSpent: Number(data?.meta_limit_spent_usd ?? 0),
+    limitOn: data?.meta_limit_on ?? null,
   }
 }
 // Traffic light: a daily budget is only worth it when the last 7 days brought enough ad sales for each one to cost at
@@ -123,11 +127,15 @@ Deno.serve(async (request) => {
   const brake = body.brake ? await midweekBrake(admin, today, plan) : null
   // Sunday night: the strong days start tomorrow.
   if (body.boost) { const { strong } = rhythmOf(plan); await pushToAdmins(admin, '🟢 Mañana arrancan tus días fuertes', `Lunes a miércoles es cuando más vendés: subí a ${usd(strong)} por día entre todas las campañas, la mayor parte en la más barata por conversación. El jueves te aviso para bajar.`, '/admin#analisis') }
-  // Every run: the balance building up until Meta's charge at US$85, with warnings at US$60 and US$75.
+  // Every run: the balance building up until Meta's charge at US$85, with warnings at US$60 and US$75, and the spend
+  // against the account limit (US$75 since 2/11), with warnings when US$15 and US$5 are left.
   const balance = await balanceCheck(admin, plan, today)
+  const limit = await limitCheck(admin, plan, today)
+  // The panel shows it as an urgent bar on every section (phone notifications are easy to miss).
+  await admin.from('savings_goal').update({ meta_status: { balance, limit }, meta_status_at: new Date().toISOString() }).eq('id', 1)
 
-  if (syncError) return json(502, { connected: true, error: syncError, rate, review, balance })
-  return json(200, { connected: Boolean(token), rate, ...(synced ?? {}), review, brake, balance })
+  if (syncError) return json(502, { connected: true, error: syncError, rate, review, balance, limit })
+  return json(200, { connected: Boolean(token), rate, ...(synced ?? {}), review, brake, balance, limit })
 })
 
 // Meta charges the card by itself when the balance reaches this (Billing: "Pagarás cuando tu saldo llegue a US$85").
@@ -145,17 +153,7 @@ async function balanceCheck(admin: SupabaseClient, plan: Rules, today: string) {
   const noted = plan.balanceUsd !== null && plan.balanceOn !== null && (!last || plan.balanceOn >= last.day)
   if (!noted && !last) return null
   const from = noted ? plan.balanceOn! : last!.day
-  const [{ data: rows }, { data: campaigns }] = await Promise.all([
-    admin.from('ad_spend').select('day, spend').gt('day', from),
-    admin.from('ad_campaigns').select('daily_budget, status'),
-  ])
-  const loaded = (rows ?? []).reduce((sum, row) => sum + Number(row.spend), 0)
-  const lastLoaded = (rows ?? []).reduce((max, row) => (row.day > max ? row.day : max), from)
-  const perDay = (campaigns ?? []).filter((campaign) => campaign.status === 'ACTIVE').reduce((sum, campaign) => sum + Number(campaign.daily_budget ?? 0), 0)
-  // Days after the last one loaded: whole days at the full budget, today by the hours gone (Argentine time).
-  const hoursGone = ((Date.now() - 3 * 60 * 60 * 1000) % DAY) / (60 * 60 * 1000)
-  let estimated = 0
-  for (let day = nextDay(lastLoaded); day <= today; day = nextDay(day)) estimated += day === today ? (perDay * hoursGone) / 24 : perDay
+  const { loaded, estimated, perDay } = await spendSince(admin, from, today)
   const spent = (noted ? plan.balanceUsd! : 0) + loaded + estimated
   const cycle = Math.floor(spent / THRESHOLD)
   const balance = spent - cycle * THRESHOLD
@@ -174,6 +172,45 @@ async function balanceCheck(admin: SupabaseClient, plan: Rules, today: string) {
     }
   }
   return { since: from, spent, balance, estimated, perDay, threshold: THRESHOLD, alert: plan.balanceAlert, reached: balance >= plan.balanceAlert }
+}
+
+/** The spend after a day: what is loaded day by day and, for the days not loaded yet (the loading task only runs with
+ *  her computer on), the daily budgets of the active campaigns; today by the hours gone (Argentine time). */
+async function spendSince(admin: SupabaseClient, from: string, today: string) {
+  const [{ data: rows }, { data: campaigns }] = await Promise.all([
+    admin.from('ad_spend').select('day, spend').gt('day', from),
+    admin.from('ad_campaigns').select('daily_budget, status'),
+  ])
+  const loaded = (rows ?? []).reduce((sum, row) => sum + Number(row.spend), 0)
+  const lastLoaded = (rows ?? []).reduce((max, row) => (row.day > max ? row.day : max), from)
+  const perDay = (campaigns ?? []).filter((campaign) => campaign.status === 'ACTIVE').reduce((sum, campaign) => sum + Number(campaign.daily_budget ?? 0), 0)
+  const hoursGone = ((Date.now() - 3 * 60 * 60 * 1000) % DAY) / (60 * 60 * 1000)
+  let estimated = 0
+  for (let day = nextDay(lastLoaded); day <= today; day = nextDay(day)) estimated += day === today ? (perDay * hoursGone) / 24 : perDay
+  return { loaded, estimated, perDay }
+}
+
+/** The account spending limit Vale sets in Billing (US$75 since 2/11) so Meta never charges more than she has: when the
+ *  spend since its last reset reaches it, the ads stop. Warnings when US$15 and when US$5 are left, so she pays the
+ *  balance and resets the limit before the ads stop (once each per reset). */
+async function limitCheck(admin: SupabaseClient, plan: Rules, today: string) {
+  if (plan.limitUsd === null || plan.limitOn === null) return null
+  const { loaded, estimated, perDay } = await spendSince(admin, plan.limitOn, today)
+  const spent = plan.limitSpent + loaded + estimated
+  const left = plan.limitUsd - spent
+  const levels = [15, 5].filter((margin) => left <= margin)
+  if (levels.length) {
+    const keys = levels.map((margin) => `limite-${plan.limitOn}-${plan.limitSpent}-${margin}`)
+    const { data: sent } = await admin.from('ad_alerts').select('key').in('key', keys)
+    const top = keys[keys.length - 1]
+    if (!(sent ?? []).some((row) => row.key === top)) {
+      await admin.from('ad_alerts').upsert(keys.map((key) => ({ key })), { onConflict: 'key', ignoreDuplicates: true })
+      const days = perDay ? Math.max(left, 0) / perDay : null
+      const when = left <= 0 ? 'Ya se cortaron' : days !== null && days < 1 ? 'Se cortan hoy' : `Se cortan en ${Math.floor(days ?? 0)} ${Math.floor(days ?? 0) === 1 ? 'día' : 'días'}`
+      await pushToAdmins(admin, `⛔ Meta: ${usd(Math.max(left, 0))} para el límite de ${usd(plan.limitUsd)}`, `${when} los anuncios${days !== null && left > 0 ? ` (a ${usd(perDay)} por día)` : ''}. Pagá el saldo en Facturación y tocá "Restablecer" en el límite de gasto de la cuenta para que sigan.`, '/admin#analisis')
+    }
+  }
+  return { since: plan.limitOn, spent, limit: plan.limitUsd, left, estimated, perDay }
 }
 
 async function sync(admin: SupabaseClient, token: string, account: string, days: number, today: string) {
