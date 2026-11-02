@@ -40,3 +40,8 @@ verify_jwt = false
 [functions.order-mail]
 # Called only by pg_cron with the private key from Vault (x-cron-key), no session. Secret: RESEND_API_KEY.
 verify_jwt = false
+
+[functions.transcribe-audio]
+# From the panel with the admin session (checked inside): turns an audio of "Textos con Claude" into text with
+# Whisper on Groq and saves it next to it as "<path>.txt". Secret: GROQ_API_KEY.
+verify_jwt = true

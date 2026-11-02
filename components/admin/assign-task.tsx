@@ -1,9 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Copy, FileText, Sparkles, Upload, Users, X } from 'lucide-react'
+import { Check, Copy, FileText, Mic, Sparkles, Upload, Users, X } from 'lucide-react'
 import { hasExpress, teamDueOn } from '@/lib/dashboard'
 import type { Order, OrderItem } from '@/lib/orders'
+import { SOURCE_ACCEPT, isAudio, sourceLabel, uploadSource, withTranscript } from '@/lib/source-files'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { ATS_ONLY_PACKS, PACKS_WITH_LETTER, TASK_STATUS, TEAM_PACKS, type TaskStatus, type TeamMember } from '@/lib/team'
 import { BuildButton, BuildDialog, type BuildState } from './build-cv'
@@ -22,7 +23,6 @@ const DRAFT_STATE: Record<DraftState['status'], { label: string; tone: string }>
   listo: { label: '✨ Revisar textos', tone: 'bg-whatsapp/15 text-whatsapp' },
   error: { label: '⚠️ Falta material', tone: 'bg-petalo-wash text-rosa-deep' },
 }
-const fileLabel = (path: string) => path.split('/').pop()!.replace(/^\d+-/, '')
 
 /** The order's delivery deadline minus one business day, so Vale has time to check it (never before today). */
 function suggestedDue(order: Order) {
@@ -193,19 +193,18 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
     setBusy(true)
     const added: string[] = []
     for (const file of Array.from(list)) {
-      const safe = file.name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.-]+/g, '_').slice(-80)
-      const path = `${order.id}/${item.id}/${Date.now()}-${safe}`
-      const { error } = await supabase.storage.from('cv-sources').upload(path, file, { contentType: file.type || undefined })
-      if (error) { flash.show('error', `${file.name}: ${errorMessage(error)}`); continue }
-      added.push(path)
+      const { paths, error } = await uploadSource(`${order.id}/${item.id}`, file)
+      if (error) flash.show('error', error)
+      added.push(...paths)
     }
     setFiles((current) => [...current, ...added])
     setBusy(false)
   }
 
   async function removeFile(path: string) {
-    await supabase.storage.from('cv-sources').remove([path])
-    const rest = files.filter((row) => row !== path)
+    const gone = withTranscript(path)
+    await supabase.storage.from('cv-sources').remove(gone)
+    const rest = files.filter((row) => !gone.includes(row))
     setFiles(rest)
     // Keep the saved draft in step, so a removed file isn't sent to Claude.
     if (draft) await supabase.from('cv_drafts').update({ files: rest }).eq('order_item_id', item.id)
@@ -291,21 +290,22 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
         <textarea value={source} onChange={(event) => setSource(event.target.value)} rows={review ? 6 : 10} placeholder="Pegá el CV que te mandó, las respuestas del formulario, lo que te contó por WhatsApp…" className={inputClass} />
       </Field>
       <div>
-        <p className="text-sm font-semibold text-ink">Archivos (PDF, Word o fotos del CV)</p>
+        <p className="text-sm font-semibold text-ink">Archivos (PDF, Word, fotos del CV o audios)</p>
         {files.length > 0 && (
           <ul className="mt-1.5 space-y-1">
             {files.map((path) => (
               <li key={path} className="flex items-center justify-between gap-2 rounded-xl bg-papel/70 px-3 py-1.5 text-sm">
-                <span className="flex min-w-0 items-center gap-1.5"><FileText className="h-4 w-4 shrink-0 text-rosa" /><span className="truncate">{fileLabel(path)}</span></span>
-                <button type="button" onClick={() => removeFile(path)} className="rounded-full p-1 text-piedra hover:bg-white" aria-label={`Quitar ${fileLabel(path)}`}><X className="h-4 w-4" /></button>
+                <span className="flex min-w-0 items-center gap-1.5">{isAudio(path) ? <Mic className="h-4 w-4 shrink-0 text-rosa" /> : <FileText className="h-4 w-4 shrink-0 text-rosa" />}<span className="truncate">{sourceLabel(path)}</span></span>
+                <button type="button" onClick={() => removeFile(path)} className="rounded-full p-1 text-piedra hover:bg-white" aria-label={`Quitar ${sourceLabel(path)}`}><X className="h-4 w-4" /></button>
               </li>
             ))}
           </ul>
         )}
-        <label className="mt-1.5 inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border border-rosa/40 px-4 font-display text-sm font-bold text-rosa-deep hover:bg-petalo-wash">
-          <Upload className="h-4 w-4" />Subir archivos
-          <input type="file" multiple accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*" className="sr-only" onChange={(event) => { upload(event.target.files); event.target.value = '' }} />
+        <label className={`mt-1.5 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-rosa/40 px-4 font-display text-sm font-bold text-rosa-deep hover:bg-petalo-wash ${busy ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}>
+          <Upload className="h-4 w-4" />{busy ? 'Subiendo…' : 'Subir archivos'}
+          <input type="file" multiple accept={SOURCE_ACCEPT} className="sr-only" onChange={(event) => { upload(event.target.files); event.target.value = '' }} />
         </label>
+        <p className="mt-1 text-xs text-piedra">Los audios (por ejemplo, notas de voz de WhatsApp) se pasan a texto solos al subirlos: Claude lee la transcripción.</p>
       </div>
       <Field label="Puesto objetivo y lo que pidió el cliente">
         <textarea value={target} onChange={(event) => setTarget(event.target.value)} rows={3} placeholder="Ej.: Operario de producción. Quiere destacar el manejo de autoelevador. Zona norte." className={inputClass} />
