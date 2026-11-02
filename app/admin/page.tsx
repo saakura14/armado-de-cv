@@ -10,6 +10,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { AdminTeamChat } from '@/components/team-chat'
 import { WhatsappSaleDialog } from '@/components/admin/whatsapp-sale-dialog'
 import { UpdateBanner } from '@/components/admin/update-banner'
+import { MetaAlert } from '@/components/admin/meta-alert'
 import { AuthPanel } from '@/components/auth-panel'
 import { AnalysisAdmin } from '@/components/admin/analysis-admin'
 import { SavingsAdmin } from '@/components/admin/savings-admin'
@@ -226,6 +227,7 @@ export default function AdminPage() {
 
       <div className="mx-auto max-w-6xl px-4 pb-4 pt-4 sm:px-6 lg:pb-12 lg:pt-8">
         {tab !== 'inicio' && <h1 className="mb-4 flex items-center gap-2 font-display text-xl font-bold text-ciruela lg:hidden"><current.icon className="h-5 w-5 text-rosa" />{current.label}</h1>}
+        <MetaAlert onOpen={() => select('analisis')} />
         <div key={refresh}>
           {tab === 'inicio' && (
             <div className="space-y-6">
