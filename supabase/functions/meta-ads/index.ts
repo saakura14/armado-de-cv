@@ -26,6 +26,8 @@ const DAY = 24 * 60 * 60 * 1000
 const arDate = (moment: number) => new Date(moment - 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
 const usd = (value: number) => `US$${value.toFixed(2).replace('.', ',')}`
 const ars = (value: number) => '$' + Math.round(value).toLocaleString('es-AR')
+// Campaigns that send people to the web (the ATS test, guides) instead of WhatsApp.
+const isTraffic = (name: string) => /tr[aá]fico|test ats/i.test(name)
 
 type Insight = { campaign_id: string; campaign_name: string; date_start: string; spend?: string; clicks?: string; impressions?: string; account_currency?: string; actions?: { action_type: string; value: string }[] }
 type Campaign = { id: string; name: string; effective_status: string; daily_budget?: string; adsets?: { data: { daily_budget?: string; effective_status: string }[] } }
@@ -46,10 +48,10 @@ async function rules(admin: SupabaseClient): Promise<Rules> {
   }
 }
 // Traffic light: a daily budget is only worth it when the last 7 days brought enough ad sales for each one to cost at
-// most the target (US$6, under a quarter of the ticket). The top level is the plan's base (11 a day, 77 a week).
-const LEVELS = [11, 8, 5]
+// most the target. The levels follow her daily cap (US$23 since 1/11): the cap, about 70% of it and about 45%.
+const levelsOf = (plan: Rules) => [plan.cap, Math.round(plan.cap * 0.7), Math.round(plan.cap * 0.45)]
 const needed = (level: number, targetPerSale: number) => Math.ceil((level * 7) / targetPerSale)
-const LIGHT: Record<number, string> = { 11: '🟢', 8: '🟡', 5: '🔴' }
+const LIGHTS = ['🟢', '🟡', '🔴']
 // Her sales are strong Monday to Wednesday and drop from Thursday (data of October 2026): the weekly cap goes 70% to
 // Sunday night–Wednesday and 30% to Thursday–Saturday. With US$80 a week that is 14 and 8 a day, all campaigns together.
 const rhythmOf = (plan: Rules) => ({ strong: Math.round((plan.weeklyCap * 0.7) / 4), weak: Math.round((plan.weeklyCap * 0.3) / 3) })
@@ -174,7 +176,6 @@ async function balanceCheck(admin: SupabaseClient, plan: Rules, today: string) {
   return { since: from, spent, balance, estimated, perDay, threshold: THRESHOLD, alert: plan.balanceAlert, reached: balance >= plan.balanceAlert }
 }
 
-
 async function sync(admin: SupabaseClient, token: string, account: string, days: number, today: string) {
   const since = arDate(Date.now() - (days - 1) * DAY)
   const params = new URLSearchParams({
@@ -226,11 +227,13 @@ type Advice = { kind: 'semaforo' | 'bajar' | 'pausar' | 'subir' | 'ok' | 'ventas
 /** Last 7 full days: spend, sales and what to change so the money goes where conversations are cheapest, within the cap. */
 async function weeklyReview(admin: SupabaseClient, today: string, connected: boolean, notify: boolean, plan: Rules) {
   const since = arDate(Date.now() - 7 * DAY)
-  const [{ data: spend }, { data: campaigns }, { data: sales }, { data: fx }] = await Promise.all([
+  const [{ data: spend }, { data: campaigns }, { data: sales }, { data: fx }, { count: leads }] = await Promise.all([
     admin.from('ad_spend').select('campaign_id, campaign_name, spend, conversations').gte('day', since).lt('day', today),
     admin.from('ad_campaigns').select('id, name, status, daily_budget'),
     admin.from('orders').select('total, origin').not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000).gte('paid_at', `${since}T03:00:00Z`).lt('paid_at', `${today}T03:00:00Z`),
     admin.from('fx_rates').select('ars_per_usd').order('day', { ascending: false }).limit(1),
+    // People who left their details in the ATS test: what the traffic campaign is for (it brings no conversations).
+    admin.from('ats_checks').select('id', { count: 'exact', head: true }).gte('created_at', `${since}T03:00:00Z`).lt('created_at', `${today}T03:00:00Z`),
   ])
   const cap = plan.cap
   // Budgets come from Meta (token) or from what Claude reads in Ads Manager each week (ad_campaigns either way).
@@ -253,12 +256,16 @@ async function weeklyReview(admin: SupabaseClient, today: string, connected: boo
   }
   const list = [...byCampaign.values()].map((row) => ({ ...row, perConversation: row.conversations ? row.spend / row.conversations : null }))
   const active = list.filter((row) => row.active)
+  // Traffic campaigns (the ATS test) take people to the web, not to WhatsApp: they are judged by the test's leads, never
+  // by conversations. The rest are judged by what a conversation costs.
+  const traffic = active.filter((row) => isTraffic(row.name))
+  const messaging = active.filter((row) => !isTraffic(row.name))
   const budget = active.reduce((sum, row) => sum + (row.budget ?? 0), 0)
   const spendUsd = list.reduce((sum, row) => sum + row.spend, 0)
   const conversations = list.reduce((sum, row) => sum + row.conversations, 0)
   const revenue = (sales ?? []).reduce((sum, sale) => sum + Number(sale.total), 0)
   const spendArs = spendUsd * rate
-  const ranked = active.filter((row) => row.conversations >= 5 && row.perConversation !== null).sort((a, b) => a.perConversation! - b.perConversation!)
+  const ranked = messaging.filter((row) => row.conversations >= 5 && row.perConversation !== null).sort((a, b) => a.perConversation! - b.perConversation!)
   const best = ranked[0]
 
   const advice: Advice[] = []
@@ -266,19 +273,28 @@ async function weeklyReview(admin: SupabaseClient, today: string, connected: boo
   // The review comes on Monday, a strong day: the budgets may sum up to the strong-day level (the weak days balance it).
   const { strong, weak } = rhythmOf(plan)
   if (budget > strong) {
-    const worst = active.filter((row) => row.budget).sort((a, b) => (b.perConversation ?? Infinity) - (a.perConversation ?? Infinity))[0]
+    const worst = messaging.filter((row) => row.budget).sort((a, b) => (b.perConversation ?? Infinity) - (a.perConversation ?? Infinity))[0]
     advice.push({ kind: 'bajar', text: `Las campañas activas suman ${usd(budget)} por día y para lunes a miércoles el tope es ${usd(strong)} (${usd(weak)} de jueves a sábado): bajá ${usd(budget - strong)}${worst ? `, empezando por "${worst.name}"` : ''}.` })
   }
-  for (const row of active) {
+  for (const row of messaging) {
     if (row.spend >= 5 && row.conversations === 0) advice.push({ kind: 'pausar', text: `Pausá "${row.name}": gastó ${usd(row.spend)} en la semana sin conversaciones.` })
-    else if (row.perConversation !== null && row.spend >= 3 && row.perConversation > plan.maxPerConversation) {
+    // The cheapest one is where the money should go: never told to pause.
+    else if (row.id !== best?.id && row.perConversation !== null && row.spend >= 3 && row.perConversation > plan.maxPerConversation) {
       advice.push({ kind: 'pausar', text: `Pausá o bajá "${row.name}": cada conversación cuesta ${usd(row.perConversation)} y tu límite es ${usd(plan.maxPerConversation)}.${best && best.id !== row.id ? ` La más barata es "${best.name}" (${usd(best.perConversation!)}).` : ''}` })
     }
   }
+  for (const row of traffic) {
+    if (row.spend < 3) continue
+    const people = leads ?? 0
+    if (!people) advice.push({ kind: 'pausar', text: `Pausá "${row.name}": gastó ${usd(row.spend)} en la semana y nadie dejó sus datos en el test.` })
+    else advice.push({ kind: 'ok', text: `"${row.name}": ${usd(row.spend)} en la semana y ${people} ${people === 1 ? 'persona dejó' : 'personas dejaron'} sus datos en el test (${usd(row.spend / people)} cada una). Se mide por esos contactos, no por conversaciones: escribiles desde Test ATS.` })
+  }
   // Money goes only behind a post that already did well on its own, and in place of the priciest campaign (not on top).
-  const priciest = active.filter((row) => row.perConversation !== null).sort((a, b) => b.perConversation! - a.perConversation!)[0]
-  if (knowsBudgets && priciest && active.length > 1 && !advice.some((item) => item.kind === 'pausar' || item.kind === 'bajar')) {
-    advice.push({ kind: 'subir', text: `Publicación ganadora: elegí la de más guardados y compartidos de los últimos 7 días (suelen ser los "Cómo y dónde") y promocionala US$5 por día durante 4 días, con objetivo Mensajes y solo Instagram, pausando esos días "${priciest.name}" (la conversación más cara, ${usd(priciest.perConversation!)}). Así no subís el gasto.` })
+  const priciest = messaging.filter((row) => row.perConversation !== null).sort((a, b) => b.perConversation! - a.perConversation!)[0]
+  if (knowsBudgets && priciest && messaging.length > 1 && !advice.some((item) => item.kind === 'pausar' || item.kind === 'bajar')) {
+    // Only posts that sell the CV (before/after, testimonials): the "Cómo y dónde" company posts bring people asking for
+    // jobs, not CVs, so they are never promoted with the Mensajes goal.
+    advice.push({ kind: 'subir', text: `Probá un posteo que venda el CV (antes y después o testimonio, no los "Cómo y dónde") como anuncio de Mensajes, solo Instagram, US$5 por día durante 4 días, pausando esos días "${priciest.name}" (la conversación más cara, ${usd(priciest.perConversation!)}). Así no subís el gasto.` })
   }
   const sold = (sales ?? []).length
   const adSold = (sales ?? []).filter((sale) => sale.origin === 'anuncio').length
@@ -317,10 +333,13 @@ async function weeklyReview(admin: SupabaseClient, today: string, connected: boo
  *  daily budget whose ad sales would each cost at most the target. */
 function trafficLight(sales: { total: number; origin: string | null }[], plan: Rules) {
   const adSales = sales.filter((sale) => sale.origin === 'anuncio').length
-  const level = LEVELS.find((value) => value <= plan.cap && adSales >= needed(value, plan.targetPerSale)) ?? LEVELS[LEVELS.length - 1]
+  const levels = levelsOf(plan)
+  const index = levels.findIndex((value) => adSales >= needed(value, plan.targetPerSale))
+  const step = index < 0 ? levels.length - 1 : index
+  const level = levels[step]
   const counted = `${adSales} ${adSales === 1 ? 'venta' : 'ventas'} de anuncio en 7 días`
-  const advice = level === LEVELS[0] ? `podés seguir en hasta US$${level} por día` : level === LEVELS[1] ? `quedate en US$${level} por día` : `bajá a US$${level} por día y dejá solo la campaña más barata`
-  return { adSales, level, text: `${LIGHT[level] ?? '🟡'} Semáforo: ${counted} (para US$${LEVELS[0]} por día hacen falta ${needed(LEVELS[0], plan.targetPerSale)}, para US$${LEVELS[1]}, ${needed(LEVELS[1], plan.targetPerSale)}): ${advice}.` }
+  const advice = step === 0 ? `podés seguir en hasta US$${level} por día` : step === 1 ? `quedate en US$${level} por día` : `bajá a US$${level} por día y dejá solo la campaña más barata`
+  return { adSales, level, text: `${LIGHTS[step]} Semáforo: ${counted} (para US$${levels[0]} por día hacen falta ${needed(levels[0], plan.targetPerSale)}, para US$${levels[1]}, ${needed(levels[1], plan.targetPerSale)}): ${advice}.` }
 }
 
 /** Thursday: the weak days start, so always the reminder to lower the ads until Sunday night; plus, if more than half of
