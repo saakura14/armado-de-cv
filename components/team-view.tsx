@@ -226,7 +226,9 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   const monthTasks = [...pending, ...finishedThisMonth]
   const money = monthBatch(member, tasks, payments, currentKey)
   const monthPayments = payments.filter((payment) => payment.paid_on.slice(0, 7) === currentKey)
-  const monthName = monthLabel(currentKey).toLowerCase()
+  // "noviembre", without the year, for the short titles.
+  const shortName = (key: string) => monthLabel(key).toLowerCase().replace(/ de \d{4}$/, '')
+  const monthName = shortName(currentKey)
   // The first week of a month, the month that just closed shows up on top.
   const closed = new Date(Date.now() - 3 * 3600e3).getUTCDate() <= 7 ? months.find((row) => row.key === shiftMonth(currentKey, -1) && row.packs > 0) : undefined
   // Only the urgent ones (24 h Express) go first, in red; a regular CV due today shows "Para hoy" but is not the same.
@@ -328,7 +330,7 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
             {closed && view !== 'meses' && (
               <button type="button" onClick={() => setView('meses')} className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-ciruela px-4 py-3 text-left text-white shadow-lg">
                 <Trophy className="h-6 w-6 shrink-0 text-petalo" />
-                <span className="min-w-0 flex-1 text-sm"><b>¡Cerraste {closed.label.toLowerCase()}!</b> {closed.packs} {closed.packs === 1 ? 'CV' : 'CVs'} y {formatARS(closed.earned)} ganados{closed.record ? ': tu mejor mes 🏆' : ''}. Mirá tu resumen.</span>
+                <span className="min-w-0 flex-1 text-sm"><b>¡Cerraste {shortName(closed.key)}!</b> {closed.packs} {closed.packs === 1 ? 'CV' : 'CVs'} y {formatARS(closed.earned)} ganados{closed.record ? ': tu mejor mes 🏆' : ''}. Mirá tu resumen.</span>
                 <ChevronRight className="h-5 w-5 shrink-0" />
               </button>
             )}
