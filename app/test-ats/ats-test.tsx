@@ -277,7 +277,8 @@ export function AtsTest() {
         </div>
       </div>
 
-      {stage !== 'puntaje' && <GuideOffer />}
+      {/* Also with the score alone: a small purchase for whoever isn't ready for a pack and won't leave their details. */}
+      <GuideOffer />
 
       <button type="button" onClick={restart} className="inline-flex items-center gap-2 text-sm font-semibold text-piedra hover:text-ciruela"><RotateCcw className="h-4 w-4" />Analizar otro CV</button>
     </div>
