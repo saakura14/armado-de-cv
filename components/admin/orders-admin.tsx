@@ -555,7 +555,10 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
     const buyer = order.user_id ? buyers[order.user_id] : undefined
     return [String(order.number), order.customer_name, order.customer_phone, order.customer_email, buyer?.email, buyer?.full_name, buyer?.phone].some((value) => value?.toLowerCase().includes(term))
   })
-  const shown = searching ? matches : sortForStage(stage, byStage[stage], reasons) as AdminOrder[]
+  const sorted = searching ? matches : sortForStage(stage, byStage[stage], reasons) as AdminOrder[]
+  // Texts for the team: the ones still waiting for the client's information go apart, below, not mixed with the ones to write.
+  const parked = !searching && stage === 'textos' ? sorted.filter((order) => order.waiting_since) : []
+  const shown = parked.length ? sorted.filter((order) => !order.waiting_since) : sorted
 
   // Long stages are split into pages.
   const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE))
@@ -627,7 +630,8 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
           {/* Stages in the order of the work. On the phone it is one swipeable row; cards can be dropped on a stage on a computer. */}
           <div role="tablist" aria-label="Etapas de los pedidos" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
             {visibleStages.map((item) => {
-              const count = byStage[item.id].length
+              // Texts waiting for the client can't be written yet: they don't count.
+              const count = item.id === 'textos' ? byStage.textos.filter((order) => !order.waiting_since).length : byStage[item.id].length
               const active = stage === item.id
               const target = dragging && moveTo(dragging, item.id)
               return (
@@ -654,7 +658,7 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
       {flash.node && <div className="mt-3">{flash.node}</div>}
       {error && <p className="mt-4 text-sm text-rosa-deep">{error}</p>}
       {!loading && shown.length === 0 ? (
-        <p className="mt-6 rounded-3xl bg-white p-8 text-center text-piedra">{searching ? 'No encontré pedidos con esa búsqueda.' : stage === 'hoy' ? '¡Nada urgente hoy! Todo al día.' : stage === 'prioridad' ? 'No queda ningún CV sin empezar. 🎉' : 'No hay pedidos en esta etapa.'}</p>
+        <p className="mt-6 rounded-3xl bg-white p-8 text-center text-piedra">{searching ? 'No encontré pedidos con esa búsqueda.' : stage === 'hoy' ? '¡Nada urgente hoy! Todo al día.' : stage === 'prioridad' ? 'No queda ningún CV sin empezar. 🎉' : parked.length ? 'No hay textos listos para escribir: los que faltan esperan la info del cliente.' : 'No hay pedidos en esta etapa.'}</p>
       ) : (
         <ul className="mt-4 grid gap-3 md:grid-cols-2">
           {pageOrders.map((order) => (
@@ -676,6 +680,19 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
           </div>
           <p className="text-xs text-piedra">Pedidos {current * PAGE_SIZE + 1}–{Math.min((current + 1) * PAGE_SIZE, shown.length)} de {shown.length}</p>
         </nav>
+      )}
+      {parked.length > 0 && (
+        <section aria-labelledby="parked-title" className="mt-8 border-t border-line pt-5">
+          <h2 id="parked-title" className="flex items-center gap-2 font-display text-base font-bold text-piedra"><Hourglass className="h-4 w-4" />Esperando al cliente ({parked.length})</h2>
+          <p className="mt-1 text-sm text-piedra">Todavía no te pasaron la info. Cuando respondan, tocá &quot;El cliente ya respondió&quot; en la ficha y suben a la lista de arriba.</p>
+          <ul className="mt-3 grid gap-3 opacity-80 md:grid-cols-2">
+            {parked.map((order) => (
+              <OrderCard key={order.id} order={order} buyer={order.user_id ? buyers[order.user_id] : undefined} fresh={isNew(order)} reason={textsReason(order)}
+                onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', order.id); setDragging(order) }}
+                onChanged={load} />
+            ))}
+          </ul>
+        </section>
       )}
       {linkOpen && <OrderLinkDialog onClose={() => setLinkOpen(false)} />}
     </div>

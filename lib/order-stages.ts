@@ -13,7 +13,7 @@ export const STAGES: { id: Stage; label: string; hint: string }[] = [
   { id: 'hoy', label: 'Hoy', hint: 'Lo que necesita tu atención hoy: pedidos nuevos, pagos a revisar, recordatorios y entregas que vencen.' },
   { id: 'prioridad', label: 'Por prioridad', hint: 'Los CV pagados que nadie empezó todavía, del más urgente al más nuevo: atrasados, los que vencen hoy, los Express y después por fecha de entrega. Los que esperan al cliente van al final.' },
   { id: 'nuevos', label: 'Nuevos', hint: 'Pedidos de la web que todavía no abriste.' },
-  { id: 'textos', label: 'Textos para el equipo', hint: 'CVs pagados que todavía no le pasaste al equipo, primero los Express y después en orden de pedido: empezá por el primero. Los que esperan al cliente quedan marcados.' },
+  { id: 'textos', label: 'Textos para el equipo', hint: 'CVs pagados que todavía no le pasaste al equipo, primero los Express y después en orden de pedido: empezá por el primero. Los que esperan al cliente van aparte, abajo, hasta que te pase la info.' },
   { id: 'cobrar', label: 'Por cobrar', hint: 'Sin pagar, comprobantes por revisar y transferencias por verificar.' },
   { id: 'arrancar', label: 'Para arrancar', hint: 'Pagados y sin empezar. Primero los que vencen antes.' },
   { id: 'proceso', label: 'En proceso', hint: 'Los que estás haciendo vos, ordenados por vencimiento.' },
@@ -154,8 +154,8 @@ export function priorityReason(order: Order, now = new Date()): Reason {
 export function sortForStage(stage: Stage, orders: Order[], reasons: Map<string, Reason | null>): Order[] {
   const list = [...orders]
   switch (stage) {
-    // The one due first goes first (Express has the shortest deadline), then in order of purchase.
-    case 'textos': return list.sort((a, b) => dueTime(a) - dueTime(b) || a.number - b.number)
+    // Waiting for the client apart at the end; the rest, the one due first first (Express has the shortest deadline), then in order of purchase.
+    case 'textos': return list.sort((a, b) => Number(Boolean(a.waiting_since)) - Number(Boolean(b.waiting_since)) || dueTime(a) - dueTime(b) || a.number - b.number)
     // Waiting for the client last; the rest by how soon they are due (Express first on the same day), then by payment.
     case 'prioridad': return list.sort((a, b) => Number(Boolean(a.waiting_since)) - Number(Boolean(b.waiting_since)) || dueTime(a) - dueTime(b) || Number(hasExpress(b)) - Number(hasExpress(a)) || time(a.paid_at) - time(b.paid_at))
     case 'hoy': return list.sort((a, b) => (reasons.get(a.id)?.rank ?? 9) - (reasons.get(b.id)?.rank ?? 9) || dueTime(a) - dueTime(b) || time(a.created_at) - time(b.created_at))
