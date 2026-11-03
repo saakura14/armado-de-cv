@@ -1,7 +1,8 @@
 // Test ATS follow-up, up to 3 emails per lead:
 //   1. an hour after the test: the result and the packs;
 //   2. two days later: how to fix what the test found (and the guide to do it alone);
-//   3. five days later: last call, with a testimonial and a WhatsApp button to write to Vale.
+//   3. five days later: last call, with a testimonial and a button to the packs on the web (not WhatsApp: Vale keeps it
+//      for orders and questions).
 // The 2nd and 3rd only go to leads whose first email announced them (followup_steps = 3), and to nobody who bought
 // after the test or unsubscribed. Called every 10 minutes by pg_cron with the key stored in Vault (cron_key).
 // Sends between 9 and 21 (Argentina). Secrets: RESEND_API_KEY (and optionally FOLLOWUP_FROM, the sender).
@@ -60,7 +61,14 @@ const ars = (value: number) => '$' + value.toLocaleString('es-AR')
 type Lead = { id: string; name: string; email: string; phone: string | null; score: number; issues: string[]; area: string | null; unsubscribe_token: string; created_at: string }
 type Prices = { from: number | null; firstJob: number | null; guide: number | null; kit: number | null }
 type Testimonial = { name: string; text: string; service: string | null } | null
-const WHATSAPP = '5491151060953'
+
+// Promo of the 20.400 followers (1 to 8/11): the ATS guide comes free with the Pack Simple or the Medium. The line goes
+// away by itself when it ends.
+const PROMO_UNTIL = Date.parse('2026-11-09T03:00:00Z')
+const promo = () => Date.now() < PROMO_UNTIL
+  ? `<p style="margin:0 0 16px;background:#fbeaec;border-radius:14px;padding:12px 16px;color:#43202c">🎁 <b>Hasta el domingo 8/11</b>, con el Pack Simple o el Pack Medium te llevás de regalo la guía <b>CV a prueba de filtros ATS</b>.</p>`
+  : ''
+const promoText = () => Date.now() < PROMO_UNTIL ? '\nHasta el domingo 8/11, con el Pack Simple o el Pack Medium te llevás de regalo la guía CV a prueba de filtros ATS.\n' : ''
 
 // The frame every email shares: header, body and the footer with the unsubscribe link.
 function layout(body: string, footer: string) {
@@ -103,12 +111,13 @@ function compose(lead: Lead, from: number | null, firstJob: number | null, guide
 ${list}
 <p style="margin:16px 0 12px">El test es una guía automática: mira el formato y las palabras, pero no sabe si tu experiencia está bien contada ni si convencés a un reclutador. Eso lo reviso yo, persona a persona.</p>
 <p style="margin:0 0 20px">${offer}</p>
+${promo()}
 <p style="margin:0 0 24px" align="center"><a href="${packs}" style="display:inline-block;background:#c9506d;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:999px">Ver los packs</a></p>
 <p style="margin:0;color:#6f6a62;font-size:13px">¿Dudas? Respondé este mail y te contesto yo.</p>
 </td></tr>
 <tr><td style="padding:16px 28px;background:#fbeaec;color:#6f6a62;font-size:12px;line-height:1.5">Te escribo porque hiciste el test ATS en armadodecv.com y aceptaste que te contacte sobre tu CV. Por el test te mando 3 mails como máximo. <a href="${unsubscribe}" style="color:#a8435e">No quiero recibir más mails</a>.</td></tr>
 </table></td></tr></table></body></html>`
-  const text = `¡Hola ${name}! Soy Vale.\n\nHace un rato hiciste el test ATS en la web y tu CV sacó ${lead.score}/100${lead.area && AREAS[lead.area] ? ` para ${AREAS[lead.area]}` : ''}.\n${issues.length ? `\nLo que más le está restando:\n${issues.map((issue) => `- ${issue}`).join('\n')}\n` : ''}\n${offer.replace(/<[^>]+>/g, '')}\n\nVer los packs: ${packs}\n\n¿Dudas? Respondé este mail.\n\nNo quiero recibir más mails: ${unsubscribe}`
+  const text = `¡Hola ${name}! Soy Vale.\n\nHace un rato hiciste el test ATS en la web y tu CV sacó ${lead.score}/100${lead.area && AREAS[lead.area] ? ` para ${AREAS[lead.area]}` : ''}.\n${issues.length ? `\nLo que más le está restando:\n${issues.map((issue) => `- ${issue}`).join('\n')}\n` : ''}\n${offer.replace(/<[^>]+>/g, '')}\n${promoText()}\nVer los packs: ${packs}\n\n¿Dudas? Respondé este mail.\n\nNo quiero recibir más mails: ${unsubscribe}`
   return { subject, html, text, unsubscribe }
 }
 
@@ -129,20 +138,20 @@ function composeFix(lead: Lead, prices: Prices) {
 ${list}
 ${guide ? `<p style="margin:0 0 16px">${guide}</p>${button(guides, prices.kit ? 'Ver las guías' : 'Ver la guía')}` : ''}
 <p style="margin:0 0 12px">¿Preferís que lo haga yo? Te armo los dos CV a medida${prices.from ? `, desde ${ars(prices.from)}` : ''}, en 3 a 4 días hábiles. <a href="${packs}" style="color:#c9506d;font-weight:700">Ver los packs</a></p>
+${promo()}
 <p style="margin:0;color:#6f6a62;font-size:13px">¿Dudas? Respondé este mail y te contesto yo.</p>`
   const plainFixes = fixes.length
     ? fixes.map((id, index) => `${index + 1}. ${ISSUES[id]}: ${FIXES[id]}`).join('\n')
     : 'Una sola columna, títulos simples y fechas en cada trabajo: con eso ya pasás la mayoría de los filtros.'
-  const text = `¡Hola ${name}! Soy Vale de nuevo.\n\nHace dos días hiciste el test ATS y tu CV sacó ${lead.score}/100. Así arreglás lo que más le resta:\n\n${plainFixes}\n\n${guide ? `${guide.replace(/<[^>]+>/g, '')}\nVer la guía: ${guides}\n\n` : ''}¿Preferís que lo haga yo? Ver los packs: ${packs}\n\nNo quiero recibir más mails: ${unsubscribe}`
+  const text = `¡Hola ${name}! Soy Vale de nuevo.\n\nHace dos días hiciste el test ATS y tu CV sacó ${lead.score}/100. Así arreglás lo que más le resta:\n\n${plainFixes}\n\n${guide ? `${guide.replace(/<[^>]+>/g, '')}\nVer la guía: ${guides}\n\n` : ''}¿Preferís que lo haga yo? Ver los packs: ${packs}\n${promoText()}\nNo quiero recibir más mails: ${unsubscribe}`
   return { subject, html: layout(body, footerText(unsubscribe, false)), text, unsubscribe }
 }
 
-// 3rd and last email, five days after the test: a real testimonial and a button to write to Vale on WhatsApp.
+// 3rd and last email, five days after the test: a real testimonial and a button to the packs on the web.
 function composeLast(lead: Lead, prices: Prices, testimonial: Testimonial) {
   const name = lead.name.trim().split(/\s+/)[0]
   const packs = `${SITE}/?utm_source=email&utm_medium=test_ats&utm_campaign=seguimiento3#precios`
   const unsubscribe = `${SITE}/baja?t=${lead.unsubscribe_token}`
-  const chat = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(`¡Hola Vale! Soy ${name}. Hice el test ATS y saqué ${lead.score}/100. Quiero que me ayudes con mi CV.`)}`
   const subject = `${name}, ¿seguís buscando trabajo?`
   const quote = testimonial
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px"><tr><td style="background:#fbeaec;border-radius:14px;padding:16px 18px;color:#43202c;font-size:14px;line-height:1.5"><i>"${escape(testimonial.text)}"</i><br><b style="display:inline-block;margin-top:6px">${escape(testimonial.name)}</b>${testimonial.service ? ` · ${escape(testimonial.service)}` : ''}</td></tr></table>`
@@ -150,10 +159,11 @@ function composeLast(lead: Lead, prices: Prices, testimonial: Testimonial) {
   const body = `<p style="margin:0 0 12px">¡Hola ${escape(name)}! Te escribo una última vez por el test ATS.</p>
 <p style="margin:0 0 12px">Si seguís mandando CV y no te llaman, no es por vos: muchas veces el CV ni siquiera llega a una persona. Eso tiene arreglo.</p>
 ${quote}
-<p style="margin:0 0 16px">Te armo dos CV a medida, uno moderno y otro que pasa los filtros${prices.from ? `, desde ${ars(prices.from)}` : ''}.${prices.firstJob ? ` Si es tu primer trabajo, el <b>Pack Primer Empleo</b> sale ${ars(prices.firstJob)}.` : ''} Escribime y te digo cuál te conviene.</p>
-${button(chat, 'Escribirme por WhatsApp', '#1fa855')}
-<p style="margin:0 0 12px" align="center"><a href="${packs}" style="color:#c9506d;font-weight:700">O mirá los packs en la web</a></p>`
-  const text = `¡Hola ${name}! Te escribo una última vez por el test ATS.\n\nSi seguís mandando CV y no te llaman, no es por vos: muchas veces el CV ni siquiera llega a una persona.\n${testimonial ? `\n"${testimonial.text}" (${testimonial.name})\n` : ''}\nTe armo dos CV a medida${prices.from ? `, desde ${ars(prices.from)}` : ''}. Escribime por WhatsApp: ${chat}\n\nPacks: ${packs}\n\nNo quiero recibir más mails: ${unsubscribe}`
+<p style="margin:0 0 16px">Te armo dos CV a medida, uno moderno y otro que pasa los filtros${prices.from ? `, desde ${ars(prices.from)}` : ''}.${prices.firstJob ? ` Si es tu primer trabajo, el <b>Pack Primer Empleo</b> sale ${ars(prices.firstJob)}.` : ''} Lo pedís en la web en 2 minutos, sin crear cuenta, y pagás por transferencia o con tarjeta.</p>
+${promo()}
+${button(packs, 'Elegir mi pack')}
+<p style="margin:0;color:#6f6a62;font-size:13px" align="center">¿No sabés cuál te conviene? Respondé este mail y te digo.</p>`
+  const text = `¡Hola ${name}! Te escribo una última vez por el test ATS.\n\nSi seguís mandando CV y no te llaman, no es por vos: muchas veces el CV ni siquiera llega a una persona.\n${testimonial ? `\n"${testimonial.text}" (${testimonial.name})\n` : ''}\nTe armo dos CV a medida${prices.from ? `, desde ${ars(prices.from)}` : ''}. Lo pedís en la web en 2 minutos: ${packs}\n${promoText()}\n¿No sabés cuál te conviene? Respondé este mail.\n\nNo quiero recibir más mails: ${unsubscribe}`
   return { subject, html: layout(body, footerText(unsubscribe, true)), text, unsubscribe }
 }
 
