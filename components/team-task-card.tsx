@@ -29,15 +29,22 @@ function cleanLine(line: string) {
 }
 
 // How the CV's section titles start. Names and jobs in capitals ("ENFERMERO PROFESIONAL") don't, so they are still copied.
-const SECTION_TITLE = /^(perfil|formaci[oó]n|experiencias?|idiomas?|competencias|herramientas|informaci[oó]n adicional|educaci[oó]n|habilidades|objetivo|cursos|capacitaci[oó]n|capacitaciones|certificaciones|licencias|disponibilidad|[aá]reas de inter[eé]s|fortalezas|referencias|datos personales|contacto|logros|proyectos|voluntariado|conocimientos|aptitudes|estudios|resumen|sobre m[ií]|acerca de m[ií]|intereses|cv moderno|cv ats)(?=$|[\s:—–-])/i
+const SECTION_TITLE = /^(perfil|formaci[oó]n|experiencias?|idiomas?|competencias|herramientas|informaci[oó]n adicional|educaci[oó]n|habilidades|objetivo|cursos|capacitaci[oó]n|capacitaciones|certificaciones|licencias|disponibilidad|[aá]reas de inter[eé]s|fortalezas|referencias|datos personales|contacto|logros|proyectos|voluntariado|conocimientos|aptitudes|estudios|resumen|sobre m[ií]|acerca de m[ií]|intereses|inform[aá]tica|cv moderno|cv ats)(?=$|[\s:—–-])/i
 // The same titles written in lowercase, only when the line is just the title ("Idiomas", not "Idiomas: Inglés B1").
-const SECTION_TITLE_LOWER = /^(perfil|perfil profesional|experiencia|experiencia laboral|experiencia profesional|formaci[oó]n|formaci[oó]n acad[eé]mica|educaci[oó]n|idiomas|herramientas|competencias|habilidades|cursos|capacitaciones|certificaciones|referencias|fortalezas|informaci[oó]n adicional|datos personales|objetivo laboral|objetivo profesional)$/i
+const SECTION_TITLE_LOWER = /^(perfil|perfil profesional|experiencia|experiencia laboral|experiencia profesional|formaci[oó]n|formaci[oó]n acad[eé]mica|educaci[oó]n|idiomas|herramientas|competencias|habilidades|cursos|capacitaciones|certificaciones|referencias|fortalezas|informaci[oó]n adicional|datos personales|objetivo laboral|objetivo profesional|inform[aá]tica)$/i
+
+// Sections that are a list: a line in capitals there is an item (a school or institute like "CENAFE" or "UTN"), not
+// the start of a new piece. In Experiencia it is, because each job in capitals starts its own piece.
+const LIST_SECTION = /^(formaci[oó]n|educaci[oó]n|estudios|cursos|capacitaci[oó]n|capacitaciones|certificaciones|idiomas?|habilidades|competencias|herramientas|conocimientos|aptitudes|licencias|referencias|informaci[oó]n adicional|datos personales|fortalezas|[aá]reas de inter[eé]s|intereses|inform[aá]tica)/i
 
 /** A section title of the CV: it is already in the Canva template, so it is shown (to know where each text goes) but not copied. */
 export function isSectionTitle(line: string) {
   const value = cleanLine(line).replace(/:$/, '').trim()
   return (isHeading(value) && SECTION_TITLE.test(value)) || SECTION_TITLE_LOWER.test(value)
 }
+
+/** A line in capitals shown in bold: only when it opens its piece (a job), not when it's an item of a list (an institute). */
+const leads = (lines: string[], index: number) => isHeading(lines[index]) && lines.slice(0, index).every((line) => !line.trim() || isSectionTitle(line))
 
 /** What a piece puts in the clipboard: its lines without the section titles. */
 const copyText = (lines: string[]) => lines.filter((line) => !isSectionTitle(line)).join('\n').replace(/^\n+|\n+$/g, '')
@@ -53,13 +60,20 @@ function piecesOf(text: string, whole = false): Piece[] {
     const sections: string[][] = []
     // A title in lowercase ("Idiomas") also starts its section.
     const starts = (line: string) => isHeading(line) || isSectionTitle(line)
-    for (const line of lines) {
+    let inList = false
+    for (const [index, line] of lines.entries()) {
       if (!line) continue
       const last = sections[sections.length - 1]
+      const title = isSectionTitle(line)
+      if (title) inList = LIST_SECTION.test(line.replace(/:$/, '').trim())
+      // In a list, a line in capitals glued to the next one ("CENAFE" and then "2022") is an item; alone with a blank line
+      // after it, it is a title the lists above don't know ("INFORMÁTICA").
+      const opens = title || (isHeading(line) && (!inList || !lines[index + 1]))
+      if (opens && !title) inList = false
       // A title right after another one ("EXPERIENCIA PROFESIONAL" and then the first job in capitals) stays in the
       // same piece, so no bubble is left with a title and nothing under it.
-      if (starts(line) && last?.every(starts)) last.push(line)
-      else if (starts(line) || !last) sections.push([line])
+      if (opens && last?.every(starts)) last.push(line)
+      else if (opens || !last) sections.push([line])
       else sections[sections.length - 1].push(line)
     }
     list = sections
@@ -263,12 +277,12 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
                       // Already in the Canva template: shown to know where the text goes, but it can't be tapped or selected.
                       <span key={lineIndex} className="block select-none px-1.5 pt-0.5 font-display text-[11px] font-bold uppercase tracking-wider text-piedra">{line}</span>
                     ) : mode === 'marcar' ? (
-                      <span key={lineIndex} className={`block cursor-text whitespace-pre-wrap break-words px-1.5 py-0.5 ${isHeading(line) ? 'font-display text-[13px] font-bold tracking-wide text-ciruela' : ''} ${!done && copied.includes(`p${index}l${lineIndex}`) ? 'text-whatsapp' : ''}`}>{line}</span>
+                      <span key={lineIndex} className={`block cursor-text whitespace-pre-wrap break-words px-1.5 py-0.5 ${leads(piece.lines, lineIndex) ? 'font-display text-[13px] font-bold tracking-wide text-ciruela' : ''} ${!done && copied.includes(`p${index}l${lineIndex}`) ? 'text-whatsapp' : ''}`}>{line}</span>
                     ) : (
                       <span key={lineIndex} role="button" tabIndex={0}
                         onClick={(event) => copy(line.trim(), [`p${index}l${lineIndex}`], event.currentTarget, true)}
                         onKeyDown={(event) => { if (event.key === 'Enter') copy(line.trim(), [`p${index}l${lineIndex}`], event.currentTarget, true) }}
-                        className={`block cursor-pointer whitespace-pre-wrap break-words rounded-lg px-1.5 py-0.5 hover:bg-white active:bg-rosa/10 ${isHeading(line) ? 'font-display text-[13px] font-bold tracking-wide text-ciruela' : ''} ${!done && copied.includes(`p${index}l${lineIndex}`) ? 'text-whatsapp' : ''}`}>{line}</span>
+                        className={`block cursor-pointer whitespace-pre-wrap break-words rounded-lg px-1.5 py-0.5 hover:bg-white active:bg-rosa/10 ${leads(piece.lines, lineIndex) ? 'font-display text-[13px] font-bold tracking-wide text-ciruela' : ''} ${!done && copied.includes(`p${index}l${lineIndex}`) ? 'text-whatsapp' : ''}`}>{line}</span>
                     ))}
                   </div>
                   <button type="button" onClick={(event) => copy(piece.text, [`p${index}`], event.currentTarget.previousElementSibling as HTMLElement | null)} aria-label={`Copiar el bloque ${index + 1}`}
