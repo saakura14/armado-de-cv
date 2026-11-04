@@ -401,9 +401,11 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
               <p className="mt-2 text-xs leading-snug text-piedra">
                 {money.current.every((task) => task.rate === member.rate) ? `${money.count} ${money.count === 1 ? 'CV' : 'CVs'} × ${formatARS(member.rate)}` : `${money.count} ${money.count === 1 ? 'CV' : 'CVs'} (${formatARS(money.earned)})`}
                 {money.advanced ? ` − ${formatARS(money.advanced)} de adelanto` : ''}
-                {money.carry > 0 ? ` + ${formatARS(money.carry)} que te quedaron de antes` : money.carry < 0 ? ` − ${formatARS(-money.carry)} de adelanto de antes` : ''}
+                {money.carry > 0 ? ` + ${formatARS(money.carry)} que te quedaron de antes` : money.carry < 0 ? ` − ${formatARS(-money.carry)} que quedaban del adelanto del mes pasado` : ''}
                 {' '}= <b className="text-ink">{formatARS(money.owed)}</b>
               </p>
+              {/* What the earlier advance left is already covered by this month's CVs: say so, it no longer reads as a debt. */}
+              {money.carry < 0 && money.debt === 0 && <p className="mt-2 rounded-xl bg-whatsapp/10 px-3 py-2 text-xs font-semibold leading-snug text-whatsapp">✓ Ya cubriste el adelanto del mes pasado: no debés nada.</p>}
               {/* The advance not covered yet: each CV he finishes takes its rate off. */}
               {money.debt > 0 && <p className="mt-2 rounded-xl bg-papel/70 px-3 py-2 text-xs leading-snug text-ink">Adelanto por cubrir: <b>{formatARS(money.debt)}</b>. Cada CV que terminás lo baja {formatARS(member.rate)}: te faltan {Math.ceil(money.debt / Math.max(member.rate, 1))}.</p>}
             </section>
