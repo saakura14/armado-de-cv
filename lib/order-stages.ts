@@ -116,8 +116,9 @@ const dueTime = (order: Order) => (hasDeadline(order) ? deliveryDeadline(order)?
 /** CV packs of a paid order that nobody on the team has yet: Vale still has to write their texts. */
 export function needsTexts(order: Order) {
   if (isTest(order) || (order.status !== 'paid' && order.status !== 'in_progress')) return false
-  const tasks = (order as Order & { team_tasks?: { order_item_id: string }[] }).team_tasks ?? []
-  return order.order_items.some((item) => TEAM_PACKS.includes(item.product_id) && !tasks.some((task) => task.order_item_id === item.id))
+  // A pack Claude builds in Canva ("Armarlo yo") already has its texts: it isn't for the team.
+  const { team_tasks: tasks = [], cv_builds: builds = [] } = order as Order & { team_tasks?: { order_item_id: string }[]; cv_builds?: { order_item_id: string }[] }
+  return order.order_items.some((item) => TEAM_PACKS.includes(item.product_id) && !tasks.some((task) => task.order_item_id === item.id) && !builds.some((build) => build.order_item_id === item.id))
 }
 
 /** On the texts list: what is holding an order back, if anything. */
@@ -133,7 +134,9 @@ export function textsReason(order: Order): Reason {
 /** A paid CV that nobody started: Vale hasn't begun it (nor passed it to the team), or the team has it but didn't open it yet. */
 export function notStarted(order: Order) {
   if (isTest(order) || !hasDeadline(order)) return false
-  const tasks = (order as Order & { team_tasks?: { status: string; started_at: string | null }[] }).team_tasks ?? []
+  const { team_tasks: tasks = [], cv_builds: builds = [] } = order as Order & { team_tasks?: { status: string; started_at: string | null }[]; cv_builds?: unknown[] }
+  // Asked to Claude in Canva ("Armarlo yo"): it's being built.
+  if (builds.length) return false
   if (!tasks.length) return order.status === 'paid'
   return tasks.some((task) => task.status !== 'terminado' && !task.started_at)
 }
