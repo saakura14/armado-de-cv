@@ -500,7 +500,7 @@ function MetaBalance({ data, money, onSaved }: { data: Data; money: (value: numb
     setBusy(true)
     const { error } = adding === 'cobro'
       ? await supabase.from('meta_payments').insert({ ref: `panel-${form.day}-${amount.toFixed(2)}`, day: form.day, amount_usd: amount, kind: 'cargo' })
-      : await supabase.from('savings_goal').update({ meta_balance_usd: amount, meta_balance_on: form.day, updated_at: new Date().toISOString() }).eq('id', 1)
+      : await supabase.from('savings_goal').update({ meta_balance_usd: amount, meta_balance_on: form.day, meta_balance_at: form.day === today() ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq('id', 1)
     setBusy(false)
     if (error) { flash.show('error', errorMessage(error)); return }
     setAdding(null)

@@ -56,7 +56,7 @@ export function MetaAlert({ onOpen }: { onOpen: () => void }) {
   async function paid() {
     setBusy(true)
     // Paying leaves the balance at zero and "Restablecer" starts the limit again from today.
-    await supabase.from('savings_goal').update({ meta_limit_spent_usd: 0, meta_limit_on: today(), meta_balance_usd: 0, meta_balance_on: today(), updated_at: new Date().toISOString() }).eq('id', 1)
+    await supabase.from('savings_goal').update({ meta_limit_spent_usd: 0, meta_limit_on: today(), meta_limit_at: new Date().toISOString(), meta_balance_usd: 0, meta_balance_on: today(), meta_balance_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', 1)
     await supabase.functions.invoke('meta-ads', { body: {} })
     await load()
     setBusy(false)
