@@ -33,9 +33,9 @@ type Insight = { campaign_id: string; campaign_name: string; date_start: string;
 type Campaign = { id: string; name: string; effective_status: string; daily_budget?: string; adsets?: { data: { daily_budget?: string; effective_status: string }[] } }
 
 // Plan of 19/10 (spend less, sell the same): the rules live in savings_goal so they can change without a deploy.
-type Rules = { cap: number; weeklyCap: number; maxPerConversation: number; targetPerSale: number; balanceAlert: number; balanceUsd: number | null; balanceOn: string | null; limitUsd: number | null; limitSpent: number; limitOn: string | null }
+type Rules = { cap: number; weeklyCap: number; maxPerConversation: number; targetPerSale: number; balanceAlert: number; balanceUsd: number | null; balanceOn: string | null; balanceAt: string | null; limitUsd: number | null; limitSpent: number; limitOn: string | null; limitAt: string | null }
 async function rules(admin: SupabaseClient): Promise<Rules> {
-  const { data } = await admin.from('savings_goal').select('ad_cap_usd, weekly_cap_usd, max_per_conversation_usd, target_per_sale_usd, balance_alert_usd, meta_balance_usd, meta_balance_on, meta_limit_usd, meta_limit_spent_usd, meta_limit_on').eq('id', 1).maybeSingle()
+  const { data } = await admin.from('savings_goal').select('ad_cap_usd, weekly_cap_usd, max_per_conversation_usd, target_per_sale_usd, balance_alert_usd, meta_balance_usd, meta_balance_on, meta_balance_at, meta_limit_usd, meta_limit_spent_usd, meta_limit_on, meta_limit_at').eq('id', 1).maybeSingle()
   return {
     cap: Number(data?.ad_cap_usd ?? 11),
     weeklyCap: Number(data?.weekly_cap_usd ?? 80),
@@ -45,10 +45,12 @@ async function rules(admin: SupabaseClient): Promise<Rules> {
     // The "Saldo actual" from Billing, noted by hand on a day.
     balanceUsd: data?.meta_balance_usd === null || data?.meta_balance_usd === undefined ? null : Number(data.meta_balance_usd),
     balanceOn: data?.meta_balance_on ?? null,
+    balanceAt: data?.meta_balance_at ?? null,
     // The account spending limit (Billing): when the spend since its last reset reaches it, Meta stops the ads.
     limitUsd: data?.meta_limit_usd === null || data?.meta_limit_usd === undefined ? null : Number(data.meta_limit_usd),
     limitSpent: Number(data?.meta_limit_spent_usd ?? 0),
     limitOn: data?.meta_limit_on ?? null,
+    limitAt: data?.meta_limit_at ?? null,
   }
 }
 // Traffic light: a daily budget is only worth it when the last 7 days brought enough ad sales for each one to cost at
@@ -153,7 +155,8 @@ async function balanceCheck(admin: SupabaseClient, plan: Rules, today: string) {
   const noted = plan.balanceUsd !== null && plan.balanceOn !== null && (!last || plan.balanceOn >= last.day)
   if (!noted && !last) return null
   const from = noted ? plan.balanceOn! : last!.day
-  const { loaded, estimated, perDay } = await spendSince(admin, from, today)
+  // A charge counts from the start of its day; a balance read from Billing, from the moment it was read.
+  const { loaded, estimated, perDay } = await spendSince(admin, from, today, noted ? plan.balanceAt : `${from}T03:00:00Z`)
   const spent = (noted ? plan.balanceUsd! : 0) + loaded + estimated
   const cycle = Math.floor(spent / THRESHOLD)
   const balance = spent - cycle * THRESHOLD
@@ -174,18 +177,34 @@ async function balanceCheck(admin: SupabaseClient, plan: Rules, today: string) {
   return { since: from, spent, balance, estimated, perDay, threshold: THRESHOLD, alert: plan.balanceAlert, reached: balance >= plan.balanceAlert }
 }
 
-/** The spend after a day: what is loaded day by day and, for the days not loaded yet (the loading task only runs with
- *  her computer on), the daily budgets of the active campaigns; today by the hours gone (Argentine time). */
-async function spendSince(admin: SupabaseClient, from: string, today: string) {
-  const [{ data: rows }, { data: campaigns }] = await Promise.all([
-    admin.from('ad_spend').select('day, spend').gt('day', from),
+/** The spend after a moment (`at`, when Billing was read; 9 am of `from` if unknown): what is loaded day by day and, for
+ *  the days not loaded yet (the loading task only runs with her computer on), an estimate; today by the hours gone
+ *  (Argentine time). The day of `at` counts only from that hour on. The estimate per day is the active budgets or, if
+ *  higher, the average of the last 3 loaded days: Meta can spend up to 75% over the budget on a given day. */
+async function spendSince(admin: SupabaseClient, from: string, today: string, at: string | null) {
+  const [{ data: rows }, { data: recent }, { data: campaigns }] = await Promise.all([
+    admin.from('ad_spend').select('day, spend').gte('day', from),
+    admin.from('ad_spend').select('day, spend').lt('day', today).gte('day', arDate(Date.now() - 4 * DAY)),
     admin.from('ad_campaigns').select('daily_budget, status'),
   ])
-  const loaded = (rows ?? []).reduce((sum, row) => sum + Number(row.spend), 0)
-  const lastLoaded = (rows ?? []).reduce((max, row) => (row.day > max ? row.day : max), from)
-  const perDay = (campaigns ?? []).filter((campaign) => campaign.status === 'ACTIVE').reduce((sum, campaign) => sum + Number(campaign.daily_budget ?? 0), 0)
-  const hoursGone = ((Date.now() - 3 * 60 * 60 * 1000) % DAY) / (60 * 60 * 1000)
+  const budgets = (campaigns ?? []).filter((campaign) => campaign.status === 'ACTIVE').reduce((sum, campaign) => sum + Number(campaign.daily_budget ?? 0), 0)
+  const byDay = new Map<string, number>()
+  for (const row of recent ?? []) byDay.set(row.day, (byDay.get(row.day) ?? 0) + Number(row.spend))
+  const lastDays = [...byDay.entries()].sort(([a], [b]) => b.localeCompare(a)).slice(0, 3).map(([, spend]) => spend)
+  const average = lastDays.length ? lastDays.reduce((sum, spend) => sum + spend, 0) / lastDays.length : 0
+  const perDay = Math.round(Math.max(budgets, average) * 100) / 100
+  const hourOf = (moment: number) => ((moment - 3 * 60 * 60 * 1000) % DAY) / (60 * 60 * 1000)
+  const hoursGone = hourOf(Date.now())
+  const noteHour = at ? hourOf(Date.parse(at)) : 9
+  // The day Billing was read: only what comes after that hour.
+  const fromSpend = (rows ?? []).filter((row) => row.day === from).reduce((sum, row) => sum + Number(row.spend), 0)
+  const after = (rows ?? []).filter((row) => row.day > from)
+  let loaded = after.reduce((sum, row) => sum + Number(row.spend), 0)
   let estimated = 0
+  if (from === today) estimated += (perDay * Math.max(hoursGone - noteHour, 0)) / 24
+  else if (fromSpend > 0) loaded += (fromSpend * Math.max(24 - noteHour, 0)) / 24
+  else estimated += (perDay * Math.max(24 - noteHour, 0)) / 24
+  const lastLoaded = after.reduce((max, row) => (row.day > max ? row.day : max), from)
   for (let day = nextDay(lastLoaded); day <= today; day = nextDay(day)) estimated += day === today ? (perDay * hoursGone) / 24 : perDay
   return { loaded, estimated, perDay }
 }
@@ -195,7 +214,7 @@ async function spendSince(admin: SupabaseClient, from: string, today: string) {
  *  balance and resets the limit before the ads stop (once each per reset). */
 async function limitCheck(admin: SupabaseClient, plan: Rules, today: string) {
   if (plan.limitUsd === null || plan.limitOn === null) return null
-  const { loaded, estimated, perDay } = await spendSince(admin, plan.limitOn, today)
+  const { loaded, estimated, perDay } = await spendSince(admin, plan.limitOn, today, plan.limitAt)
   const spent = plan.limitSpent + loaded + estimated
   const left = plan.limitUsd - spent
   const levels = [15, 5].filter((margin) => left <= margin)
