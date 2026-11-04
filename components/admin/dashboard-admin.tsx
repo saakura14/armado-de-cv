@@ -148,7 +148,7 @@ export function DashboardAdmin({ firstName, onOpen }: { firstName: string; onOpe
   const load = useCallback(async () => {
     setLoading(true)
     const [open, paid, traffic, sessions, steps, created, delivered, unpaid, fresh] = await Promise.all([
-      supabase.from('orders').select(`${ORDER_SELECT}, team_tasks(status, started_at)`).or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending').order('created_at'),
+      supabase.from('orders').select(`${ORDER_SELECT}, team_tasks(status, started_at), cv_builds(order_item_id)`).or('status.in.(payment_review,paid,in_progress),payment_check.eq.pending').order('created_at'),
       supabase.from('orders').select(SALE_SELECT).not('paid_at', 'is', null).neq('status', 'cancelled').lt('number', 90000),
       supabase.from('site_visits').select('day, path, visits, views').order('day'),
       countSessionsToSchedule(),
