@@ -19,8 +19,9 @@ const daysLeft = (amount: number, perDay: number) => {
 }
 
 /** What meta-ads last computed (every 3 hours): the spend against the account limit and the balance until Meta charges. */
-function warningsOf(status: Status | null): Warning[] {
+function warningsOf(status: Status | null, declined: number | null): Warning[] {
   const warnings: Warning[] = []
+  if (declined) warnings.push({ tone: 'red', reset: true, text: `Meta rechazó el cobro de ${usd(declined)} a la tarjeta: los anuncios se cortan en cualquier momento. Pagá el saldo en Meta → Facturación → "Pagar saldo actual".` })
   const limit = status?.limit
   if (limit && limit.left <= 0) warnings.push({ tone: 'red', reset: true, text: `Se cortaron los anuncios: llegaste al límite de gasto de ${usd(limit.limit)}. Pagá el saldo en Meta → Facturación y tocá "Restablecer" en el límite.` })
   else if (limit && limit.left <= 15) warnings.push({ tone: 'red', reset: true, text: `Quedan ${usd(limit.left)} para el límite de ${usd(limit.limit)}: los anuncios se cortan ${daysLeft(limit.left, limit.perDay)}. Pagá el saldo en Meta → Facturación y tocá "Restablecer".` })
@@ -38,11 +39,13 @@ function warningsOf(status: Status | null): Warning[] {
  */
 export function MetaAlert({ onOpen }: { onOpen: () => void }) {
   const [status, setStatus] = useState<Status | null>(null)
+  const [declined, setDeclined] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from('savings_goal').select('meta_status').eq('id', 1).maybeSingle()
+    const { data } = await supabase.from('savings_goal').select('meta_status, meta_declined_usd').eq('id', 1).maybeSingle()
     setStatus((data?.meta_status as Status | null) ?? null)
+    setDeclined(data?.meta_declined_usd ? Number(data.meta_declined_usd) : null)
   }, [])
 
   useEffect(() => {
@@ -56,13 +59,13 @@ export function MetaAlert({ onOpen }: { onOpen: () => void }) {
   async function paid() {
     setBusy(true)
     // Paying leaves the balance at zero and "Restablecer" starts the limit again from today.
-    await supabase.from('savings_goal').update({ meta_limit_spent_usd: 0, meta_limit_on: today(), meta_limit_at: new Date().toISOString(), meta_balance_usd: 0, meta_balance_on: today(), meta_balance_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', 1)
+    await supabase.from('savings_goal').update({ meta_limit_spent_usd: 0, meta_limit_on: today(), meta_limit_at: new Date().toISOString(), meta_balance_usd: 0, meta_balance_on: today(), meta_balance_at: new Date().toISOString(), meta_declined_usd: null, meta_declined_at: null, updated_at: new Date().toISOString() }).eq('id', 1)
     await supabase.functions.invoke('meta-ads', { body: {} })
     await load()
     setBusy(false)
   }
 
-  const warnings = warningsOf(status)
+  const warnings = warningsOf(status, declined)
   if (!warnings.length) return null
   return (
     <div role="alert" className="mb-4 space-y-2">
