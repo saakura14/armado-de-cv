@@ -305,7 +305,7 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
 
         {/* Sticky footer: total and CTA always within thumb reach */}
         <div className="border-t border-line bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 sm:pb-5">
-          {missingOther && <p role="alert" className="mb-2 text-xs font-semibold text-rosa-deep">Contame cuál necesitás en el campo de arriba.</p>}
+          {missingOther && <p role="alert" className="mb-2 text-xs font-semibold text-rosa-deep">{giftGroup && !giftTo.trim() ? 'Escribí para quién es el regalo.' : 'Contame cuál necesitás en el campo de arriba.'}</p>}
           <div className="flex items-center gap-3">
             <div className="shrink-0">
               <p className="font-display text-[11px] font-semibold uppercase tracking-wider text-piedra">Total</p>
