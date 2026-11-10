@@ -104,7 +104,8 @@ export default function OrderPage() {
   const status = STATUS[order.status]
   const awaitingPayment = order.status === 'pending_payment' || order.status === 'payment_review'
   const coordination = needsCoordination(order)
-  const digitalOnly = isDigitalOnly(order)
+  const gift = order.order_items.some((item) => item.products?.category === 'regalos')
+  const digitalOnly = isDigitalOnly(order) && !gift
   const whatsappMessage = `¡Hola! Soy ${order.customer_name ?? ''}. Te escribo por mi pedido #${order.number} (${order.order_items.map((item) => item.product_name).join(', ')}). ${order.payment_method === 'card' ? 'Ya lo pagué con tarjeta.' : `Ya hice la transferencia de ${formatARS(order.total)}.`}`
 
   return (
@@ -136,7 +137,7 @@ export default function OrderPage() {
             ? '¡Tu CV está entregado! Ahora sigue tu sesión por Google Meet: el día y el link los ves en Mi cuenta.'
             : status.text}</p>
           {order.admin_note && <p className="mt-2 rounded-xl bg-papel px-3 py-2 text-sm text-ink">{order.admin_note}</p>}
-          {user.is_anonymous && <p className="mt-3 rounded-xl bg-papel px-3 py-2 text-xs leading-relaxed text-piedra">Compraste sin crear cuenta: este pedido queda guardado en este celular.{order.order_items.some((item) => item.products?.delivery === 'digital') ? ' Apenas se confirme el pago te mando a tu mail el link para descargar tus guías desde cualquier dispositivo.' : ''} Si cambiás de celu, escribime por WhatsApp con tu número de pedido (#{order.number}) y lo seguimos por ahí.</p>}
+          {user.is_anonymous && <p className="mt-3 rounded-xl bg-papel px-3 py-2 text-xs leading-relaxed text-piedra">Compraste sin crear cuenta: este pedido queda guardado en este celular.{gift ? ' Apenas se confirme el pago te mando a tu mail la tarjeta de regalo.' : order.order_items.some((item) => item.products?.delivery === 'digital') ? ' Apenas se confirme el pago te mando a tu mail el link para descargar tus guías desde cualquier dispositivo.' : ''} Si cambiás de celu, escribime por WhatsApp con tu número de pedido (#{order.number}) y lo seguimos por ahí.</p>}
         </div>
 
         {cardNotice && (
@@ -208,7 +209,17 @@ export default function OrderPage() {
           </div>
         )}
 
-        {!coordination && order.status === 'delivered' && (
+        {gift && ['paid', 'in_progress', 'delivered'].includes(order.status) && order.download_token && (
+          <div className="rounded-[28px] bg-ciruela p-6 text-white sm:p-8">
+            <p className="font-script text-4xl leading-none text-petalo">¡Tu regalo está listo! 🎁</p>
+            <p className="mt-2 text-sm leading-relaxed text-white/85">Abrí la tarjeta para mandarla por WhatsApp o imprimirla. También te la mandé por mail.</p>
+            <Link href={`/regalo/tarjeta?t=${order.download_token}`} className="mt-4 flex min-h-12 items-center justify-center rounded-full bg-white px-5 py-3 font-display text-sm font-bold text-ciruela">Ver la tarjeta de regalo</Link>
+          </div>
+        )}
+
+        {gift && awaitingPayment && <p className="rounded-2xl bg-white px-4 py-3 text-sm text-piedra">Apenas se confirma el pago aparece acá la tarjeta de regalo y te la mando por mail.</p>}
+
+        {!coordination && !gift && order.status === 'delivered' && (
           <div className="rounded-[28px] bg-ciruela p-6 text-white sm:p-8">
             <p className="font-script text-4xl leading-none text-petalo">¡Ya son tuyos!</p>
             <p className="mt-2 text-sm leading-relaxed text-white/85">Tus e-books están listos para descargar en Mi cuenta. ¡Que los disfrutes!</p>

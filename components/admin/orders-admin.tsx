@@ -375,7 +375,10 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
         {order.order_items.map((item) => (
           <li key={item.id}>
             <p className="font-semibold text-ink">{item.product_name}{item.ebooks ? ` — ${item.ebooks.title}` : ''} <span className="font-normal text-piedra">({money(item.unit_price)})</span></p>
-            {item.extras.map((extra) => <p key={`${extra.group_id}-${extra.option_id}`} className="text-piedra">+ {extra.label}{extra.detail ? `: ${extra.detail}` : ''} ({money(extra.price)})</p>)}
+            {item.extras.map((extra) => <p key={`${extra.group_id}-${extra.option_id}`} className="text-piedra">+ {extra.label}{extra.detail ? `: ${extra.detail}` : ''}{extra.price ? ` (${money(extra.price)})` : ''}</p>)}
+            {item.products?.category === 'regalos' && order.download_token && (
+              <p className="mt-1 font-semibold text-rosa-deep">🎁 Código REGALO-{order.number} · <a href={`/regalo/tarjeta?t=${order.download_token}`} target="_blank" rel="noopener noreferrer" className="underline">ver la tarjeta</a> (para mandarla por WhatsApp si no le llegó el mail)</p>
+            )}
           </li>
         ))}
         {order.customer_note && <li className="border-t border-line pt-2 text-ink"><b>Nota del cliente:</b> {order.customer_note}</li>}

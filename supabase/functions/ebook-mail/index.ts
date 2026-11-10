@@ -1,6 +1,7 @@
 // Guides bought without an account: once the order unlocks its e-books, the buyer gets an email with a private
 // download link (/descargar?t=<download_token>), so they keep them on any device. Called every 10 minutes by pg_cron
-// with the key stored in Vault (cron_key). One email per order. Secrets: RESEND_API_KEY (and optionally FOLLOWUP_FROM).
+// with the key stored in Vault (cron_key). One email per order. Paid gift cards ("Regalá un CV") get the link to the
+// card instead. Secrets: RESEND_API_KEY (and optionally FOLLOWUP_FROM).
 import { createClient } from 'npm:@supabase/supabase-js@2.57.4'
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -31,6 +32,29 @@ function compose(order: Order, titles: string[]) {
   return { subject, html, text }
 }
 
+type Gift = { number: number; product: string; recipient: string | null }
+
+// "Regalá un CV": once the gift is paid, the buyer gets the link to the card (to send by WhatsApp or print).
+function composeGift(order: Order, gift: Gift) {
+  const name = (order.customer_name ?? '').trim().split(/\s+/)[0] || ''
+  const link = `${SITE}/regalo/tarjeta?t=${order.download_token}`
+  const forWhom = gift.recipient ? ` para ${escape(gift.recipient)}` : ''
+  const subject = `Tu tarjeta de regalo${gift.recipient ? ` para ${gift.recipient}` : ''} está lista 🎁`
+  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#f5efd9;font-family:Arial,Helvetica,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5efd9;padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:20px;overflow:hidden">
+<tr><td style="background:#43202c;padding:20px 28px;color:#fbeaec;font-size:20px;font-weight:700">Armado de CV</td></tr>
+<tr><td style="padding:28px;color:#3a2a30;font-size:15px;line-height:1.55">
+<p style="margin:0 0 12px">¡Hola${name ? ` ${escape(name)}` : ''}! Soy Vale 👋</p>
+<p style="margin:0 0 12px">¡Gracias por regalar un CV! Tu tarjeta de regalo${forWhom} (${escape(gift.product)}, pedido #${order.number}) ya está lista, con el código <b>REGALO-${gift.number}</b>.</p>
+<p style="margin:0 0 24px" align="center"><a href="${link}" style="display:inline-block;background:#c9506d;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:999px">Ver la tarjeta de regalo</a></p>
+<p style="margin:0 0 12px">Desde la tarjeta la podés mandar por WhatsApp o imprimirla. Quien la recibe me escribe con el código y arrancamos con su CV. El código vale por 6 meses.</p>
+<p style="margin:0;color:#6f6a62;font-size:13px">¿Dudas? Respondé este mail y te contesto yo.</p>
+</td></tr></table></td></tr></table></body></html>`
+  const text = `¡Hola${name ? ` ${name}` : ''}! Soy Vale.\n\n¡Gracias por regalar un CV! Tu tarjeta de regalo${gift.recipient ? ` para ${gift.recipient}` : ''} (${gift.product}, pedido #${order.number}) ya está lista, con el código REGALO-${gift.number}.\n\nVer la tarjeta: ${link}\n\nDesde ahí la mandás por WhatsApp o la imprimís. El código vale por 6 meses.`
+  return { subject, html, text }
+}
+
 Deno.serve(async (request) => {
   if (request.method !== 'POST') return json(405, { error: 'Método no permitido' })
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
@@ -54,8 +78,10 @@ Deno.serve(async (request) => {
   for (const order of (orders ?? []) as (Order & { user_id: string })[]) {
     const { data: downloads } = await admin.rpc('get_order_downloads', { p_token: order.download_token })
     const titles = ((downloads ?? []) as { title: string }[]).map((row) => row.title)
-    if (!titles.length) continue
-    const mail = compose(order, titles)
+    // No e-books: maybe a paid gift card (get_gift_card only returns it once the order is paid).
+    const gift = titles.length ? null : (((await admin.rpc('get_gift_card', { p_token: order.download_token })).data ?? []) as Gift[])[0] ?? null
+    if (!titles.length && !gift) continue
+    const mail = gift ? composeGift(order, gift) : compose(order, titles)
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
