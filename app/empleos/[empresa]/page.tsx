@@ -3,10 +3,9 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Check, ExternalLink, MapPin } from 'lucide-react'
-import { WhatsAppIcon } from '@/components/whatsapp-icon'
-import { whatsappUrl } from '@/lib/catalog'
 import { COMPANIES, getOpenings, type Opening } from '@/lib/empleos'
 import { pageMetadata } from '@/lib/seo'
+import { EmpleosOffer } from './empleos-offer'
 
 export const revalidate = 3600
 export const dynamicParams = false
@@ -57,7 +56,6 @@ export default async function EmpleosPage({ params }: { params: Promise<{ empres
   const entry = openings?.filter((job) => job.entry) ?? []
   const rest = openings?.filter((job) => !job.entry) ?? []
   const [logoWidth, logoHeight] = company.logoSize
-  const chat = whatsappUrl(`¡Hola Vale! Vengo de la guía de ${company.name}. Quiero mi CV listo para postularme.`)
   return (
     <>
       <section className="bg-arena/40 px-4 py-10 sm:px-6 lg:py-14">
@@ -69,6 +67,7 @@ export default async function EmpleosPage({ params }: { params: Promise<{ empres
               {openings ? <>Hoy {company.legalName} tiene <b className="text-ciruela">{group.by === 'place' ? openings.filter((job) => job.place !== 'Varias zonas').length : openings.length} {company.countText}</b> en su portal oficial. </> : null}
               Te las junté acá, con el link directo para postularte a cada una.
             </p>
+            <a href="#tu-cv" className="mt-5 inline-flex min-h-11 items-center rounded-full bg-ciruela px-5 py-2.5 font-display text-sm font-bold text-white hover:bg-rosa">¿Tu CV pasa el filtro? Pedilo acá</a>
           </div>
           {/* Always a white card: the brand logo is dark and must stay readable in the dark theme. */}
           <div className="rounded-[28px] bg-[#fff] p-5 shadow-[0_30px_60px_-40px_rgba(67,32,44,0.55)] sm:p-8">
@@ -132,13 +131,16 @@ export default async function EmpleosPage({ params }: { params: Promise<{ empres
             <p className="mt-5 font-display text-3xl font-extrabold">$35.000</p>
             <p className="text-xs text-white/70">CV moderno + CV ATS</p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <a href={chat} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-full bg-whatsapp px-5 py-2.5 font-display text-sm font-bold text-white hover:brightness-95"><WhatsAppIcon className="h-4 w-4" />Quiero mi CV</a>
+              <a href="#tu-cv" className="inline-flex min-h-11 items-center gap-2 rounded-full bg-rosa px-5 py-2.5 font-display text-sm font-bold text-white hover:bg-rosa-deep">Pedir mi CV</a>
               <Link href="/test-ats" className="inline-flex min-h-11 items-center rounded-full border border-white/40 px-5 py-2.5 font-display text-sm font-bold text-white hover:bg-white/10">Test ATS gratis</Link>
             </div>
           </div>
         </div>
-        <p className="mx-auto mt-8 max-w-5xl text-xs text-piedra">Información orientativa, tomada del portal oficial de {company.legalName}. Armado de CV no forma parte de la empresa ni de su proceso de selección: cada empresa elige a sus candidatos.</p>
       </section>
+
+      <EmpleosOffer company={company.name} />
+
+      <p className="mx-auto max-w-5xl px-4 pb-10 text-xs text-piedra sm:px-6">Información orientativa, tomada del portal oficial de {company.legalName}. Armado de CV no forma parte de la empresa ni de su proceso de selección: cada empresa elige a sus candidatos.</p>
     </>
   )
 }
