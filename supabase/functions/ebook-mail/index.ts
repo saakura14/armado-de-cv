@@ -1,6 +1,7 @@
 // Guides bought without an account: once the order unlocks its e-books, the buyer gets an email with a private
 // download link (/descargar?t=<download_token>), so they keep them on any device. Called every 10 minutes by pg_cron
-// with the key stored in Vault (cron_key). One email per order. Secrets: RESEND_API_KEY (and optionally FOLLOWUP_FROM).
+// with the key stored in Vault (cron_key). One email per order. Paid gift cards ("Regalá un CV") get the link to the
+// card instead. Secrets: RESEND_API_KEY (and optionally FOLLOWUP_FROM).
 import { createClient } from 'npm:@supabase/supabase-js@2.57.4'
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
