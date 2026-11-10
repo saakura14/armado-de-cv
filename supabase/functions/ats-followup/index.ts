@@ -3,7 +3,8 @@
 //   2. two days later: how to fix what the test found (and the guide to do it alone);
 //   3. five days later: last call, with a testimonial and a button to the packs on the web (not WhatsApp: Vale keeps it
 //      for orders and questions).
-// The 2nd and 3rd only go to leads whose first email announced them (followup_steps = 3), and to nobody who bought
+// The 2nd and 3rd only go to leads whose first email announced them (followup_steps = 3); leads from before that got
+// one email about the job board (/empleos) instead (bolsa_sent_at). None go to anyone who bought
 // after the test or unsubscribed. Called every 10 minutes by pg_cron with the key stored in Vault (cron_key).
 // Sends between 9 and 21 (Argentina). Secrets: RESEND_API_KEY (and optionally FOLLOWUP_FROM, the sender).
 import { createClient } from 'npm:@supabase/supabase-js@2.57.4'
@@ -80,6 +81,10 @@ function layout(body: string, footer: string) {
 <tr><td style="padding:16px 28px;background:#fbeaec;color:#6f6a62;font-size:12px;line-height:1.5">${footer}</td></tr>
 </table></td></tr></table></body></html>`
 }
+// The job board: big companies' open positions with the official link to apply (armadodecv.com/empleos).
+const jobBoard = (campaign: string) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px"><tr><td style="background:#fbeaec;border-radius:14px;padding:14px 16px;color:#43202c;font-size:14px;line-height:1.5">📍 <b>¿Dónde postularte?</b> En <a href="${SITE}/empleos?utm_source=email&utm_medium=test_ats&utm_campaign=${campaign}" style="color:#a8435e;font-weight:700">armadodecv.com/empleos</a> te junté las búsquedas abiertas hoy de Starbucks, La Anónima y Aeropuertos Argentina, con el link oficial para postularte a cada una.</td></tr></table>`
+const jobBoardText = (campaign: string) => `\n¿Dónde postularte? Las búsquedas abiertas hoy de Starbucks, La Anónima y Aeropuertos Argentina: ${SITE}/empleos?utm_source=email&utm_medium=test_ats&utm_campaign=${campaign}\n`
+
 const button = (href: string, label: string, color = '#c9506d') =>
   `<p style="margin:0 0 16px" align="center"><a href="${href}" style="display:inline-block;background:${color};color:#ffffff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:999px">${label}</a></p>`
 const footerText = (unsubscribe: string, last: boolean) =>
@@ -137,13 +142,14 @@ function composeFix(lead: Lead, prices: Prices) {
 <p style="margin:0 0 12px">Hace dos días hiciste el test ATS y tu CV sacó <b>${lead.score}/100</b>. Te dejo cómo arreglar lo que más le resta:</p>
 ${list}
 ${guide ? `<p style="margin:0 0 16px">${guide}</p>${button(guides, prices.kit ? 'Ver las guías' : 'Ver la guía')}` : ''}
+${jobBoard('seguimiento2')}
 <p style="margin:0 0 12px">¿Preferís que lo haga yo? Te armo los dos CV a medida${prices.from ? `, desde ${ars(prices.from)}` : ''}, en 3 a 4 días hábiles. <a href="${packs}" style="color:#c9506d;font-weight:700">Ver los packs</a></p>
 ${promo()}
 <p style="margin:0;color:#6f6a62;font-size:13px">¿Dudas? Respondé este mail y te contesto yo.</p>`
   const plainFixes = fixes.length
     ? fixes.map((id, index) => `${index + 1}. ${ISSUES[id]}: ${FIXES[id]}`).join('\n')
     : 'Una sola columna, títulos simples y fechas en cada trabajo: con eso ya pasás la mayoría de los filtros.'
-  const text = `¡Hola ${name}! Soy Vale de nuevo.\n\nHace dos días hiciste el test ATS y tu CV sacó ${lead.score}/100. Así arreglás lo que más le resta:\n\n${plainFixes}\n\n${guide ? `${guide.replace(/<[^>]+>/g, '')}\nVer la guía: ${guides}\n\n` : ''}¿Preferís que lo haga yo? Ver los packs: ${packs}\n${promoText()}\nNo quiero recibir más mails: ${unsubscribe}`
+  const text = `¡Hola ${name}! Soy Vale de nuevo.\n\nHace dos días hiciste el test ATS y tu CV sacó ${lead.score}/100. Así arreglás lo que más le resta:\n\n${plainFixes}\n\n${guide ? `${guide.replace(/<[^>]+>/g, '')}\nVer la guía: ${guides}\n\n` : ''}${jobBoardText('seguimiento2')}\n¿Preferís que lo haga yo? Ver los packs: ${packs}\n${promoText()}\nNo quiero recibir más mails: ${unsubscribe}`
   return { subject, html: layout(body, footerText(unsubscribe, false)), text, unsubscribe }
 }
 
@@ -159,11 +165,29 @@ function composeLast(lead: Lead, prices: Prices, testimonial: Testimonial) {
   const body = `<p style="margin:0 0 12px">¡Hola ${escape(name)}! Te escribo una última vez por el test ATS.</p>
 <p style="margin:0 0 12px">Si seguís mandando CV y no te llaman, no es por vos: muchas veces el CV ni siquiera llega a una persona. Eso tiene arreglo.</p>
 ${quote}
+${jobBoard('seguimiento3')}
 <p style="margin:0 0 16px">Te armo dos CV a medida, uno moderno y otro que pasa los filtros${prices.from ? `, desde ${ars(prices.from)}` : ''}.${prices.firstJob ? ` Si es tu primer trabajo, el <b>Pack Primer Empleo</b> sale ${ars(prices.firstJob)}.` : ''} Lo pedís en la web en 2 minutos, sin crear cuenta, y pagás por transferencia o con tarjeta.</p>
 ${promo()}
 ${button(packs, 'Elegir mi pack')}
 <p style="margin:0;color:#6f6a62;font-size:13px" align="center">¿No sabés cuál te conviene? Respondé este mail y te digo.</p>`
-  const text = `¡Hola ${name}! Te escribo una última vez por el test ATS.\n\nSi seguís mandando CV y no te llaman, no es por vos: muchas veces el CV ni siquiera llega a una persona.\n${testimonial ? `\n"${testimonial.text}" (${testimonial.name})\n` : ''}\nTe armo dos CV a medida${prices.from ? `, desde ${ars(prices.from)}` : ''}. Lo pedís en la web en 2 minutos: ${packs}\n${promoText()}\n¿No sabés cuál te conviene? Respondé este mail.\n\nNo quiero recibir más mails: ${unsubscribe}`
+  const text = `¡Hola ${name}! Te escribo una última vez por el test ATS.\n\nSi seguís mandando CV y no te llaman, no es por vos: muchas veces el CV ni siquiera llega a una persona.\n${testimonial ? `\n"${testimonial.text}" (${testimonial.name})\n` : ''}${jobBoardText('seguimiento3')}\nTe armo dos CV a medida${prices.from ? `, desde ${ars(prices.from)}` : ''}. Lo pedís en la web en 2 minutos: ${packs}\n${promoText()}\n¿No sabés cuál te conviene? Respondé este mail.\n\nNo quiero recibir más mails: ${unsubscribe}`
+  return { subject, html: layout(body, footerText(unsubscribe, true)), text, unsubscribe }
+}
+
+// The job board email, once, for the leads who got a single email (before the 3-email sequence): they end with 2.
+function composeBoard(lead: Lead, prices: Prices) {
+  const name = lead.name.trim().split(/\s+/)[0]
+  const board = `${SITE}/empleos?utm_source=email&utm_medium=test_ats&utm_campaign=bolsa`
+  const packs = `${SITE}/empleos?utm_source=email&utm_medium=test_ats&utm_campaign=bolsa#tu-cv`
+  const unsubscribe = `${SITE}/baja?t=${lead.unsubscribe_token}`
+  const subject = `${name}, te junté búsquedas abiertas en grandes empresas`
+  const body = `<p style="margin:0 0 12px">¡Hola ${escape(name)}! Soy Vale, de Armado de CV 👋</p>
+<p style="margin:0 0 12px">Hace un tiempo hiciste el test ATS en la web y tu CV sacó <b>${lead.score}/100</b>. Como sé que estás buscando, te cuento algo nuevo:</p>
+<p style="margin:0 0 16px">En <b>armadodecv.com/empleos</b> te junté las búsquedas abiertas hoy de <b>Starbucks</b> (barista en más de 100 locales), <b>La Anónima</b> y <b>Aeropuertos Argentina</b>, cada una con el link oficial para postularte. Se actualizan solas: podés volver a mirar cada semana.</p>
+${button(board, 'Ver las búsquedas abiertas')}
+<p style="margin:0 0 12px">Ojo: estos portales leen tu CV con un sistema antes que una persona. Si querés que el tuyo pase el filtro, te armo dos CV a medida${prices.from ? `, desde ${ars(prices.from)}` : ''}${prices.firstJob ? ` (o el <b>Pack Primer Empleo</b> a ${ars(prices.firstJob)} si es tu primer trabajo)` : ''}. Lo pedís desde la misma página. <a href="${packs}" style="color:#c9506d;font-weight:700">Ver los packs</a></p>
+<p style="margin:0;color:#6f6a62;font-size:13px">¿Dudas? Respondé este mail y te contesto yo.</p>`
+  const text = `¡Hola ${name}! Soy Vale, de Armado de CV.\n\nHace un tiempo hiciste el test ATS y tu CV sacó ${lead.score}/100. Te junté las búsquedas abiertas hoy de Starbucks, La Anónima y Aeropuertos Argentina, con el link oficial para postularte: ${board}\n\nSi querés que tu CV pase el filtro de esos portales, te armo dos CV a medida${prices.from ? `, desde ${ars(prices.from)}` : ''}: ${packs}\n\nNo quiero recibir más mails: ${unsubscribe}`
   return { subject, html: layout(body, footerText(unsubscribe, true)), text, unsubscribe }
 }
 
@@ -185,15 +209,17 @@ Deno.serve(async (request) => {
   const ago = (hours: number) => new Date(now - hours * 60 * 60 * 1000).toISOString()
   const base = () => admin.from('ats_checks').select('id, name, email, phone, score, issues, area, unsubscribe_token, created_at')
     .not('email', 'is', null).is('unsubscribed_at', null).order('created_at').limit(25)
-  const [first, second, third] = await Promise.all([
+  const [first, second, third, board] = await Promise.all([
     base().is('followup_sent_at', null).lte('created_at', ago(1)).gte('created_at', ago(72)),
     base().eq('followup_steps', 3).not('followup_sent_at', 'is', null).is('followup2_sent_at', null).lte('created_at', ago(44)).gte('created_at', ago(7 * 24)),
     base().eq('followup_steps', 3).not('followup2_sent_at', 'is', null).is('followup3_sent_at', null)
       .lte('followup2_sent_at', ago(60)).lte('created_at', ago(5 * 24)).gte('created_at', ago(12 * 24)),
+    // Leads from before the 3-email sequence: they got only the first one.
+    base().or('followup_steps.is.null,followup_steps.neq.3').not('followup_sent_at', 'is', null).is('followup2_sent_at', null).is('bolsa_sent_at', null),
   ])
-  const error = first.error ?? second.error ?? third.error
+  const error = first.error ?? second.error ?? third.error ?? board.error
   if (error) return json(500, { error: error.message })
-  if (!first.data?.length && !second.data?.length && !third.data?.length) return json(200, { sent: 0 })
+  if (!first.data?.length && !second.data?.length && !third.data?.length && !board.data?.length) return json(200, { sent: 0 })
 
   // "Desde" for the two-CV offer; the first-job pack (one CV) is offered apart.
   const { data: products } = await admin.from('products').select('id, price').eq('active', true).in('id', ['cv-simple', 'cv-medium', 'cv-premium', 'cv-primer-empleo', 'guia-ats', 'kit-busqueda'])
@@ -209,7 +235,7 @@ Deno.serve(async (request) => {
   const sender = Deno.env.get('FOLLOWUP_FROM')?.trim() || 'Vale de Armado de CV <hola@armadodecv.com>'
 
   // Whoever ordered after the test (web or WhatsApp, matched by mail or phone) gets no more sales emails.
-  const { data: orders } = await admin.from('orders').select('customer_email, customer_phone, created_at').neq('status', 'cancelled').gte('created_at', ago(13 * 24))
+  const { data: orders } = await admin.from('orders').select('customer_email, customer_phone, created_at').neq('status', 'cancelled').gte('created_at', ago(45 * 24))
   const bought = (lead: Lead) => (orders ?? []).some((order) => order.created_at >= lead.created_at && (
     (order.customer_email && order.customer_email.toLowerCase() === lead.email.toLowerCase()) ||
     (digits(lead.phone).length === 10 && digits(order.customer_phone) === digits(lead.phone))))
@@ -250,6 +276,10 @@ Deno.serve(async (request) => {
   for (const lead of (third.data ?? []) as Lead[]) {
     if (bought(lead)) { await admin.from('ats_checks').update({ followup3_sent_at: stamp }).eq('id', lead.id); continue }
     await deliver(lead, composeLast(lead, prices, pickQuote()), { followup3_sent_at: stamp })
+  }
+  for (const lead of (board.data ?? []) as Lead[]) {
+    if (bought(lead)) { await admin.from('ats_checks').update({ bolsa_sent_at: stamp }).eq('id', lead.id); continue }
+    await deliver(lead, composeBoard(lead, prices), { bolsa_sent_at: stamp })
   }
   return json(200, { sent, failures })
 })

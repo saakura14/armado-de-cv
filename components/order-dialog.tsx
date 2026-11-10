@@ -102,6 +102,8 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
   const [other, setOther] = useState<Record<string, string>>({})
   const [choice, setChoice] = useState(product.choice?.options[0]?.id ?? '')
   const [pulse, setPulse] = useState(0)
+  const [giftTo, setGiftTo] = useState('')
+  const [giftMessage, setGiftMessage] = useState('')
   const closeButton = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -117,17 +119,24 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
   }, [onClose])
 
-  const groups = product.extras
-  const selected = groups.flatMap((group) => (picked[group.id] ?? []).flatMap((optionId) => {
+  // Gift cards: the recipient's name and the message are free-text $0 extras of the 'regalo' group, typed in two fields.
+  const giftGroup = product.extras.find((group) => group.id === 'regalo')
+  const groups = product.extras.filter((group) => group.id !== 'regalo')
+  const giftSelected = giftGroup ? (['para', 'mensaje'] as const).flatMap((id) => {
+    const option = giftGroup.options.find((item) => item.id === id)
+    const detail = (id === 'para' ? giftTo : giftMessage).trim().slice(0, 80)
+    return option && detail ? [{ group: giftGroup, option, detail }] : []
+  }) : []
+  const selected = [...groups.flatMap((group) => (picked[group.id] ?? []).flatMap((optionId) => {
     const option = group.options.find((item) => item.id === optionId)
     if (!option) return []
     const detail = option.isOther ? other[group.id]?.trim() || null : null
     return [{ group, option, detail }]
-  }))
+  })), ...giftSelected]
   const lines = selected.map(({ group, option, detail }) => ({ key: `${group.id}-${option.id}`, groupId: group.id, optionId: option.id, text: `${option.label}${detail ? `: ${detail}` : ''}`, price: group.unitPrice }))
   const total = product.price + lines.reduce((sum, line) => sum + line.price, 0)
   const shownTotal = useAnimatedNumber(total)
-  const missingOther = selected.some(({ option, detail }) => option.isOther && !detail)
+  const missingOther = selected.some(({ option, detail }) => option.isOther && !detail) || Boolean(giftGroup && !giftTo.trim())
   const choiceLabel = product.choice?.options.find((option) => option.id === choice)?.label
   const unavailable = Boolean(product.choice && !choiceLabel)
   const digital = product.delivery === 'digital' && product.ebooks.length > 0
@@ -198,6 +207,20 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
             </fieldset>
           )}
 
+          {giftGroup && (
+            <fieldset className="rounded-2xl bg-petalo-wash/60 p-4">
+              <legend className="sr-only">Tarjeta de regalo</legend>
+              <p className="font-display text-sm font-bold text-ciruela">🎁 Tu tarjeta de regalo</p>
+              <label className="mt-3 block text-xs font-semibold text-piedra">¿Para quién es?
+                <input value={giftTo} onChange={(event) => setGiftTo(event.target.value)} maxLength={60} placeholder="Ej.: Sofi" className="mt-1 w-full rounded-xl border-2 border-line bg-white px-4 py-2.5 text-base text-ink outline-none focus:border-rosa" />
+              </label>
+              <label className="mt-3 block text-xs font-semibold text-piedra">Tu mensaje (opcional)
+                <input value={giftMessage} onChange={(event) => setGiftMessage(event.target.value)} maxLength={80} placeholder="Ej.: ¡Felicitaciones, egresada! A por tu primer trabajo 💪" className="mt-1 w-full rounded-xl border-2 border-line bg-white px-4 py-2.5 text-base text-ink outline-none focus:border-rosa" />
+              </label>
+              <p className="mt-2 text-xs text-piedra">Apenas se confirma el pago te llega la tarjeta por mail, lista para mandar o imprimir.</p>
+            </fieldset>
+          )}
+
           {groups.map((group) => {
             const list = picked[group.id] ?? []
             const otherOption = group.options.find((option) => option.isOther)
@@ -263,8 +286,8 @@ export function OrderDialog({ product, onClose }: { product: Product; onClose: (
               <li className="flex justify-between gap-3"><span className="font-semibold text-ink">{product.name}{choiceLabel ? ` · ${choiceLabel}` : ''}</span><span className="shrink-0 font-semibold">{formatARS(product.price)}</span></li>
               {lines.map((line) => (
                 <li key={line.key} className="flex animate-[fade_.25s_ease-out] items-center justify-between gap-3 text-piedra">
-                  <span className="flex items-center gap-1.5"><button type="button" onClick={() => toggle(line.groupId, line.optionId)} className="rounded-full p-0.5 hover:bg-petalo-wash hover:text-rosa-deep" aria-label={`Quitar ${line.text}`}><X className="h-3.5 w-3.5" /></button>{line.text}</span>
-                  <span className="shrink-0">+{formatARS(line.price)}</span>
+                  <span className="flex items-center gap-1.5">{line.groupId !== 'regalo' && <button type="button" onClick={() => toggle(line.groupId, line.optionId)} className="rounded-full p-0.5 hover:bg-petalo-wash hover:text-rosa-deep" aria-label={`Quitar ${line.text}`}><X className="h-3.5 w-3.5" /></button>}{line.text}</span>
+                  {line.price > 0 && <span className="shrink-0">+{formatARS(line.price)}</span>}
                 </li>
               ))}
             </ul>

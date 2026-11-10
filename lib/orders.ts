@@ -56,6 +56,8 @@ export type Order = {
   data_received_at?: string | null
   /** CV delivered but the LinkedIn profile still to do: the order is delivered (no clock) and stays in sight until it is done. */
   linkedin_pending?: boolean
+  /** Private token for the guide downloads and the gift card links. */
+  download_token?: string
   order_items: OrderItem[]
   /** 1:1 sessions of the order (admin select only): they go on after the CV is delivered. */
   sessions?: OrderSession[]
