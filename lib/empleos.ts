@@ -40,6 +40,23 @@ export const COMPANIES: Record<string, Company> = {
     ],
     more: 'Las búsquedas son de su portal oficial, el mismo al que lleva el botón "Postular acá" de starbucks.com.ar.',
   },
+  burgerking: {
+    name: 'Burger King',
+    legalName: 'Burger King Argentina',
+    logo: '/img/empresas/burgerking.png',
+    logoSize: [1024, 400],
+    source: { kind: 'genoma', slug: 'bk-ar' },
+    portal: 'https://app.genoma.work/jobs/bk-ar',
+    countText: 'locales con búsqueda de crew abierta',
+    group: { by: 'place', title: 'Crew, local por local', text: 'Buscá tu zona y postulate a los locales que te queden cerca. Es el puesto de entrada: no hace falta experiencia.' },
+    steps: [
+      'Elegí el local que te quede cerca y tocá "Postularme".',
+      'Se abre su portal oficial (el mismo del botón "Empleo" de burgerking.com.ar): completá tus datos.',
+      'Hacé la evaluación online tranquilo y con buena conexión: es un juego, no un examen.',
+      'Tené tu CV listo en PDF, con tu disponibilidad horaria bien a la vista.',
+    ],
+    more: 'Las búsquedas son de su portal oficial, el mismo al que lleva "Empleo" en burgerking.com.ar.',
+  },
   laanonima: {
     name: 'La Anónima',
     legalName: 'La Anónima',

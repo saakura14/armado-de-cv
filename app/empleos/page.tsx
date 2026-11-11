@@ -8,7 +8,7 @@ import { EmpleosOffer } from './[empresa]/empleos-offer'
 
 export const revalidate = 3600
 
-export const metadata: Metadata = pageMetadata({ path: '/empleos', title: 'Búsquedas abiertas en grandes empresas', description: 'Las búsquedas laborales abiertas hoy en Aeropuertos Argentina, Starbucks, La Anónima y más, con el link oficial para postularte a cada una.' })
+export const metadata: Metadata = pageMetadata({ path: '/empleos', title: 'Búsquedas abiertas en grandes empresas', description: 'Las búsquedas laborales abiertas hoy en Aeropuertos Argentina, Starbucks, Burger King, La Anónima y más, con el link oficial para postularte a cada una.' })
 
 const STEPS = [
   { icon: Search, title: 'Elegí la empresa', text: 'Mirá las búsquedas abiertas hoy, por zona y por puesto.' },

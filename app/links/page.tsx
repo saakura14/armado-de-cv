@@ -9,6 +9,7 @@ export const metadata: Metadata = pageMetadata({ path: '/links', title: 'Links',
 
 const LINKS = [
   { href: '/empleos', icon: Briefcase, title: 'Búsquedas abiertas hoy', text: 'Grandes empresas con el link oficial para postularte', tone: 'bg-ciruela text-white', sub: 'text-white/80' },
+  { href: '/empleos/burgerking', icon: Briefcase, title: 'Trabajar en Burger King', text: 'Crew en más de 100 locales y cómo postularte', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
   { href: '/empleos/laanonima', icon: Briefcase, title: 'Trabajar en La Anónima', text: 'Búsquedas abiertas en sus sucursales y cómo postularte', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
   { href: '/empleos/aeropuertos', icon: Briefcase, title: 'Trabajar en Aeropuertos Argentina', text: 'Búsquedas abiertas en aeropuertos de todo el país y cómo postularte', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
   { href: '/empleos/starbucks', icon: Briefcase, title: 'Trabajar en Starbucks', text: 'Búsquedas de barista local por local y cómo postularte', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
