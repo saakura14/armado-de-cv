@@ -10,6 +10,7 @@ export const PUBLIC_PAGES = [
   { path: '/empleos/aeropuertos', priority: 0.7, changeFrequency: 'daily' },
   { path: '/empleos/starbucks', priority: 0.7, changeFrequency: 'daily' },
   { path: '/empleos/laanonima', priority: 0.7, changeFrequency: 'daily' },
+  { path: '/empleos/burgerking', priority: 0.7, changeFrequency: 'daily' },
   { path: '/gratis', priority: 0.8, changeFrequency: 'monthly' },
   { path: '/cursos', priority: 0.6, changeFrequency: 'monthly' },
   { path: '/terminos', priority: 0.2, changeFrequency: 'yearly' },
