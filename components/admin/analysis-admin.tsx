@@ -472,13 +472,18 @@ function MetaBalance({ data, money, onSaved }: { data: Data; money: (value: numb
   const [alert, setAlert] = useState(75)
   // The "Saldo actual" Billing showed on a day: exact up to that day, then the daily spend is added.
   const [noted, setNoted] = useState<{ usd: number; on: string } | null>(null)
+  // What meta-ads last computed (every 3 hours): the noted balance, the spend loaded and an estimate (active budgets)
+  // for the days the daily load hasn't brought yet. Without it the card stays on the noted figure until a load.
+  const [server, setServer] = useState<{ since: string; balance: number; estimated: number } | null>(null)
   const [adding, setAdding] = useState<'cobro' | 'saldo' | null>(null)
   const [form, setForm] = useState({ day: today(), amount: '' })
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
   const loadGoal = useCallback(async () => {
-    const { data: goal } = await supabase.from('savings_goal').select('balance_alert_usd, meta_balance_usd, meta_balance_on').eq('id', 1).maybeSingle()
+    const { data: goal } = await supabase.from('savings_goal').select('balance_alert_usd, meta_balance_usd, meta_balance_on, meta_status').eq('id', 1).maybeSingle()
     if (goal?.balance_alert_usd) setAlert(Number(goal.balance_alert_usd))
+    const computed = (goal?.meta_status as { balance?: { since: string; balance: number; estimated: number } } | null)?.balance
+    setServer(computed ? { since: computed.since, balance: Number(computed.balance), estimated: Number(computed.estimated) } : null)
     setNoted(goal?.meta_balance_usd !== null && goal?.meta_balance_usd !== undefined && goal?.meta_balance_on ? { usd: Number(goal.meta_balance_usd), on: goal.meta_balance_on } : null)
   }, [])
   useEffect(() => { loadGoal() }, [loadGoal])
@@ -487,7 +492,9 @@ function MetaBalance({ data, money, onSaved }: { data: Data; money: (value: numb
   if (!last) return null
   const fromNote = noted !== null && noted.on >= last.day
   const after = fromNote ? noted.on : last.day
-  const spent = (fromNote ? noted.usd : 0) + data.ads.filter((row) => row.day > after).reduce((sum, row) => sum + row.spend, 0)
+  const loadedSpent = (fromNote ? noted.usd : 0) + data.ads.filter((row) => row.day > after).reduce((sum, row) => sum + row.spend, 0)
+  const estimate = fromNote && server && server.since === noted.on && server.estimated > 0.5 && server.balance > loadedSpent ? server : null
+  const spent = estimate ? estimate.balance : loadedSpent
   const loadedUntil = data.ads.reduce((max, row) => (row.day > max ? row.day : max), '')
   const rate = data.fx[data.fx.length - 1]?.ars_per_usd ?? 0
   const share = Math.min(spent / alert, 1)
@@ -514,7 +521,7 @@ function MetaBalance({ data, money, onSaved }: { data: Data; money: (value: numb
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="balance-title" className="font-display text-lg font-bold text-ciruela">Saldo de Meta</h2>
-          <p className="text-sm text-piedra">{fromNote ? `El saldo que anotaste el ${short(noted.on)} (${usd(noted.usd)}) más lo que se gastó después.` : `Lo que gastaron los anuncios desde el último cobro (${short(last.day)}, ${usd(last.amount_usd)}).`} Al llegar a {usd(alert)} te avisa al celu.</p>
+          <p className="text-sm text-piedra">{fromNote ? `El saldo que anotaste el ${short(noted.on)} (${usd(noted.usd)}) más lo que se gastó después${estimate ? ` (${usd(estimate.estimated)} de eso es estimado con los presupuestos: el gasto real de esos días todavía no se cargó)` : ''}.` : `Lo que gastaron los anuncios desde el último cobro (${short(last.day)}, ${usd(last.amount_usd)}).`} Al llegar a {usd(alert)} te avisa al celu.</p>
         </div>
         <p className="text-right font-display text-2xl font-extrabold tabular-nums text-ciruela">{usd(spent)}<span className="block text-xs font-semibold text-piedra">{rate ? money(Math.round(spent * rate)) : ''} de {usd(alert)}</span></p>
       </div>
