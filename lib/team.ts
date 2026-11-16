@@ -45,6 +45,8 @@ export const TEAM_PACKS = ['cv-primer-empleo', 'cv-simple', 'cv-medium', 'cv-pre
 export const ATS_ONLY_PACKS = ['cv-primer-empleo']
 /** Packs that come with a cover letter. */
 export const PACKS_WITH_LETTER = ['cv-medium', 'cv-premium']
+/** The packs that include the LinkedIn profile. */
+export const LINKEDIN_PACKS = ['linkedin', 'cv-premium']
 
 export const TASK_STATUS: Record<TaskStatus, { label: string; tone: string }> = {
   asignado: { label: 'Para hacer', tone: 'bg-arena text-ciruela' },

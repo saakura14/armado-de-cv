@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Check, Copy, FileText, Mic, Sparkles, Upload, X } from 'lucide-react'
+import { formMaterial } from '@/lib/client-form'
 import type { Order, OrderItem } from '@/lib/orders'
 import { SOURCE_ACCEPT, isAudio, sourceLabel, uploadSource, withTranscript } from '@/lib/source-files'
 import { errorMessage, supabase } from '@/lib/supabase'
+import { LINKEDIN_PACKS } from '@/lib/team'
 import { Button, Field, inputClass, useBackdropClose, useFlash } from './ui'
 
-/** The packs that include the LinkedIn profile. */
-export const LINKEDIN_PACKS = ['linkedin', 'cv-premium']
+/** The packs that include the LinkedIn profile (defined with the other pack lists in lib/team). */
+export { LINKEDIN_PACKS }
 
 export type LinkedInState = { order_item_id: string; status: 'pedido' | 'generando' | 'corregir' | 'listo' | 'error'; error: string | null }
 type Section = { label: string; text: string }
@@ -42,6 +44,7 @@ function LinkedInDialog({ order, item, firstName, status, onClose, onSaved }: { 
   const [copied, setCopied] = useState(-1)
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
+  const productIds = order.order_items.map((row) => row.product_id).join(',')
 
   // Loads again when Claude changes the status. Without a LinkedIn draft yet, it starts from the CV material of the order.
   useEffect(() => {
@@ -54,10 +57,15 @@ function LinkedInDialog({ order, item, firstName, status, onClose, onSaved }: { 
       } else {
         const { data: cv } = await supabase.from('cv_drafts').select('source_text, target_job, files').eq('order_id', order.id).limit(1).maybeSingle()
         if (cv) { setSource((cv.source_text as string) ?? ''); setTarget((cv.target_job as string | null) ?? ''); setFiles((cv.files as string[] | null) ?? []) }
+        else {
+          // No CV material (LinkedIn alone, or the CV already went to the team): the customer's form, if they filled it in.
+          const form = await formMaterial(order.id, productIds.split(','))
+          if (form) { setSource(form.source); setTarget(form.target); setFiles(form.files) }
+        }
       }
       setLoaded(true)
     })()
-  }, [item.id, order.id, status])
+  }, [item.id, order.id, status, productIds])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }

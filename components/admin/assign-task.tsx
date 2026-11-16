@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Check, Copy, FileText, Mic, Sparkles, Upload, Users, X } from 'lucide-react'
 import { hasExpress, teamDueOn } from '@/lib/dashboard'
 import type { Order, OrderItem } from '@/lib/orders'
+import { formMaterial } from '@/lib/client-form'
 import { SOURCE_ACCEPT, isAudio, sourceLabel, uploadSource, withTranscript } from '@/lib/source-files'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { ATS_ONLY_PACKS, PACKS_WITH_LETTER, TASK_STATUS, TEAM_PACKS, type TaskStatus, type TeamMember } from '@/lib/team'
@@ -96,7 +97,8 @@ function AssignDialog({ order, item, clientName, onClose, onSaved }: { order: Or
     // The texts are now with the team: Claude's draft and the client's files go away (and a queued one isn't written).
     const { data: draft } = await supabase.from('cv_drafts').select('files, feedback_files').eq('order_item_id', item.id).maybeSingle()
     if (draft) {
-      const stored = [...(draft.files as string[]), ...((draft.feedback_files as string[] | null) ?? [])]
+      // The customer's own form files (forms/…) stay: the LinkedIn of the same order may still need them.
+      const stored = [...(draft.files as string[]), ...((draft.feedback_files as string[] | null) ?? [])].filter((path) => !path.startsWith('forms/'))
       if (stored.length) await supabase.storage.from('cv-sources').remove(stored)
       await supabase.from('cv_drafts').delete().eq('order_item_id', item.id)
     }
@@ -159,6 +161,10 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
   const [target, setTarget] = useState('')
   const [files, setFiles] = useState<string[]>([])
   const [hasLetter, setHasLetter] = useState(PACKS_WITH_LETTER.includes(item.product_id))
+  // Nothing asked yet and the customer filled in their form: it comes loaded.
+  const [fromForm, setFromForm] = useState(false)
+  // A string, so the board reloading (a new order object) doesn't load the form again over her edits.
+  const productIds = order.order_items.map((row) => row.product_id).join(',')
   const [modern, setModern] = useState('')
   const [ats, setAts] = useState('')
   const [letter, setLetter] = useState('')
@@ -170,16 +176,23 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
 
   // Loads again when Claude changes the status (the board is live), so the texts show up without closing the window.
   useEffect(() => {
-    supabase.from('cv_drafts').select('source_text, target_job, files, has_letter, status, cv_modern, cv_ats, letter, error, feedback').eq('order_item_id', item.id).maybeSingle().then(({ data }) => {
+    supabase.from('cv_drafts').select('source_text, target_job, files, has_letter, status, cv_modern, cv_ats, letter, error, feedback').eq('order_item_id', item.id).maybeSingle().then(async ({ data }) => {
       const row = data as Draft | null
       if (row) {
         setDraft(row); setSource(row.source_text); setTarget(row.target_job ?? ''); setFiles(row.files ?? []); setHasLetter(row.has_letter)
         setModern(row.cv_modern ?? ''); setAts(row.cv_ats ?? ''); setLetter(row.letter ?? '')
         if (row.status === 'listo') setFeedback('')
+      } else {
+        const form = await formMaterial(order.id, productIds.split(','))
+        if (form) {
+          setSource(form.source); setTarget(form.target); setFiles(form.files); setFromForm(true)
+          // She is reading what the customer sent: it leaves "Datos recibidos" in Hoy (a new submission brings it back).
+          supabase.from('client_forms').update({ seen_at: new Date().toISOString() }).eq('order_id', order.id).then(() => undefined, () => undefined)
+        }
       }
       setLoaded(true)
     })
-  }, [item.id, status])
+  }, [item.id, status, order.id, productIds])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
@@ -203,7 +216,8 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
 
   async function removeFile(path: string) {
     const gone = withTranscript(path)
-    await supabase.storage.from('cv-sources').remove(gone)
+    // A file from the customer's form only leaves this list: the original stays with their answers.
+    if (!path.startsWith('forms/')) await supabase.storage.from('cv-sources').remove(gone)
     const rest = files.filter((row) => !gone.includes(row))
     setFiles(rest)
     // Keep the saved draft in step, so a removed file isn't sent to Claude.
@@ -286,6 +300,7 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
   const review = draft?.status === 'listo'
   const material = (
     <>
+      {fromForm && <p className="rounded-2xl bg-whatsapp/10 px-4 py-3 text-sm text-ink"><b>📋 Cargado con el formulario que completó {firstName}.</b> Sumá lo que te haya mandado por WhatsApp y pedí los textos.</p>}
       <Field label="CV base, respuestas del formulario o lo que quieras pasarle">
         <textarea value={source} onChange={(event) => setSource(event.target.value)} rows={review ? 6 : 10} placeholder="Pegá el CV que te mandó, las respuestas del formulario, lo que te contó por WhatsApp…" className={inputClass} />
       </Field>

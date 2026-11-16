@@ -61,7 +61,11 @@ export type Order = {
   order_items: OrderItem[]
   /** 1:1 sessions of the order (admin select only): they go on after the CV is delivered. */
   sessions?: OrderSession[]
+  /** The customer's data form (armadodecv.com/datos/…), admin select only: one per order. */
+  client_forms?: ClientFormSummary | ClientFormSummary[] | null
 }
+
+export type ClientFormSummary = { token: string; submitted_at: string | null; seen_at: string | null; updated_at: string | null }
 
 export type OrderSession = { id: string; title: string; status: 'to_schedule' | 'scheduled' | 'done' | 'cancelled'; scheduled_at: string | null }
 
