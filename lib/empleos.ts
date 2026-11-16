@@ -10,8 +10,12 @@ type Company = {
   legalName: string
   logo: string
   logoSize: [number, number]
-  /** Where the openings come from: a HiringRoom portal (20 per page at /jobs/index/<page>), a Genoma.work jobs site or a SuccessFactors career site (its public XML feed). */
-  source: { kind: 'hiringroom'; portal: string } | { kind: 'genoma'; slug: string } | { kind: 'successfactors'; host: string; company: string }
+  /** Where the openings come from: a HiringRoom portal (20 per page at /jobs/index/<page>), a Genoma.work jobs site, a
+   *  SuccessFactors career site (its public XML feed) or, for pages about several employers, a list checked by hand. */
+  source: { kind: 'hiringroom'; portal: string } | { kind: 'genoma'; slug: string } | { kind: 'successfactors'; host: string; company: string } | { kind: 'links'; checked: string; openings: Opening[] }
+  /** Pages about several employers (call centers, fin de año) replace the company wording of the landing. */
+  heading?: string
+  intro?: string
   /** Public page with all the openings, for the fallback link and the "your zone isn't listed" note. */
   portal: string
   /** "Hoy <legalName> tiene <n> <countText> en su portal oficial." */
@@ -90,6 +94,68 @@ export const COMPANIES: Record<string, Company> = {
       'Revisá tu mail (y el spam): por ahí te avisan si avanzás a la entrevista.',
     ],
     more: 'Las búsquedas son de su portal oficial, el mismo al que lleva "Trabajá con nosotros" de aeropuertosargentina.com.',
+  },
+  // Checked by hand on 15/11/2026 (tp.com Argentina careers and the companies' own profiles on Computrabajo): re-check
+  // before promoting the page again, postings close.
+  callcenters: {
+    name: 'call centers',
+    legalName: 'TP (ex Teleperformance), Konecta y Atento',
+    logo: '/img/empresas/callcenters.png',
+    logoSize: [1000, 720],
+    heading: 'Trabajar en un call center',
+    intro: 'TP (ex Teleperformance), Konecta y Atento están tomando gente. Los dos primeros no piden experiencia: alcanza con el secundario completo.',
+    source: { kind: 'links', checked: '15/11/2026', openings: [
+      { title: 'Atención telefónica presencial (sin experiencia, part time)', place: 'TP (ex Teleperformance)', detail: 'CABA (Microcentro)', posted: '', url: 'https://www.tp.com/es-ar/job-opportunities/argentina/atenci%C3%B3n-ba-representante-atenci%C3%B3n-telef%C3%B3nica-presencial-caba/', entry: true },
+      { title: 'Representantes de atención telefónica', place: 'TP (ex Teleperformance)', detail: 'Chaco', posted: '', url: 'https://www.tp.com/es-ar/job-opportunities/argentina/atenci%C3%B3n-chaco-representantes-de-atenci%C3%B3n-telef%C3%B3nica/', entry: true },
+      { title: 'Atención al cliente bilingüe (inglés), part time', place: 'TP (ex Teleperformance)', detail: 'Inglés avanzado', posted: '', url: 'https://www.tp.com/es-ar/job-opportunities/argentina/representantes-de-atencion-al-cliente-bilinguee-ingles-part-time/', entry: true },
+      { title: 'Intérpretes bilingües, 100% remoto', place: 'TP (ex Teleperformance)', detail: 'Inglés avanzado', posted: '', url: 'https://www.tp.com/es-ar/job-opportunities/argentina/interpretes-bilinguees-con-dominio-en-ingles-avanzado-trabajo-100-remoto/', entry: true },
+      { title: 'Representante comercial telefónico', place: 'Konecta', detail: 'Córdoba', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-cordoba-representante-comercial-telefonico-perfil-asesor-comercial-en-cordoba-6206F1E4871A894261373E686DCF3405', entry: true },
+      { title: 'Representante de atención técnica', place: 'Konecta', detail: 'Córdoba', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-representante-de-atencion-tecnica-cordoba-perfil-soporte-tecnico-en-cordoba-CAFEA5F9047F91D661373E686DCF3405', entry: true },
+      { title: 'Representante corporativo de atención', place: 'Konecta', detail: 'Rosario', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-representante-corporativo-perfil-atencion-en-rosario-FD94D516D46CA10761373E686DCF3405', entry: true },
+      { title: 'Asesor/a de ventas telefónicas para un banco, part time', place: 'Konecta', detail: 'CABA (San Nicolás)', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-buenos-aires-asesor-de-ventas-telefonicas-para-entidad-bancaria-part-time-perfil-asesor-comercial-en-san-nicolas-F9A2B516410F04F961373E686DCF3405', entry: true },
+      { title: 'Asesor/a de cobranzas telefónicas', place: 'Konecta', detail: 'CABA (San Nicolás)', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-buenos-aires-asesor-de-recupero-crediticio-por-canales-telefonicos-perfil-asesor-de-cobranzas-en-san-nicolas-3133FEC1CD45EF8161373E686DCF3405', entry: true },
+      { title: 'Televentas de seguros (con experiencia en ventas)', place: 'Atento', detail: 'CABA (Monserrat)', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-buscamos-representantes-de-televentas-de-seguros-bancarizados-en-monserrat-caba-con-experiencia-en-ventas-de-intangiblesservicios-en-monserrat-F7C43A84C86B0BDD61373E686DCF3405', entry: true },
+      { title: 'Televentas de productos bancarios (con experiencia en ventas)', place: 'Atento', detail: 'CABA (Monserrat)', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-buscamos-incorporar-representantes-de-televenta-de-productos-bancarios-en-caba-con-experiencia-en-ventas-en-frio-en-monserrat-587F103C0C4C07C361373E686DCF3405', entry: true },
+      { title: 'Telemarketing para una prepaga (con experiencia en ventas)', place: 'Atento', detail: 'CABA (Monserrat)', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-representantes-de-telemarketing-para-importante-empresa-de-medicina-prepaga-en-caba-con-experiencia-en-ventas-intangiblesservicios-en-monserrat-A546672EC6EA733A61373E686DCF3405', entry: true },
+      { title: 'Telemarketing para una universidad (con experiencia en ventas)', place: 'Atento', detail: 'CABA (Monserrat)', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-representantes-de-telemarketing-para-importante-universidad-en-caba-con-experiencia-en-ventas-en-frio-de-intangibles-en-monserrat-AE0705CC81D030C861373E686DCF3405', entry: true },
+    ] },
+    portal: 'https://www.tp.com/es-ar/ubicaciones/argentina/carreras/',
+    countText: 'búsquedas abiertas',
+    group: { by: 'place', title: 'Búsquedas por empresa', text: 'Tocá cada empresa para ver sus búsquedas. Casi todas piden secundario completo y ser mayor de 18; leé los requisitos de cada aviso.' },
+    steps: [
+      'Elegí la búsqueda que va con tu zona y tu disponibilidad horaria.',
+      'Tocá "Postularme": se abre el aviso oficial de la empresa.',
+      'Cargá tu CV en PDF, con tu experiencia en atención al público o ventas bien a la vista (changas y el negocio familiar cuentan).',
+      'Tené el teléfono a mano: suelen llamar o escribir por WhatsApp para una entrevista corta.',
+    ],
+    more: 'TP publica en su portal de carreras; Konecta y Atento, en sus perfiles oficiales de Computrabajo. Revisado el 15/11/2026: los avisos se cierran cuando cubren el puesto.',
+  },
+  findeano: {
+    name: 'fin de año',
+    legalName: 'los portales de empleo',
+    logo: '/img/empresas/findeano.png',
+    logoSize: [1000, 600],
+    heading: 'Trabajos para las fiestas',
+    intro: 'Randstad proyecta más de 2.000 puestos para fin de año, y 7 de cada 10 son de logística. Te junté dónde postularte, por rubro.',
+    source: { kind: 'links', checked: '15/11/2026', openings: [
+      { title: 'Jumbo, Disco, Vea y Easy (Cencosud)', place: 'Supermercados', detail: 'Cajas, reposición y depósito', posted: '', url: 'https://empleos.cencosud.com', entry: true },
+      { title: 'Coto', place: 'Supermercados', detail: 'Cajas, reposición, carnicería y verdulería', posted: '', url: 'https://www.coto.com.ar/empleos', entry: true },
+      { title: 'Carrefour', place: 'Supermercados', detail: 'Empleados/as polivalentes, part time', posted: '', url: 'https://carrefour-argentina.pandape.computrabajo.com', entry: true },
+      { title: 'Randstad', place: 'Depósitos y logística', detail: 'Buscá "eventual", "picker" u "operario"', posted: '', url: 'https://www.randstad.com.ar', entry: true },
+      { title: 'Adecco', place: 'Depósitos y logística', detail: 'Buscá "eventual", "picker" u "operario"', posted: '', url: 'https://www.adecco.com.ar', entry: true },
+      { title: 'ManpowerGroup', place: 'Depósitos y logística', detail: 'Buscá "eventual", "picker" u "operario"', posted: '', url: 'https://www.manpower.com.ar', entry: true },
+      { title: 'Portal Empleo (oficial y gratis)', place: 'Gastronomía, comercios y más', detail: 'Mozos/as, cocina, repositores, operarios y McDonald\'s', posted: '', url: 'https://www.portalempleo.gob.ar/OfertasLaborales', entry: true },
+    ] },
+    portal: 'https://www.portalempleo.gob.ar/OfertasLaborales',
+    countText: 'portales para postularte',
+    group: { by: 'place', title: 'Dónde postularte, por rubro', text: 'Supermercados en sus portales oficiales, depósitos a través de las consultoras que contratan eventuales, y Portal Empleo para el resto.' },
+    steps: [
+      'Elegí el rubro y entrá al portal oficial.',
+      'Buscá "eventual", "temporada", "part time" o el puesto (cajero/a, repositor/a, picker).',
+      'Cargá tu CV en PDF con tu disponibilidad arriba de todo: fines de semana, feriados, 24 y 31.',
+      'Postulate en noviembre: las búsquedas de fin de año se llenan rápido.',
+    ],
+    more: 'Proyección de Randstad publicada en octubre de 2026. Los links llevan a los portales oficiales, revisados el 15/11/2026.',
   },
 }
 
@@ -184,6 +250,7 @@ export async function getOpenings(slug: string): Promise<Opening[] | null> {
   const company = COMPANIES[slug]
   if (!company) return null
   try {
+    if (company.source.kind === 'links') return company.source.openings
     if (company.source.kind === 'genoma') return await genoma(company.source.slug)
     const entry = company.group.by === 'entry' ? company.group.entry : null
     if (company.source.kind === 'successfactors') return await successfactors(company.source.host, company.source.company, entry)

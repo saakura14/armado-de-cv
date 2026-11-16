@@ -17,7 +17,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ empresa: string }> }): Promise<Metadata> {
   const { empresa } = await params
   const company = COMPANIES[empresa]
-  return pageMetadata({ path: `/empleos/${empresa}`, image: company.logo, title: `Cómo y dónde postularte a ${company.name}: búsquedas abiertas`, description: `Las búsquedas abiertas de ${company.legalName}, con el link oficial de cada una para postularte, y tips para que tu CV pase los filtros.` })
+  return pageMetadata({ path: `/empleos/${empresa}`, image: company.logo, title: company.heading ? `${company.heading}: dónde postularte` : `Cómo y dónde postularte a ${company.name}: búsquedas abiertas`, description: `Las búsquedas abiertas de ${company.legalName}, con el link oficial de cada una para postularte, y tips para que tu CV pase los filtros.` })
 }
 
 /** Openings in groups by city, in the order of how many each city has (so the big ones come first). */
@@ -62,9 +62,9 @@ export default async function EmpleosPage({ params }: { params: Promise<{ empres
         <div className="mx-auto grid max-w-5xl items-center gap-8 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
             <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-rosa-deep">Cómo y dónde postularte</p>
-            <h1 className="mt-2 font-display text-4xl font-extrabold leading-tight text-ciruela sm:text-5xl">Trabajar en {company.name}</h1>
+            <h1 className="mt-2 font-display text-4xl font-extrabold leading-tight text-ciruela sm:text-5xl">{company.heading ?? `Trabajar en ${company.name}`}</h1>
             <p className="mt-4 text-lg leading-relaxed text-piedra">
-              {openings ? <>Hoy {company.legalName} tiene <b className="text-ciruela">{group.by === 'place' ? openings.filter((job) => job.place !== 'Varias zonas').length : openings.length} {company.countText}</b> en su portal oficial. </> : null}
+              {company.intro ? <>{company.intro} </> : openings ? <>Hoy {company.legalName} tiene <b className="text-ciruela">{group.by === 'place' ? openings.filter((job) => job.place !== 'Varias zonas').length : openings.length} {company.countText}</b> en su portal oficial. </> : null}
               Te las junté acá, con el link directo para postularte a cada una.
             </p>
             <a href="#tu-cv" className="mt-5 inline-flex min-h-11 items-center rounded-full bg-ciruela px-5 py-2.5 font-display text-sm font-bold text-white hover:bg-rosa">¿Tu CV pasa el filtro? Pedilo acá</a>
@@ -84,7 +84,7 @@ export default async function EmpleosPage({ params }: { params: Promise<{ empres
               <p className="mt-2 text-sm text-piedra">{group.text}</p>
               {group.by === 'place' ? (
                 byPlace(openings).map(([place, items]) => (
-                  <details key={place} open={place === 'Varias zonas'} className="mt-4 rounded-2xl bg-petalo-wash/40 p-4">
+                  <details key={place} open={place === 'Varias zonas' || company.source.kind === 'links'} className="mt-4 rounded-2xl bg-petalo-wash/40 p-4">
                     <summary className="cursor-pointer font-display font-bold text-ciruela">{place} <span className="font-normal text-piedra">({items.length})</span></summary>
                     <OpeningList items={items} />
                   </details>
@@ -140,7 +140,9 @@ export default async function EmpleosPage({ params }: { params: Promise<{ empres
 
       <EmpleosOffer company={company.name} />
 
-      <p className="mx-auto max-w-5xl px-4 pb-10 text-xs text-piedra sm:px-6">Información orientativa, tomada del portal oficial de {company.legalName}. Armado de CV no forma parte de la empresa ni de su proceso de selección: cada empresa elige a sus candidatos.</p>
+      <p className="mx-auto max-w-5xl px-4 pb-10 text-xs text-piedra sm:px-6">{company.source.kind === 'links'
+            ? `Información orientativa, tomada de los avisos y portales oficiales el ${company.source.checked}. Armado de CV no forma parte de las empresas ni de sus procesos de selección: cada empresa elige a sus candidatos.`
+            : `Información orientativa, tomada del portal oficial de ${company.legalName}. Armado de CV no forma parte de la empresa ni de su proceso de selección: cada empresa elige a sus candidatos.`}</p>
     </>
   )
 }

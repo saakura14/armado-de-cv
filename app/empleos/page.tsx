@@ -8,7 +8,7 @@ import { EmpleosOffer } from './[empresa]/empleos-offer'
 
 export const revalidate = 3600
 
-export const metadata: Metadata = pageMetadata({ path: '/empleos', title: 'Búsquedas abiertas en grandes empresas', description: 'Las búsquedas laborales abiertas hoy en Aeropuertos Argentina, Starbucks, Burger King, La Anónima y más, con el link oficial para postularte a cada una.' })
+export const metadata: Metadata = pageMetadata({ path: '/empleos', title: 'Búsquedas abiertas en grandes empresas', description: 'Las búsquedas laborales abiertas hoy en Aeropuertos Argentina, Starbucks, Burger King, La Anónima, call centers y trabajos de fin de año, con el link oficial para postularte a cada una.' })
 
 const STEPS = [
   { icon: Search, title: 'Elegí la empresa', text: 'Mirá las búsquedas abiertas hoy, por zona y por puesto.' },
@@ -23,7 +23,8 @@ export default async function EmpleosHub() {
     const count = openings ? (company.group.by === 'place' ? openings.filter((job) => job.place !== 'Varias zonas').length : openings.length) : null
     return { slug, company, count }
   }))
-  const total = companies.reduce((sum, { count }) => sum + (count ?? 0), 0)
+  // Only real openings add up (the fin de año page counts portals, not openings).
+  const total = companies.reduce((sum, { company, count }) => sum + (company.countText.includes('búsqueda') ? count ?? 0 : 0), 0)
 
   return (
     <>
@@ -47,7 +48,7 @@ export default async function EmpleosHub() {
                 <span className="flex h-28 items-center justify-center rounded-2xl bg-[#fff]">
                   <Image src={company.logo} alt={company.legalName} width={company.logoSize[0]} height={company.logoSize[1]} className="h-auto max-h-24 w-auto max-w-[180px]" />
                 </span>
-                <span className="mt-4 font-display text-xl font-bold text-ciruela">{company.name}</span>
+                <span className="mt-4 font-display text-xl font-bold text-ciruela">{company.heading ?? company.name}</span>
                 <span className="mt-1 text-sm text-piedra">{count ? `${count} ${company.countText}` : 'Búsquedas en su portal oficial'}</span>
                 <span className="mt-auto inline-flex items-center gap-1 pt-4 font-display text-sm font-bold text-rosa-deep">Ver búsquedas y postularme<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
               </Link>
