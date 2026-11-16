@@ -136,7 +136,7 @@ export const COMPANIES: Record<string, Company> = {
     logo: '/img/empresas/findeano.png',
     logoSize: [1000, 600],
     heading: 'Trabajos para las fiestas',
-    intro: 'Randstad proyecta más de 2.000 puestos para fin de año, y 7 de cada 10 son de logística. Te junté dónde postularte, por rubro.',
+    intro: 'Randstad proyecta más de 2.000 puestos para fin de año, y 7 de cada 10 son de logística: depósitos, supermercados y gastronomía.',
     source: { kind: 'links', checked: '15/11/2026', openings: [
       { title: 'Jumbo, Disco, Vea y Easy (Cencosud)', place: 'Supermercados', detail: 'Cajas, reposición y depósito', posted: '', url: 'https://empleos.cencosud.com', entry: true },
       { title: 'Coto', place: 'Supermercados', detail: 'Cajas, reposición, carnicería y verdulería', posted: '', url: 'https://www.coto.com.ar/empleos', entry: true },
