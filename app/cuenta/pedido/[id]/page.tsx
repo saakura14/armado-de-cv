@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, CheckCircle2, CreditCard, Loader2, Upload } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, ClipboardList, CreditCard, Loader2, Upload } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { AuthPanel } from '@/components/auth-panel'
 import { CopyField } from '@/components/copy-field'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
+import { takesForm } from '@/lib/client-form'
 import { ORDER_SELECT, STATUS, cardTotal, formatDate, isDigitalOnly, needsCoordination, type Order } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { useSession } from '@/lib/use-session'
@@ -34,14 +35,18 @@ export default function OrderPage() {
   const [cardNotice, setCardNotice] = useState<CardNotice>(null)
   const [cardError, setCardError] = useState('')
   const [error, setError] = useState('')
+  // Their data form for the CV (armadodecv.com/datos/…): only the owner of the order gets the link.
+  const [dataForm, setDataForm] = useState<{ token: string; submitted_at: string | null } | null>(null)
 
   const load = useCallback(async () => {
-    const [{ data }, { data: pay }] = await Promise.all([
+    const [{ data }, { data: pay }, { data: form }] = await Promise.all([
       supabase.from('orders').select(ORDER_SELECT).eq('id', id).maybeSingle(),
       supabase.from('payment_settings').select('alias, cbu, holder, bank, card_enabled, card_fee').maybeSingle(),
+      supabase.rpc('client_form_token', { p_order: id }),
     ])
     setOrder((data as Order | null) ?? null)
     setPayment((pay as Payment | null) ?? null)
+    setDataForm((form as { token: string; submitted_at: string | null } | null) ?? null)
     return (data as Order | null) ?? null
   }, [id])
 
@@ -201,10 +206,21 @@ export default function OrderPage() {
           </div>
         )}
 
+        {/* The CV data: right after paying (or before, if they want to get ahead), in the same form for everyone. */}
+        {dataForm && takesForm(order.order_items.map((item) => item.product_id)) && (['pending_payment', 'payment_review', 'paid', 'in_progress'].includes(order.status) || (order.status === 'delivered' && order.linkedin_pending)) && (
+          <div className="rounded-[28px] bg-white p-6 shadow-[0_22px_44px_-30px_rgba(67,32,44,0.55)] sm:p-8">
+            <p className="flex items-center gap-2 font-display text-lg font-bold text-ciruela"><ClipboardList className="h-5 w-5 text-rosa" />{dataForm.submitted_at ? 'Ya tengo tus datos' : 'Tus datos para el CV'}</p>
+            <p className="mt-1 text-sm leading-relaxed text-piedra">{dataForm.submitted_at ? `Los recibí el ${formatDate(dataForm.submitted_at)}. Si querés cambiar o sumar algo, podés hacerlo desde el mismo formulario.` : 'Completá el formulario con tu experiencia, tus estudios y lo que buscás, y subí tu CV actual si tenés. Te lleva unos 10 minutos.'}</p>
+            <Link href={`/datos/${dataForm.token}`} className={`mt-4 flex min-h-12 items-center justify-center rounded-full px-5 py-3 font-display text-sm font-bold ${dataForm.submitted_at ? 'border border-ciruela text-ciruela hover:bg-petalo-wash' : 'bg-rosa text-white hover:bg-rosa-deep'}`}>{dataForm.submitted_at ? 'Ver o cambiar mis datos' : 'Completar mis datos'}</Link>
+          </div>
+        )}
+
         {coordination && order.status !== 'cancelled' && (order.receipt_path || order.payment_method === 'card') && (
           <div className="rounded-[28px] bg-ciruela p-6 text-white sm:p-8">
             <p className="font-script text-4xl leading-none text-petalo">Coordinemos</p>
-            <p className="mt-2 text-sm leading-relaxed text-white/85">Escribime por WhatsApp para arrancar: te pido la información que necesito{order.order_items.some((item) => item.products?.delivery === 'session') ? ' y coordinamos día y horario para la videollamada' : ''}.</p>
+            <p className="mt-2 text-sm leading-relaxed text-white/85">{dataForm && takesForm(order.order_items.map((item) => item.product_id))
+              ? `Con el formulario de arriba ya tengo lo que necesito. Escribime por WhatsApp si tenés alguna duda${order.order_items.some((item) => item.products?.delivery === 'session') ? ' y para coordinar día y horario de la videollamada' : ''}.`
+              : `Escribime por WhatsApp para arrancar: te pido la información que necesito${order.order_items.some((item) => item.products?.delivery === 'session') ? ' y coordinamos día y horario para la videollamada' : ''}.`}</p>
             <a href={whatsappUrl(whatsappMessage)} target="_blank" rel="noreferrer" className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-full bg-whatsapp px-5 py-3 font-display text-sm font-bold text-white"><WhatsAppIcon className="h-5 w-5" />Escribirme por WhatsApp</a>
           </div>
         )}

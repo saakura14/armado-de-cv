@@ -17,10 +17,12 @@ import { TeamRow, type DraftState, type OrderTask } from './assign-task'
 import type { BuildState } from './build-cv'
 import { LINKEDIN_PACKS, LinkedInRow, type LinkedInState } from './linkedin-draft'
 import { TEAM_PACKS } from '@/lib/team'
+import { clientFormUrl, oneForm, takesForm } from '@/lib/client-form'
+import { ClientFormRow } from './client-form-row'
 
 // The admin also sees every Ualá checkout opened for the order (buyers can't read that table).
 type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null; team_tasks?: OrderTask[]; cv_drafts?: DraftState[]; cv_builds?: BuildState[]; linkedin_drafts?: LinkedInState[] }
-const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, started_at, due_on, team_members(name)), cv_drafts(order_item_id, status, error), cv_builds(order_item_id, status, edit_url, error), linkedin_drafts(order_item_id, status, error), sessions(id, title, status, scheduled_at)`
+const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, started_at, due_on, team_members(name)), cv_drafts(order_item_id, status, error), cv_builds(order_item_id, status, edit_url, error), linkedin_drafts(order_item_id, status, error), sessions(id, title, status, scheduled_at), client_forms(token, submitted_at, seen_at, updated_at)`
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, inputClass, useFlash } from './ui'
 
@@ -290,12 +292,18 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
   const withLinkedIn = order.order_items.some((item) => LINKEDIN_PACKS.includes(item.product_id)) && order.order_items.some((item) => TEAM_PACKS.includes(item.product_id))
   const deadline = service && (order.status === 'paid' || order.status === 'in_progress') ? deliveryDeadline(order) : null
   const nextSession = pendingSessions(order)[0]
+  // The customer's data form: its link goes in "Pedir los datos" until they send it.
+  const form = oneForm(order.client_forms)
   // Ready-made message for the next step of this order.
   const template = order.status === 'pending_payment'
     ? { label: 'Recordar el pago', text: `¡Hola ${firstName}! Vi tu pedido #${order.number} (${products}) por ${formatARS(order.total)}. ¿Pudiste hacer la transferencia? Acá tenés los datos para pagar: https://armadodecv.com/cuenta/pedido/${order.id}\nCuando transfieras, mandame el comprobante por acá y arranco. Si tenés alguna duda, te ayudo.` }
     : service && (order.status === 'paid' || order.status === 'in_progress')
       // Before starting, ask for the data; after that, a plain WhatsApp button (Vale writes to them herself).
-      ? order.status === 'paid' && !(order.team_tasks ?? []).length ? { label: 'Pedir los datos', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, pasame tu CV actual (si tenés) y contame a qué puesto o rubro apuntás.` } : null
+      ? order.status === 'paid' && !(order.team_tasks ?? []).length && !form?.submitted_at
+        ? { label: 'Pedir los datos', text: form && takesForm(order.order_items.map((item) => item.product_id))
+          ? `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, completá tus datos en este link (te lleva unos 10 minutos y podés subir tu CV actual):\n${clientFormUrl(form.token)}\nSi te queda más cómodo, también podés mandarme todo por acá.`
+          : `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 Para arrancar, pasame tu CV actual (si tenés) y contame a qué puesto o rubro apuntás.` }
+        : null
       : session && (order.status === 'paid' || order.status === 'in_progress')
         ? { label: 'Coordinar la sesión', text: `¡Hola ${firstName}! Ya confirmé tu pago del pedido #${order.number} 🙌 ¿Qué días y horarios te quedan cómodos para la sesión por Google Meet?` }
       // CV + session: once the CV is delivered, the session comes next.
@@ -397,6 +405,7 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
         </ul>
       )}
       {service && order.status !== 'cancelled' && order.status !== 'pending_payment' && <CanvaLink order={order} />}
+      <ClientFormRow order={order} firstName={firstName} onChanged={onChanged} />
       <TeamRow order={order} tasks={order.team_tasks ?? []} drafts={order.cv_drafts ?? []} builds={order.cv_builds ?? []} firstName={firstName} clientName={clientName} onChanged={onChanged} />
       <LinkedInRow order={order} drafts={order.linkedin_drafts ?? []} firstName={firstName} onChanged={onChanged} />
 
@@ -530,8 +539,8 @@ export function OrdersAdmin({ initialFilter = 'hoy', initialSearch = '' }: { ini
   useEffect(() => {
     let timer: number | undefined
     const soon = () => { window.clearTimeout(timer); timer = window.setTimeout(load, 700) }
-    // Team tasks too: a CV finished by the team shows up in Hoy.
-    const channelSub = supabase.channel('admin-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'cv_drafts' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'cv_builds' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'linkedin_drafts' }, soon).subscribe()
+    // Team tasks too: a CV finished by the team shows up in Hoy (and a customer's form, when they send it).
+    const channelSub = supabase.channel('admin-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'team_tasks' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'cv_drafts' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'cv_builds' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'linkedin_drafts' }, soon).on('postgres_changes', { event: '*', schema: 'public', table: 'client_forms' }, soon).subscribe()
     return () => { window.clearTimeout(timer); supabase.removeChannel(channelSub) }
   }, [load])
 

@@ -1,6 +1,7 @@
 import { pendingSessions, type Order, type OrderStatus } from './orders'
 import { deliveryDeadline, hasExpress, nextDueText } from './dashboard'
 import { TEAM_PACKS } from './team'
+import { oneForm, unseenForm } from './client-form'
 
 /**
  * The orders board, in the order Vale works: each order is in one work stage.
@@ -99,6 +100,8 @@ export function todayReason(order: Order, unseen: boolean, now = new Date()): Re
   if (order.payment_check === 'pending') return { label: 'Verificar transferencia', tone: 'naranja', rank: 2 }
   if (order.status === 'payment_review') return { label: 'Revisar comprobante', tone: 'naranja', rank: 2 }
   if (unseen) return { label: 'Nuevo', tone: 'rosa', rank: 3 }
+  // The customer sent their form (armadodecv.com/datos/…) and Vale didn't open it yet: the texts can start.
+  if (order.status !== 'delivered' && unseenForm(oneForm(order.client_forms))) return { label: 'Datos recibidos', tone: 'rosa', rank: 3 }
   if (hasDeadline(order) && !order.waiting_since) {
     const deadline = deliveryDeadline(order, now)
     if (deadline && deadline.remaining === 1) return { label: nextDueText(deadline.due, now), tone: 'naranja', rank: 4 }
@@ -128,6 +131,7 @@ export function textsReason(order: Order): Reason {
   if (deadline && deadline.remaining < 0) return { label: `Atrasado ${-deadline.remaining} ${deadline.remaining === -1 ? 'día' : 'días'}`, tone: 'rojo', rank: 0 }
   if (deadline && deadline.remaining <= 1) return { label: deadline.remaining === 0 ? 'Vence hoy' : 'Vence mañana', tone: 'naranja', rank: 1 }
   if (hasExpress(order)) return { label: '⚡ Express', tone: 'naranja', rank: 1 }
+  if (oneForm(order.client_forms)?.submitted_at) return { label: 'Datos recibidos', tone: 'rosa', rank: 3 }
   return { label: 'Listo para escribir', tone: 'rosa', rank: 3 }
 }
 

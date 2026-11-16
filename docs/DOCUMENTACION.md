@@ -87,6 +87,7 @@ Hay tres formas de comprar: en la web (cuenta + transferencia + comprobante), co
 | `/test-ats` | **Test ATS gratis**: la persona sube su CV en PDF y el navegador lo analiza (no se sube ni se guarda): si un ATS puede leerlo, columnas o tablas, contacto, secciones, perfil, largo, fechas, logros, datos personales de más, íconos, título "Curriculum Vitae", viñetas con verbos, frases genéricas y, si pega un aviso, las palabras clave que le faltan. Mide lo mismo que un ATS real: arma la **ficha del candidato** (nombre, contacto, trabajos con fechas, estudios, habilidades y años de experiencia, "Así te lee un ATS"), la **compara con el puesto** (las palabras del aviso pegado o de un área elegida, `lib/ats-roles.ts`; elegir área es obligatorio) y revisa el **formato**. Puntaje: 35% formato, 30% ficha, 35% coincidencia. Las secciones cuentan solo como títulos reales y un problema grave pone un techo (columnas: 60; sin título de Experiencia: 70; sin contacto o sin experiencia visible: 45; sin ningún trabajo con fechas: 50; menos años de los que pide el aviso: 55; casi sin palabras del puesto: 60; 6 problemas o más: 40). El área queda guardada en `ats_checks.area`. Calibrado con CVs reales: los ATS hechos por Vale dan 84–96, los modernos con columnas 60; el detalle se desbloquea con nombre y WhatsApp (1 por número, `ats_check_submit`) y termina ofreciendo los packs. Los interesados aparecen en **Panel → Test ATS** con el mensaje de WhatsApp listo. |
 | `/comprar` | Resumen del pedido, datos de contacto, aceptación de términos y confirmación. Muestra los datos de transferencia **solo después** de confirmar. Opción "Pedilo por WhatsApp". |
 | `/pedido/<token>` | Link de pedido armado por Vale: detalle, total (o precio especial) y compra normal. |
+| `/datos/<token>` | **Tus datos para el CV**: formulario privado de cada pedido de CV o LinkedIn (reemplaza al formulario de Google). Contacto, puesto objetivo, descripción, fortalezas, experiencia (o "busco mi primer empleo"), estudios, cursos, idiomas, herramientas, carta y LinkedIn según el pack, foto (si el pack tiene CV moderno) y CV actual (PDF, Word o fotos). Se guarda en el celu y con "Guardar y seguir después"; al enviar queda en el pedido. Abierto mientras el pedido está sin pagar, pago o en proceso (o con el LinkedIn pendiente). No se indexa. |
 | `/cuenta` | Mi cuenta (ver 2.5). `/cuenta/pedido/<id>`, `/cuenta/curso/<id>`, `/cuenta/nueva-clave`. |
 | `/terminos` · `/privacidad` · `/arrepentimiento` | Legales y botón de arrepentimiento (Ley 24.240). |
 | `/admin` | Panel de administración (solo la cuenta admin). App "Armado de CV - Admin". |
@@ -189,7 +190,7 @@ Plazo: 4 días hábiles desde el pago (Express 1). Después de las 17 hs o en fi
 Desde el 03/10/2026, los CV en Canva los arma un integrante del equipo a partir de los textos de Vale. **El equipo nunca ve precios ni datos de contacto de los clientes**: solo nombre, pack y textos.
 
 **Flujo:**
-1. Vale arma los textos del cliente con su Master Prompt.
+1. Vale manda "Pedir los datos" (WhatsApp con el link `armadodecv.com/datos/<token>`). Cuando el cliente lo envía, el pedido aparece en Hoy como **Datos recibidos** y las respuestas y el CV vienen cargados en "Textos con Claude". Con eso (o el material que le mandaron por WhatsApp) salen los textos con el Master Prompt.
 2. En Pedidos → ficha → bloque Equipo toca **Asignar**: elige al integrante y pega el CV moderno, el CV ATS y la carta (si el pack la incluye), con notas y fecha.
 3. El pedido pago pasa solo a **En proceso** (trigger de la base) y al integrante le llega un **aviso push** "Nuevo CV asignado".
 4. El integrante abre el CV en su app, lo arma en Canva copiando los textos y toca **Terminé este CV** (con el link de Canva). A Vale le llega el aviso y el pedido aparece como "CV del equipo listo".
@@ -337,6 +338,7 @@ Historial completo en `supabase/migrations/` (se aplica en orden; nunca se edita
 | `orders` · `order_items` | Pedidos con precios congelados. Columnas clave: `source` (`web` / `whatsapp`), `origin` (anuncio, instagram, recomendación, google, web, otro; la web marca anuncio o web y Vale corrige el resto), `seen_at`, `waiting_since`, `paused_days`, `payment_method`. |
 | `order_private` | Link de Canva del pedido (solo admin). |
 | `order_links` | Links de pedido con precio especial opcional. |
+| `client_forms` | Formulario de datos de cada pedido (uno por pedido, lo crea un trigger): `token` del link, `answers` (jsonb), `files` y `photo` (bucket `cv-sources`, carpeta `forms/<token>/`), `submitted_at` y `seen_at` (Vale lo abrió). Solo admin; el cliente entra por las funciones con el token. |
 | `ebook_access` · `course_access` · `sessions` | Accesos y sesiones 1 a 1. |
 | `payment_settings` · `card_payments` | Datos de transferencia, tarjeta (apagada) y pagos de Ualá. |
 | `faqs` · `testimonials` | Sakura y testimonios. |
@@ -358,6 +360,8 @@ Historial completo en `supabase/migrations/` (se aplica en orden; nunca se edita
 | `admin_set_data_received` · `admin_delete_order` | Admin | Arranca (o vuelve a cero) el plazo cuando llegan los datos del cliente; elimina una venta repetida escribiendo su número (no si tiene pago con tarjeta). |
 | `admin_record_sale` · `admin_update_whatsapp_sale` · `admin_update_whatsapp_sale_items` | Admin | Ventas por WhatsApp. |
 | `get_order_link` · `claim_order_link` | Todos / Cliente | Links de pedido. |
+| `client_form_get(token)` · `client_form_save(token, answers, files, photo, submit)` · `client_form_open(token)` | Todos (con el token) | Formulario de datos: leerlo, guardarlo (a medias o enviado) y si sigue abierto. Los archivos solo pueden ir a `forms/<token>/` y únicamente con el formulario abierto (política de subida en `cv-sources`). |
+| `client_form_token(order)` | Cliente (dueño del pedido) | El link del formulario en Mi cuenta. |
 | `admin_update_session` · `admin_review_instant_payment` | Admin | Sesiones y pagos al instante. |
 | `my_team_member_id` · `team_link_account` | Equipo | Vincula la cuenta de Google con su ficha del equipo. |
 | `team_set_task_status` | Equipo / Admin | Empezar, haciendo, terminado (guarda inicio y fin). |
@@ -462,7 +466,7 @@ Las piezas de Instagram programadas en Metricool se sirven desde `public/social/
 | Cambiar alias o CBU | Panel → Datos de pago |
 
 **Producción de CVs:**
-1. Vale arma los textos con su **Master Prompt** (solo las 3 experiencias más relevantes para el puesto).
+1. El cliente completa sus datos en `armadodecv.com/datos/<token>` (o los manda por WhatsApp) y Vale arma los textos con su **Master Prompt** (solo las 3 experiencias más relevantes para el puesto).
 2. Los asigna al equipo desde el pedido.
 3. El equipo duplica en Canva un trabajo anterior del mismo género y con la misma cantidad de hojas (Simple: 2; con carta: 3), lo renombra "Cv - NOMBRE APELLIDO", pega los textos y marca "Terminé este CV" con el link.
 4. Vale revisa, manda el link de Canva como boceto y, con el OK, descarga el PDF y entrega.
@@ -649,3 +653,4 @@ Revisión del 05/10/2026 con los datos propios (visitas y embudo desde el 28/09)
 | 11/11 | **Burger King en la bolsa de búsquedas**: /empleos/burgerking (también armadodecv.com/burgerking) lee en vivo las búsquedas de crew de su portal oficial (Genoma, bk-ar, el del botón "Empleo" de burgerking.com.ar), local por local. Va en /links y en el sitemap. El logo es un texto simple con el nombre. |
 | 13/11 | **Saldo de Meta con estimado**: la tarjeta "Saldo de Meta" de Análisis usaba solo el último saldo anotado más el gasto cargado, así que se quedaba quieta si la carga diaria no corría. Ahora toma el cálculo de meta-ads (savings_goal.meta_status, cada 3 horas, el mismo de la barra urgente) y aclara cuántos dólares son estimados con los presupuestos. |
 | 15/11 | **Páginas de call centers y fin de año**: /empleos/callcenters (TP, Konecta y Atento) y /empleos/findeano (supermercados, consultoras y Portal Empleo), también en armadodecv.com/callcenters y /findeano. Usan una fuente nueva de lib/empleos.ts, `links`, con los avisos revisados a mano (fecha en `checked`): hay que revisarlos antes de volver a promocionarlas. Imágenes de la semana del 16/11 en public/social/posts/2026-11-16 a 22. |
+| 16/11 | **Formulario de datos propio** (reemplaza al formulario de Google): cada pedido tiene `armadodecv.com/datos/<token>` (tabla `client_forms`, funciones `client_form_*`, subida a `cv-sources/forms/<token>/`). "Pedir los datos" manda el link; la ficha del pedido muestra **Datos del cliente** (sin completar, empezado o recibido, "Copiar link" y "Ver datos" con archivos y "Copiar todas las respuestas"); un envío nuevo aparece en Hoy como **Datos recibidos**; Textos con Claude (CV y LinkedIn) se abre con las respuestas y el CV del cliente cargados; Mi cuenta muestra "Completar mis datos". Los archivos del formulario no se borran al asignar el CV (los usa el LinkedIn). Pendiente: aviso al celu cuando el cliente lo envía (hoy se ve en el panel en vivo) |
