@@ -23,11 +23,11 @@ npm run dev
 ## Estructura
 | Carpeta | Contenido |
 |---|---|
-| `app/` | Páginas (inicio, asesorías, cursos, comprar, cuenta, admin, legales) |
+| `app/` | Páginas (inicio, asesorías, cursos, comprar, cuenta, admin, equipo, legales) |
 | `components/` | Componentes de la interfaz y pestañas del panel (`admin/`) |
 | `lib/` | Cliente de Supabase, catálogo, pedidos, sesión, Sakura, píxel |
 | `supabase/migrations/` | Historial completo de la base de datos |
-| `supabase/functions/` | Edge Functions (`ebook-download`, `admin-upload`) |
+| `supabase/functions/` | Edge Functions (e-books con sello, avisos push, resumen diario, subidas, Ualá, comprobantes) |
 | `docs/` | Documentación |
 
 Cada merge a `main` se despliega automáticamente en Vercel.

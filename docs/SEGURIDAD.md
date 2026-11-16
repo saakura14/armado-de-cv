@@ -1,12 +1,12 @@
 # Controles de seguridad · Armado de CV
 
-Última revisión: 27/09/2026.
+Última revisión: 05/10/2026.
 
 ## 1. Lo que ya está protegido
 
 | Área | Control | Estado |
 |---|---|---|
-| Base de datos | Permisos por fila (RLS) en las 19 tablas públicas: cada cliente ve solo sus pedidos, comprobantes y accesos. | ✅ |
+| Base de datos | Permisos por fila (RLS) en las 30 tablas públicas: cada cliente ve solo sus pedidos, comprobantes y accesos; cada integrante del equipo, solo sus CVs, pagos y mensajes, sin precios ni contactos de clientes. | ✅ |
 | Roles | Una sola cuenta admin (valeeria.gil@gmail.com). Toda cuenta nueva nace como cliente, y un cliente no puede cambiarse el rol ni el email. | ✅ |
 | Funciones de admin | `admin_set_order_status`, `admin_review_instant_payment` y `admin_update_session` rechazan a quien no es admin. | ✅ |
 | Archivos | Comprobantes, e-books y cursos en buckets privados. Los e-books se descargan solo con la función que les pone el email del comprador. | ✅ |

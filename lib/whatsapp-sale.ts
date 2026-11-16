@@ -3,9 +3,11 @@
 // One note per line (so many notes, or copied WhatsApp messages, can be pasted at once). Each note can hold several
 // products and add-ons (express, languages, platforms, LinkedIn services...).
 
-export type SaleProduct = { id: string; name: string; category: string; price: number; groups: string[] }
+/** `whatsappPrice`: what she charges for it by WhatsApp when it differs from the web (null = same as the web). */
+export type SaleProduct = { id: string; name: string; category: string; price: number; whatsappPrice?: number | null; groups: string[] }
 export type SaleExtra = { groupId: string; optionId: string; groupLabel: string; label: string; price: number; isOther: boolean }
-export type SaleItem = { productId: string | null; extras: { groupId: string; optionId: string }[] }
+/** `price`: what she charged for the product itself (without add-ons), when it isn't the usual one. */
+export type SaleItem = { productId: string | null; price?: number | null; extras: { groupId: string; optionId: string }[] }
 
 export type ParsedSale = {
   raw: string
@@ -37,7 +39,7 @@ export function matchProduct(text: string, products: SaleProduct[], skip: Set<st
     const tokens = wordsOf(product.name).filter((token) => token.length >= 3 && !NOISE.has(token))
     const hits = tokens.filter((token) => words.has(token)).length
     if (!hits) continue
-    const score = hits + hits / Math.max(tokens.length, 1) + (wantsGuide && product.category === 'guias' ? 0.25 : 0)
+    const score = hits + hits / Math.max(tokens.length, 1) + (wantsGuide && (product.category === 'guias' || product.category === 'etapas') ? 0.25 : 0)
     const better = !best || score > best.score || (score === best.score && product.category === 'cv' && best.product.category !== 'cv')
     if (better) best = { product, score }
   }

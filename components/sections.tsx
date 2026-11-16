@@ -13,7 +13,7 @@ export function SectionTitle({ script, title, text, id, align = 'center' }: { sc
 
 export function HowToBuy({ steps, note }: { steps: { title: string; text: string }[]; note?: string }) {
   return (
-    <section id="como-comprar" className="scroll-mt-28 bg-ciruela px-4 py-16 text-white sm:px-6 lg:py-20" aria-labelledby="como-title">
+    <section id="como-comprar" className="scroll-mt-32 bg-ciruela px-4 py-16 text-white sm:px-6 lg:py-20" aria-labelledby="como-title">
       <div className="mx-auto max-w-6xl">
         <p className="text-center font-script text-[52px] leading-none text-petalo" aria-hidden="true">Cómo comprar</p>
         <h2 id="como-title" className="mt-1 text-center text-xs font-semibold uppercase tracking-[0.35em] sm:text-sm">En {steps.length} pasos</h2>
@@ -35,7 +35,7 @@ export function HowToBuy({ steps, note }: { steps: { title: string; text: string
 
 export function Faq({ items }: { items: { q: string; a: string }[] }) {
   return (
-    <section id="preguntas" className="scroll-mt-28 px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="faq-title">
+    <section id="preguntas" className="scroll-mt-32 px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="faq-title">
       <div className="mx-auto max-w-3xl">
         <SectionTitle id="faq-title" script="Preguntas" title="Frecuentes" />
         <AskSakura />

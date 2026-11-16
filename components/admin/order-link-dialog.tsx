@@ -23,7 +23,7 @@ function whatsappTo(phone: string, text: string) {
 
 /** Build an order for a customer and send them the link: they confirm and pay on the web, and the order stays traceable. */
 export function OrderLinkDialog({ onClose }: { onClose: () => void }) {
-  const { products, extras, totalOf } = useSaleCatalog()
+  const { products, extras, totalOf } = useSaleCatalog('web')
   const [items, setItems] = useState<SaleItem[]>([{ productId: null, extras: [] }])
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')

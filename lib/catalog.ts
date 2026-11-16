@@ -13,7 +13,7 @@ export const CONTACT = {
 
 export const SITE_URL = 'https://www.armadodecv.com'
 
-export type Category = 'cv' | 'asesorias' | 'vocacional' | 'curso' | 'sesion' | 'guias'
+export type Category = 'cv' | 'asesorias' | 'vocacional' | 'curso' | 'sesion' | 'guias' | 'etapas' | 'regalos'
 export type Delivery = 'service' | 'digital' | 'session' | 'course'
 
 export type ExtraOption = { id: string; label: string; isOther: boolean }
@@ -40,7 +40,7 @@ export type Product = {
   ebooks: { id: string; title: string; description: string | null; coverUrl: string | null; pages: number | null }[]
 }
 
-export const CATEGORY_LABEL: Record<Category, string> = { cv: 'Armado de CV', asesorias: 'Asesorías', vocacional: 'Test vocacional', curso: 'Curso', sesion: 'Sesión 1 a 1', guias: 'Guías de búsqueda' }
+export const CATEGORY_LABEL: Record<Category, string> = { cv: 'Armado de CV', asesorias: 'Asesorías', vocacional: 'Test vocacional', curso: 'Curso', sesion: 'Sesión 1 a 1', guias: 'Guías de búsqueda', etapas: 'Guías por etapa', regalos: 'Regalos' }
 
 type Row = {
   id: string; category: Category; delivery: Delivery; name: string; subtitle: string | null; price: number; price_note: string | null
@@ -87,6 +87,17 @@ export async function getProducts(categories: Category[]): Promise<Product[]> {
     return []
   }
   return (data as unknown as Row[]).map(toProduct)
+}
+
+/**
+ * "Los más elegidos": the CV products sold the most in the last 60 days (top_products), best first,
+ * topped up with the featured and first products of the catalog when there are fewer sales (`ranked` = how many come from sales).
+ */
+export async function getTopProducts(products: Product[], count = 3): Promise<{ products: Product[]; ranked: number }> {
+  const { data } = await supabase.rpc('top_products', { p_limit: count })
+  const sold = ((data as { product_id: string }[] | null) ?? []).flatMap((row) => products.filter((product) => product.id === row.product_id))
+  const rest = [...products].sort((a, b) => Number(b.popular) - Number(a.popular)).filter((product) => product.delivery === 'service' && !sold.includes(product))
+  return { products: [...sold, ...rest].slice(0, count), ranked: Math.min(sold.length, count) }
 }
 
 const ars = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })

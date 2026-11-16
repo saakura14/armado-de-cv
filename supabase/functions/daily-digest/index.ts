@@ -6,10 +6,13 @@ import webpush from 'npm:web-push@3.6.7'
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
-// ---- Same deadline rules as lib/dashboard.ts (4 business days, Express 1, after 5 pm or weekends start the next business day) ----
+// ---- Same deadline rules as lib/dashboard.ts (4 business days, Express 1, from the day the order came in;
+// after 5 pm, weekends or holidays start the next business day) ----
 const AR_OFFSET = 3 * 60 * 60 * 1000
 const DAY = 24 * 60 * 60 * 1000
-const isWeekend = (day: Date) => day.getUTCDay() === 0 || day.getUTCDay() === 6
+// National holidays (public.holidays), loaded on every run.
+let holidays = new Set<string>()
+const isWeekend = (day: Date) => day.getUTCDay() === 0 || day.getUTCDay() === 6 || holidays.has(day.toISOString().slice(0, 10))
 function arDay(moment: Date) {
   const shifted = new Date(moment.getTime() - AR_OFFSET)
   return { day: new Date(Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate())), hour: shifted.getUTCHours() }
@@ -29,6 +32,7 @@ function businessDaysUntil(today: Date, deadline: Date) {
 }
 type DeadlineOrder = { paid_at: string | null; waiting_since: string | null; paused_days: number | null; order_items: { extras: { group_id: string }[] }[] }
 function remainingDays(order: DeadlineOrder, now: Date) {
+  // The clock starts when the order comes in.
   if (!order.paid_at) return null
   const { day, hour } = arDay(new Date(order.paid_at))
   const start = isWeekend(day) || hour >= 17 ? addBusinessDays(day, 1) : day
@@ -45,6 +49,8 @@ Deno.serve(async (request) => {
   const { data: key } = await admin.rpc('cron_key')
   if (!key || request.headers.get('x-cron-key') !== key) return json(401, { error: 'No autorizado' })
 
+  const { data: holidayRows } = await admin.from('holidays').select('day')
+  holidays = new Set((holidayRows ?? []).map((row) => String(row.day)))
   const now = new Date()
   const today = arDay(now).day.toISOString().slice(0, 10)
   const messages: { userIds: string[]; title: string; body: string; url: string }[] = []

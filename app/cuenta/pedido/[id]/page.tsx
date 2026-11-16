@@ -104,7 +104,8 @@ export default function OrderPage() {
   const status = STATUS[order.status]
   const awaitingPayment = order.status === 'pending_payment' || order.status === 'payment_review'
   const coordination = needsCoordination(order)
-  const digitalOnly = isDigitalOnly(order)
+  const gift = order.order_items.some((item) => item.products?.category === 'regalos')
+  const digitalOnly = isDigitalOnly(order) && !gift
   const whatsappMessage = `¡Hola! Soy ${order.customer_name ?? ''}. Te escribo por mi pedido #${order.number} (${order.order_items.map((item) => item.product_name).join(', ')}). ${order.payment_method === 'card' ? 'Ya lo pagué con tarjeta.' : `Ya hice la transferencia de ${formatARS(order.total)}.`}`
 
   return (
@@ -130,8 +131,13 @@ export default function OrderPage() {
           </ul>
           <p className="mt-4 flex items-baseline justify-between border-t border-line pt-3 font-display font-extrabold text-ciruela"><span className="text-sm">{awaitingPayment ? 'Total a transferir' : 'Total'}</span><span className="text-2xl">{formatARS(order.total)}</span></p>
           {order.payment_method === 'card' && order.card_total && <p className="mt-1 text-right text-xs text-piedra">Pagado con tarjeta: {formatARS(order.card_total)} (incluye el costo de Ualá)</p>}
-          <p className="mt-4 text-sm text-piedra">{status.text}</p>
+          <p className="mt-4 text-sm text-piedra">{order.status === 'delivered' && order.linkedin_pending
+            ? '¡Tu CV está entregado! Ahora sigue tu perfil de LinkedIn: te escribo por WhatsApp para coordinarlo.'
+            : order.status === 'delivered' && order.order_items.some((item) => item.products?.delivery === 'session') && order.order_items.some((item) => item.products?.delivery === 'service')
+            ? '¡Tu CV está entregado! Ahora sigue tu sesión por Google Meet: el día y el link los ves en Mi cuenta.'
+            : status.text}</p>
           {order.admin_note && <p className="mt-2 rounded-xl bg-papel px-3 py-2 text-sm text-ink">{order.admin_note}</p>}
+          {user.is_anonymous && <p className="mt-3 rounded-xl bg-papel px-3 py-2 text-xs leading-relaxed text-piedra">Compraste sin crear cuenta: este pedido queda guardado en este celular.{gift ? ' Apenas se confirme el pago te mando a tu mail la tarjeta de regalo.' : order.order_items.some((item) => item.products?.delivery === 'digital') ? ' Apenas se confirme el pago te mando a tu mail el link para descargar tus guías desde cualquier dispositivo.' : ''} Si cambiás de celu, escribime por WhatsApp con tu número de pedido (#{order.number}) y lo seguimos por ahí.</p>}
         </div>
 
         {cardNotice && (
@@ -170,6 +176,12 @@ export default function OrderPage() {
               {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}{order.receipt_path ? 'Subir otro comprobante' : 'Elegir archivo'}
               <input type="file" accept="image/*,application/pdf" className="sr-only" disabled={uploading} onChange={(event) => { const file = event.target.files?.[0]; if (file) uploadReceipt(file); event.target.value = '' }} />
             </label>
+            {!order.receipt_path && (
+              <a href={whatsappUrl(`¡Hola! Soy ${order.customer_name ?? ''}. Te mando el comprobante de mi pedido #${order.number} (${formatARS(order.total)}).`)} target="_blank" rel="noreferrer" className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-full border border-whatsapp/40 bg-white px-5 py-2.5 font-display text-sm font-bold text-[#128c4a]">
+                <WhatsAppIcon className="h-4 w-4" />O mandámelo por WhatsApp
+              </a>
+            )}
+            {!digitalOnly && !order.receipt_path && <p className="mt-4 text-xs leading-relaxed text-piedra">Apenas me llega tu pago te escribo para arrancar. Cuanto antes transfieras, antes empiezo: tu CV está en 3 a 4 días hábiles desde que tengo tu información.</p>}
             {verifying && <p role="status" className="mt-3 flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm text-ink"><Loader2 className="h-4 w-4 animate-spin text-rosa" />Verificando tu comprobante…</p>}
             {error && <p role="alert" className="mt-3 rounded-xl bg-petalo-wash px-3 py-2 text-sm font-semibold text-rosa-deep">{error}</p>}
           </div>
@@ -197,7 +209,17 @@ export default function OrderPage() {
           </div>
         )}
 
-        {!coordination && order.status === 'delivered' && (
+        {gift && ['paid', 'in_progress', 'delivered'].includes(order.status) && order.download_token && (
+          <div className="rounded-[28px] bg-ciruela p-6 text-white sm:p-8">
+            <p className="font-script text-4xl leading-none text-petalo">¡Tu regalo está listo! 🎁</p>
+            <p className="mt-2 text-sm leading-relaxed text-white/85">Abrí la tarjeta para mandarla por WhatsApp o imprimirla. También te la mandé por mail.</p>
+            <Link href={`/regalo/tarjeta?t=${order.download_token}`} className="mt-4 flex min-h-12 items-center justify-center rounded-full bg-white px-5 py-3 font-display text-sm font-bold text-ciruela">Ver la tarjeta de regalo</Link>
+          </div>
+        )}
+
+        {gift && awaitingPayment && <p className="rounded-2xl bg-white px-4 py-3 text-sm text-piedra">Apenas se confirma el pago aparece acá la tarjeta de regalo y te la mando por mail.</p>}
+
+        {!coordination && !gift && order.status === 'delivered' && (
           <div className="rounded-[28px] bg-ciruela p-6 text-white sm:p-8">
             <p className="font-script text-4xl leading-none text-petalo">¡Ya son tuyos!</p>
             <p className="mt-2 text-sm leading-relaxed text-white/85">Tus e-books están listos para descargar en Mi cuenta. ¡Que los disfrutes!</p>

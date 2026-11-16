@@ -30,6 +30,8 @@ export type Order = {
   total: number
   customer_name: string | null
   customer_phone: string | null
+  /** Asked only when buying without an account (the anonymous session has no email of its own). */
+  customer_email?: string | null
   customer_note: string | null
   receipt_path: string | null
   receipt_uploaded_at: string | null
@@ -50,8 +52,21 @@ export type Order = {
   waiting_since?: string | null
   /** Business days the order waited for the customer, added to the deadline. */
   paused_days?: number
+  /** No longer used for the deadline (it counts from the payment since 22/10). */
+  data_received_at?: string | null
+  /** CV delivered but the LinkedIn profile still to do: the order is delivered (no clock) and stays in sight until it is done. */
+  linkedin_pending?: boolean
+  /** Private token for the guide downloads and the gift card links. */
+  download_token?: string
   order_items: OrderItem[]
+  /** 1:1 sessions of the order (admin select only): they go on after the CV is delivered. */
+  sessions?: OrderSession[]
 }
+
+export type OrderSession = { id: string; title: string; status: 'to_schedule' | 'scheduled' | 'done' | 'cancelled'; scheduled_at: string | null }
+
+/** Sessions of a delivered order that still have to happen: the order is not finished yet. */
+export const pendingSessions = (order: Order) => (order.sessions ?? []).filter((session) => session.status === 'to_schedule' || session.status === 'scheduled')
 
 export const ORDER_SELECT = '*, order_items(*, products(delivery, category), ebooks(title))'
 

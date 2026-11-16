@@ -1,15 +1,18 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Wallet, X } from 'lucide-react'
-import { TaskRow, TaskWorkspace } from '@/components/team-task-card'
+import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Trophy, Wallet, X } from 'lucide-react'
+import { TaskRow, TaskTexts, TaskWorkspace } from '@/components/team-task-card'
+import { progressShare } from '@/components/admin/task-progress'
+import { FinishCheer, TeamCelebration, TeamCheer, useCheerCharacter } from '@/components/team-cheer'
+import { CodecCall, PANEL_THEMES, ThemeBackdrop, ThemeStrip } from '@/components/team-theme'
 import { TeamChat, TeamChatBubble, TeamChatWindow, useTeamUnread, type ChatTask } from '@/components/team-chat'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
 import { formatARS, whatsappUrl } from '@/lib/catalog'
-import { monthKey } from '@/lib/dashboard'
+import { monthKey, monthLabel, shiftMonth } from '@/lib/dashboard'
 import { formatDate } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
-import { MIN_WORK_MINUTES, batchStats, formatMinutes, monthlyStats, recordCheck, sortTasks, streakDays, timesByPack, todayWork, workMinutes, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
+import { MIN_WORK_MINUTES, batchStats, formatMinutes, monthBatch, monthReports, recordCheck, sortTasks, streakDays, timesByPack, todayWork, workMinutes, type MonthReport, type TeamMember, type TeamPayment, type TeamTask } from '@/lib/team'
 
 export function TeamLogo() {
   return (
@@ -28,9 +31,17 @@ export function TeamLogo() {
 function TaskActions({ task, preview, onChanged, onFinished }: { task: TeamTask; preview?: boolean; onChanged: () => void; onFinished?: () => void }) {
   const [busy, setBusy] = useState(false)
   const [link, setLink] = useState('')
-  // "Terminé" asks again on the screen itself: the browser's own confirm can be silenced on a tablet and then never fires.
+  // "Terminé" asks again in a window of its own (the browser's confirm can be silenced on a tablet). "Sí, terminé" sits
+  // somewhere else and only works after a moment, so a double tap on "Terminé este CV" can't finish the CV by mistake.
   const [confirming, setConfirming] = useState(false)
+  const [armed, setArmed] = useState(false)
   const flash = useFlash()
+
+  useEffect(() => {
+    if (!confirming) { setArmed(false); return }
+    const timer = window.setTimeout(() => setArmed(true), 2000)
+    return () => window.clearTimeout(timer)
+  }, [confirming])
 
   // Whatever is pasted (a whole "Mirá mi diseño: https://..." or a link without https), only the address is kept.
   function designUrl() {
@@ -64,25 +75,41 @@ function TaskActions({ task, preview, onChanged, onFinished }: { task: TeamTask;
       )}
       {task.status === 'asignado' ? (
         <Button className="w-full" busy={busy} onClick={() => move('haciendo')}>Empecé</Button>
-      ) : confirming ? (
-        <div className="space-y-2 rounded-2xl bg-whatsapp/10 p-3">
-          <p className="text-sm font-semibold text-ink">¿Terminaste el {task.pack_name} de {task.client_name} (#{task.order_number})? Después no se puede volver atrás.</p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" disabled={busy} onClick={() => setConfirming(false)}>Todavía no</Button>
-            <Button variant="success" busy={busy} onClick={() => move('terminado')}>Sí, terminé</Button>
-          </div>
-        </div>
       ) : (
         <Button variant="success" className="w-full" onClick={() => setConfirming(true)}>Terminé este CV</Button>
+      )}
+      {confirming && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-ciruela/70 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-labelledby={`finish-${task.id}`}>
+          <div className="w-full max-w-sm rounded-3xl bg-blanco p-6 text-center shadow-2xl">
+            <p id={`finish-${task.id}`} className="font-display text-xl font-bold text-ciruela">¿Seguro que terminaste este CV?</p>
+            <p className="mt-2 text-sm text-piedra"><b className="text-ink">{task.pack_name}</b> de <b className="text-ink">{task.client_name}</b> (pedido #{task.order_number})</p>
+            <p className="mt-3 rounded-2xl bg-petalo-wash px-3 py-2 text-sm font-semibold text-rosa-deep">Le avisa a Vale que está listo para entregar y después no lo podés volver atrás.</p>
+            <div className="mt-5 space-y-2">
+              <Button variant="secondary" className="w-full" disabled={busy} onClick={() => setConfirming(false)}>No, todavía no terminé</Button>
+              <Button variant="success" className="w-full" busy={busy} disabled={!armed} onClick={() => move('terminado')}>{armed ? 'Sí, ya lo terminé' : 'Leé y confirmá…'}</Button>
+            </div>
+          </div>
+        </div>
       )}
       {flash.node}
     </div>
   )
 }
 
+/** A finished CV, unfolded: what Vale wrote for it, the Canva design and the texts, to look back at it. */
+function FinishedDetail({ task }: { task: TeamTask }) {
+  return (
+    <div className="space-y-2">
+      {!task.notes && <p className="rounded-xl bg-papel px-3 py-2 text-sm text-piedra">Este CV no tenía notas de Vale.</p>}
+      {task.design_url && <a href={task.design_url} target="_blank" rel="noreferrer" className="inline-block text-sm font-semibold text-rosa-deep hover:underline">Ver tu diseño en Canva</a>}
+      <TaskTexts task={task} />
+    </div>
+  )
+}
+
 /** What a CV looks like before there is a real one (only in Vale's preview). */
 export const EXAMPLE_TASK: TeamTask = {
-  id: 'ejemplo', member_id: '', order_id: '', order_item_id: '', order_number: 0, client_name: 'Martina', pack_name: 'Pack CV Premium',
+  id: 'ejemplo', member_id: '', order_id: '', order_item_id: '', order_number: 0, client_name: 'Martina López', pack_name: 'Pack CV Premium',
   cv_modern: 'MARTINA LÓPEZ\nAnalista de Recursos Humanos\nCABA · martina@ejemplo.com · linkedin.com/in/martina\n\nPERFIL PROFESIONAL\nAnalista de RR. HH. con 4 años de experiencia en selección, onboarding y clima laboral. Orientada a datos y a la mejora de procesos.\n\nEXPERIENCIA\nAnalista de Selección · Empresa Ejemplo S.A. · 2022 - actualidad\n• Gestión de búsquedas IT y comerciales de punta a punta.\n• Reducción del tiempo de cobertura de 45 a 30 días.\n\nAsistente de RR. HH. · Otra Empresa · 2020 - 2022\n• Liquidación de novedades y legajos.\n• Organización de capacitaciones internas.\n\nEDUCACIÓN\nLic. en Relaciones del Trabajo · UBA · 2021\n\nHABILIDADES\nEntrevistas por competencias · Excel avanzado · Power BI · Inglés intermedio',
   cv_ats: 'MARTINA LÓPEZ\nAnalista de Recursos Humanos\n\nRESUMEN\nAnalista de Recursos Humanos con 4 años de experiencia en reclutamiento y selección.\n\nEXPERIENCIA LABORAL\nAnalista de Selección, Empresa Ejemplo S.A. (2022 - actualidad)\n- Búsquedas IT y comerciales.\n- Tiempo de cobertura reducido un 33%.\n\nEDUCACIÓN\nLicenciatura en Relaciones del Trabajo, UBA (2021)',
   has_letter: true, letter: 'Estimado equipo de selección:\n\nMe pongo en contacto para postularme a la posición de Analista de Recursos Humanos.\n\nEn mi rol actual lideré procesos de selección de punta a punta y reduje los tiempos de cobertura.\n\nQuedo a disposición para conversar.\nSaludos cordiales,\nMartina López', notes: 'Diseño en tonos verdes, con foto.',
@@ -93,11 +120,61 @@ export const EXAMPLE_TASK: TeamTask = {
  * The team member's screen. It is the same in their app and in Vale's "Ver como él" preview (with `preview`, buttons don't save).
  * It adapts to the width of its box, not the window, so the preview shows exactly the phone or tablet layout.
  */
+const dayFormat = new Intl.DateTimeFormat('es-AR', { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: 'UTC' })
+
+/** "Mis meses": one card per month, the one in course first, with what he made, earned and his marks of that month. */
+function MonthCards({ months, currentKey }: { months: MonthReport[]; currentKey: string }) {
+  if (!months.length) return <p className="mt-3 rounded-2xl bg-white p-6 text-center text-sm text-piedra">Cuando termines tu primer CV, acá vas a ver tu resumen de cada mes.</p>
+  return (
+    <ul className="mt-3 grid items-start gap-3 @5xl:grid-cols-2">
+      {months.map((month) => {
+        const figures = [
+          { label: 'CVs', value: String(month.packs) },
+          { label: 'Ganado', value: formatARS(month.earned) },
+          { label: 'Cobrado', value: formatARS(month.paid) },
+          { label: 'Días', value: String(month.days) },
+        ]
+        return (
+          <li key={month.key} className={cardClass}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-display text-lg font-bold text-ciruela">{month.label}</h2>
+              {month.key === currentKey ? <span className="rounded-full bg-papel px-2.5 py-0.5 font-display text-[11px] font-bold text-piedra">En curso</span>
+                : month.record ? <span className="rounded-full bg-rosa px-2.5 py-0.5 font-display text-[11px] font-bold text-white">🏆 Tu mejor mes</span> : null}
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 @lg:grid-cols-4">
+              {figures.map((figure) => (
+                <div key={figure.label} className="rounded-2xl bg-petalo-wash/50 px-3 py-2">
+                  <p className="font-display text-[11px] font-bold uppercase tracking-wider text-piedra">{figure.label}</p>
+                  <p className="font-display text-lg font-extrabold text-ciruela">{figure.value}</p>
+                </div>
+              ))}
+            </div>
+            <ul className="mt-3 space-y-1 text-sm text-ink">
+              {month.bestDay && <li>📅 Mejor día: <b>{month.bestDay.count} {month.bestDay.count === 1 ? 'CV' : 'CVs'}</b> el {dayFormat.format(new Date(`${month.bestDay.day}T12:00:00Z`)).replace(/\./g, '')}</li>}
+              {month.urgent > 0 && <li>⚡ <b>{month.urgent}</b> {month.urgent === 1 ? 'urgente resuelto' : 'urgentes resueltos'}</li>}
+              {month.averageMinutes !== null && <li>⏱ Promedio por CV: <b>{formatMinutes(month.averageMinutes)}</b>{month.fastest ? ` · el más rápido: ${month.fastest.pack} en ${formatMinutes(month.fastest.minutes)}` : ''}</li>}
+            </ul>
+            {month.byPack.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {month.byPack.map((row) => <span key={row.pack} className="rounded-full bg-papel px-2.5 py-1 text-xs font-semibold text-ciruela">{row.pack} · {row.count}</span>)}
+              </div>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 export function TeamView({ member, tasks, payments, preview, headerRight, setup, onChanged }: {
   member: TeamMember; tasks: TeamTask[]; payments: TeamPayment[]; preview?: boolean
   headerRight?: React.ReactNode; setup?: React.ReactNode; onChanged: () => void
 }) {
-  const [view, setView] = useState<'pendientes' | 'terminados'>('pendientes')
+  const [view, setView] = useState<'pendientes' | 'terminados' | 'meses'>('pendientes')
+  // The panel dresses as the character he picked on his cheering card (background, titles, animations).
+  const character = useCheerCharacter()
+  const theme = PANEL_THEMES[character]
+  const [codec, setCodec] = useState<TeamTask | null>(null)
   // The CV open in work mode (full screen, next to Canva).
   const [workingId, setWorkingId] = useState<string | null>(null)
   // Chat with Vale: a floating button with the unread count; "#chat" in the address (from a notification) opens it.
@@ -115,6 +192,11 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   }, [preview])
   const chatTasks: ChatTask[] = tasks.map(({ id, order_number, client_name, pack_name }) => ({ id, order_number, client_name, pack_name }))
   const closeWork = useCallback(() => setWorkingId(null), [])
+  // How much of each text he copied, so Vale can follow the CV live (not in her preview).
+  const reportProgress = useCallback((progress: Record<string, [number, number]>) => {
+    if (preview || !workingId || workingId === EXAMPLE_TASK.id) return
+    supabase.rpc('team_report_progress', { p_task: workingId, p_progress: progress }).then(() => undefined, () => undefined)
+  }, [preview, workingId])
   // The step-by-step video, and whether it was already offered on this device.
   const [tutorial, setTutorial] = useState(false)
   const [tutorialSeen, setTutorialSeen] = useState<boolean | null>(null)
@@ -125,13 +207,36 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(null), 6500); return () => window.clearTimeout(timer) }, [notice])
   const { pending, finished } = sortTasks(tasks)
   const batch = batchStats(member, tasks, payments)
-  const months = monthlyStats(tasks, payments)
-  const thisMonth = months.find((row) => row.key === monthKey(new Date()))
-  const today = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)
-  const urgent = pending.filter((task) => task.due_on && task.due_on <= today).length
+  // A party when he completes the CVs of a payment: once per batch on his device (the batch is named by its last CV).
+  // In the preview Vale can try it with a button.
+  const [celebrate, setCelebrate] = useState(false)
+  const completing = batch.size > 0 && batch.count >= batch.size ? batch.unpaid[batch.covered + batch.size - 1]?.id : undefined
+  useEffect(() => {
+    if (preview || !completing) return
+    const key = `acv-festejo-${completing}`
+    try { if (localStorage.getItem(key)) return; localStorage.setItem(key, '1') } catch { return }
+    setCelebrate(true)
+  }, [preview, completing])
+  // Every month starts from zero: "Terminados" shows this month's, and each month (closed or in course) has its card in "Mis meses".
+  const months = monthReports(tasks, payments)
+  const currentKey = monthKey(new Date())
+  const thisMonth = months.find((row) => row.key === currentKey)
+  const finishedThisMonth = finished.filter((task) => task.finished_at && monthKey(task.finished_at) === currentKey)
+  // His marks, streak, advances and payments start again each month too (earlier months live in "Mis meses").
+  const monthTasks = [...pending, ...finishedThisMonth]
+  const money = monthBatch(member, tasks, payments, currentKey)
+  const monthPayments = payments.filter((payment) => payment.paid_on.slice(0, 7) === currentKey)
+  // "noviembre", without the year, for the short titles.
+  const shortName = (key: string) => monthLabel(key).toLowerCase().replace(/ de \d{4}$/, '')
+  const monthName = shortName(currentKey)
+  // The first week of a month, the month that just closed shows up on top.
+  const closed = new Date(Date.now() - 3 * 3600e3).getUTCDate() <= 7 ? months.find((row) => row.key === shiftMonth(currentKey, -1) && row.packs > 0) : undefined
+  // Only the urgent ones (24 h Express) go first, in red; a regular CV due today shows "Para hoy" but is not the same.
+  const isUrgent = (task: TeamTask) => !!task.urgent
+  const urgent = pending.filter(isUrgent).length
   // In the preview, an example card shows how a new CV arrives.
   const shownPending = preview && pending.length === 0 ? [EXAMPLE_TASK] : pending
-  const list = view === 'pendientes' ? shownPending : finished.slice(0, 30)
+  const list = view === 'pendientes' ? shownPending : finishedThisMonth
   // Closes by itself when the CV is finished (it leaves the pending list).
   const working = workingId ? shownPending.find((task) => task.id === workingId) ?? null : null
   // "Empezar" marks it as started (Vale sees it "Haciéndolo") and opens the work mode; "Seguir" just opens it.
@@ -141,6 +246,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
       if (error) { setNotice({ ok: false, text: errorMessage(error) }); return }
       onChanged()
     }
+    // With Snake, opening a CV looks like a codec call for a second (it doesn't block anything).
+    if (character === 'snake') { setCodec(task); window.setTimeout(() => setCodec(null), 1100) }
     setWorkingId(task.id)
   }
   // Copying a text means the work started, even if "Empezar" was skipped: Vale sees it "Haciéndolo".
@@ -156,30 +263,34 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
     const minutes = done.started_at ? Math.round((Date.now() - new Date(done.started_at).getTime()) / 60000) : null
     let mark = '✅ ¡Listo!'
     if (minutes !== null && minutes >= MIN_WORK_MINUTES) {
-      const { best, isRecord, first } = recordCheck(done, minutes, tasks)
+      const { best, isRecord, first } = recordCheck(done, minutes, monthTasks)
       mark = isRecord ? `🏆 ¡Nueva marca! ${done.pack_name} en ${formatMinutes(minutes)} (antes ${formatMinutes(best!)}).`
         : first ? `⏱ Primer ${done.pack_name}: ${formatMinutes(minutes)}. ¡Esa es tu marca a superar!`
         : `✅ Listo en ${formatMinutes(minutes)} · tu marca: ${formatMinutes(best!)}.`
     }
-    setNotice({ ok: true, text: following
+    // His character congratulates him with a phrase of its own, plus his time and what comes next.
+    setFinishNote({ at: Date.now(), text: following
       ? `${mark} Seguimos con el #${following.order_number}: ${following.pack_name} de ${following.client_name}.`
       : `${mark} ¡Terminaste todos los CVs!` })
   }
+  const [finishNote, setFinishNote] = useState<{ at: number; text: string } | null>(null)
+  useEffect(() => { if (!finishNote) return; const timer = window.setTimeout(() => setFinishNote(null), 7500); return () => window.clearTimeout(timer) }, [finishNote])
 
   // His marks (Vale sees the full times in her panel).
-  const records = timesByPack(tasks)
-  const streak = streakDays(tasks)
+  const records = timesByPack(monthTasks)
+  const streak = streakDays(monthTasks)
   const todayDone = todayWork(tasks)
 
   const stats = [
     { icon: ListTodo, label: 'Para hacer', value: String(pending.length), strong: true },
-    { icon: CalendarClock, label: 'Para hoy', value: String(urgent) },
+    { icon: CalendarClock, label: 'Urgentes', value: String(urgent) },
     { icon: CheckCircle2, label: 'Este mes', value: String(thisMonth?.packs ?? 0) },
-    { icon: Wallet, label: 'A cobrar', value: formatARS(batch.owed) },
+    { icon: Wallet, label: 'A cobrar', value: formatARS(money.owed) },
   ]
 
   return (
-    <div className="@container min-h-full bg-arena/40">
+    <div className={`relative isolate @container min-h-full ${theme.page}`}>
+      <ThemeBackdrop id={character} />
       <header className="sticky top-0 z-30 border-b border-line/70 bg-blanco/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 @3xl:px-6">
           <TeamLogo />
@@ -189,8 +300,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
 
       <main className="mx-auto max-w-6xl space-y-4 px-4 pb-24 pt-5 @3xl:px-6 @3xl:pt-6">
         <div>
-          <h1 className="font-script text-3xl leading-none text-rosa">¡Hola, {member.name.split(' ')[0]}!</h1>
-          <p className="mt-1 text-sm text-piedra">{pending.length ? `Tenés ${pending.length} ${pending.length === 1 ? 'CV para armar' : 'CVs para armar'}${urgent ? `, ${urgent} para hoy o atrasados` : ''}.` : 'No tenés CVs pendientes. ¡Todo al día!'}</p>
+          <h1 className={`font-script text-3xl leading-none ${theme.hello}`}>¡Hola, {member.name.split(' ')[0]}!</h1>
+          <p className={`mt-1 text-sm ${theme.text}`}>{pending.length ? `Tenés ${pending.length} ${pending.length === 1 ? 'CV para armar' : 'CVs para armar'}${urgent ? `, ${urgent} ${urgent === 1 ? 'urgente' : 'urgentes'}` : ''}.` : 'No tenés CVs pendientes. ¡Todo al día!'}</p>
         </div>
 
         {/* The numbers in one compact strip: two per row on a phone, four in a row from a small tablet. */}
@@ -216,28 +327,39 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
 
         <div className="grid gap-4 @3xl:grid-cols-[minmax(0,1fr)_300px] @3xl:items-start">
           <section className="min-w-0">
-            <div role="tablist" className="inline-flex rounded-full bg-white p-1 shadow-sm">
-              {(['pendientes', 'terminados'] as const).map((id) => (
-                <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`rounded-full px-4 py-1.5 font-display text-sm font-bold transition-colors ${view === id ? 'bg-ciruela text-white' : 'text-piedra hover:text-ciruela'}`}>
-                  {id === 'pendientes' ? `Para hacer (${pending.length})` : `Terminados (${finished.length})`}
+            {closed && view !== 'meses' && (
+              <button type="button" onClick={() => setView('meses')} className="mb-3 flex w-full items-center gap-3 rounded-2xl bg-ciruela px-4 py-3 text-left text-white shadow-lg">
+                <Trophy className="h-6 w-6 shrink-0 text-petalo" />
+                <span className="min-w-0 flex-1 text-sm"><b>¡Cerraste {shortName(closed.key)}!</b> {closed.packs} {closed.packs === 1 ? 'CV' : 'CVs'} y {formatARS(closed.earned)} ganados{closed.record ? ': tu mejor mes 🏆' : ''}. Mirá tu resumen.</span>
+                <ChevronRight className="h-5 w-5 shrink-0" />
+              </button>
+            )}
+            <div role="tablist" className="inline-flex max-w-full overflow-x-auto rounded-full bg-white p-1 shadow-sm">
+              {(['pendientes', 'terminados', 'meses'] as const).map((id) => (
+                <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className={`shrink-0 rounded-full px-4 py-1.5 font-display text-sm font-bold transition-colors ${view === id ? 'bg-ciruela text-white' : 'text-piedra hover:text-ciruela'}`}>
+                  {id === 'pendientes' ? `Para hacer (${pending.length})` : id === 'terminados' ? `Este mes (${finishedThisMonth.length})` : 'Mis meses'}
                 </button>
               ))}
             </div>
-            {preview && view === 'pendientes' && pending.length === 0 && <p className="mt-3 text-xs font-semibold text-rosa-deep">Ejemplo: así le llega un CV cuando se lo asignás (no es un pedido real).</p>}
-            {list.length === 0 ? (
-              <p className="mt-3 rounded-2xl bg-white p-6 text-center text-sm text-piedra">{view === 'pendientes' ? 'No tenés CVs para armar. Cuando Vale te pase uno, te aparece acá y te llega un aviso.' : 'Todavía no terminaste ningún CV.'}</p>
+            {view === 'pendientes' && <ThemeStrip id={character} urgent={pending.filter(isUrgent)} pending={pending} />}
+            {preview && view === 'pendientes' && pending.length === 0 && <p className={`mt-3 text-xs font-semibold ${theme.label}`}>Ejemplo: así le llega un CV cuando se lo asignás (no es un pedido real).</p>}
+            {view === 'meses' ? (
+              <MonthCards months={months} currentKey={currentKey} />
+            ) : list.length === 0 ? (
+              <p className="mt-3 rounded-2xl bg-white p-6 text-center text-sm text-piedra">{view === 'pendientes' ? theme.empty : 'Todavía no terminaste ningún CV este mes. Los de meses anteriores están en "Mis meses".'}</p>
             ) : view === 'pendientes' ? (
               // The urgent ones first, apart, so it's clear what to do today.
               <div className="mt-3 space-y-4">
                 {[
-                  { title: 'Para hoy o atrasados', items: list.filter((task) => task.due_on && task.due_on <= today) },
-                  { title: urgent ? 'Próximos' : 'Para hacer', items: list.filter((task) => !(task.due_on && task.due_on <= today)) },
+                  { title: theme.groups[0], items: list.filter(isUrgent), dim: false },
+                  { title: theme.groups[1], items: list.filter((task) => !isUrgent(task)), dim: character === 'ezio' && urgent > 0 },
                 ].filter((group) => group.items.length).map((group) => (
                   <div key={group.title}>
-                    <p className="mb-1.5 px-1 font-display text-[11px] font-bold uppercase tracking-wider text-piedra">{group.title} · {group.items.length}</p>
-                    <ul className="grid items-start gap-2 @5xl:grid-cols-2">
+                    <p className={`mb-1.5 px-1 font-display text-[11px] font-bold uppercase tracking-wider ${theme.label}`}>{group.title} · {group.items.length}</p>
+                    {/* Ezio's "eagle vision": while there are urgent ones, the rest fade a little (they light up again on touch). */}
+                    <ul className={`grid items-start gap-2 @5xl:grid-cols-2 ${group.dim ? '[&>li]:opacity-70 [&>li]:grayscale [&>li]:transition [&>li:hover]:opacity-100 [&>li:hover]:grayscale-0' : ''}`}>
                       {group.items.map((task) => (
-                        <TaskRow key={task.id} task={task} onOpen={() => openTask(task)}
+                        <TaskRow key={task.id} task={task} reported={preview ? progressShare(task) : undefined} onOpen={() => openTask(task)}
                           action={<button type="button" onClick={() => openTask(task)} className={`inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3.5 font-display text-xs font-bold text-white ${task.status === 'haciendo' ? 'bg-rosa hover:bg-rosa-deep' : 'bg-ciruela hover:bg-rosa'}`}>{task.status === 'haciendo' ? 'Seguir' : 'Empezar'}<ChevronRight className="h-4 w-4" /></button>} />
                       ))}
                     </ul>
@@ -246,17 +368,21 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
               </div>
             ) : (
               <ul className="mt-3 grid items-start gap-2 @5xl:grid-cols-2">
-                {list.map((task) => <TaskRow key={task.id} task={task} action={<span className="shrink-0 text-right text-[11px] leading-tight text-piedra">{formatDate(task.finished_at!, true)}{workMinutes(task) !== null ? ` · ⏱ ${formatMinutes(workMinutes(task)!)}` : ''}<br /><b className={task.paid_in ? 'text-whatsapp' : 'text-ciruela'}>{task.paid_in ? 'cobrado' : 'a cobrar'}</b></span>} />)}
+                {list.map((task) => <TaskRow key={task.id} task={task} action={<span className="shrink-0 text-right text-[11px] leading-tight text-piedra">{formatDate(task.finished_at!, true)}{workMinutes(task) !== null ? ` · ⏱ ${formatMinutes(workMinutes(task)!)}` : ''}<br /><b className={task.paid_in ? 'text-whatsapp' : 'text-ciruela'}>{task.paid_in ? 'cobrado' : 'a cobrar'}</b></span>}><FinishedDetail task={task} /></TaskRow>)}
               </ul>
             )}
           </section>
 
           {/* Money and history: beside the CVs on a tablet, under them on a phone. */}
           <aside className="space-y-4 @3xl:sticky @3xl:top-20">
+            {/* One of his favorite characters cheers him up, with what he made this month. */}
+            <TeamCheer pending={pending.length} today={todayDone.count} month={thisMonth?.earned ?? 0} count={money.count} size={money.size} />
+            {preview && <button type="button" onClick={() => setCelebrate(true)} className="-mt-2 w-full rounded-2xl border border-dashed border-rosa/50 bg-white/90 px-3 py-2 text-xs font-bold text-rosa-deep hover:bg-petalo-wash">🎉 Probar el festejo de los {batch.size} CVs</button>}
+            {preview && <button type="button" onClick={() => setFinishNote({ at: Date.now(), text: '✅ Listo en 1 h 05 min · tu marca: 15 min. Seguimos con el próximo.' })} className="-mt-2 w-full rounded-2xl border border-dashed border-rosa/50 bg-white/90 px-3 py-2 text-xs font-bold text-rosa-deep hover:bg-petalo-wash">💬 Probar el mensaje al terminar un CV</button>}
             {/* His own marks, game style: streak of days, today's count and his best time per pack (no averages: those are Vale's). */}
             {records.length > 0 && (
               <section className={cardClass} aria-labelledby="marks-title">
-                <h2 id="marks-title" className="font-display text-base font-bold text-ciruela">Tus marcas 🏆</h2>
+                <h2 id="marks-title" className="font-display text-base font-bold text-ciruela">Tus marcas de {monthName} 🏆</h2>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <div className="rounded-2xl bg-petalo-wash/60 px-3 py-2"><p className="font-display text-[11px] font-bold uppercase tracking-wider text-piedra">Racha</p><p className="font-display text-xl font-extrabold text-ciruela">🔥 {streak} {streak === 1 ? 'día' : 'días'}</p></div>
                   <div className="rounded-2xl bg-papel px-3 py-2"><p className="font-display text-[11px] font-bold uppercase tracking-wider text-piedra">Hoy</p><p className="font-display text-xl font-extrabold text-ciruela">{todayDone.count} {todayDone.count === 1 ? 'CV' : 'CVs'}</p></div>
@@ -264,31 +390,31 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
                 <ul className="mt-3 space-y-1.5 text-sm">
                   {records.map((row) => <li key={row.pack} className="flex items-baseline justify-between gap-2 border-t border-line pt-1.5 first:border-0 first:pt-0"><span className="text-ink">{row.pack}</span><b className="font-display text-ciruela">⏱ {formatMinutes(row.best)}</b></li>)}
                 </ul>
-                <p className="mt-2 text-[11px] leading-snug text-piedra">Tu mejor tiempo por pack, de &quot;Empecé&quot; a &quot;Terminé&quot;. ¡A superarlo!</p>
+                <p className="mt-2 text-[11px] leading-snug text-piedra">Tu mejor tiempo por pack este mes, de &quot;Empecé&quot; a &quot;Terminé&quot;. Cada mes arranca de cero: ¡a superarlo!</p>
               </section>
             )}
             <section className={cardClass} aria-labelledby="batch-title">
               <h2 id="batch-title" className="font-display text-base font-bold text-ciruela">Tu próximo cobro</h2>
-              <p className="mt-1 font-display text-2xl font-extrabold text-ciruela">{batch.count}<span className="text-sm text-piedra"> de {batch.size} CVs</span></p>
-              <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${batch.count >= batch.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(batch.count / batch.size, 1) * 100}%` }} /></div>
-              <p className="mt-2 text-xs leading-snug text-piedra">{batch.count} {batch.count === 1 ? 'CV' : 'CVs'} × {formatARS(member.rate)}{batch.advances ? ` − ${formatARS(batch.advances)} de adelanto` : ''} = <b className="text-ink">{formatARS(batch.owed)}</b></p>
+              <p className="mt-1 font-display text-2xl font-extrabold text-ciruela">{money.count}<span className="text-sm text-piedra"> de {money.size} CVs de {monthName}</span></p>
+              <div className="mt-2 h-2 rounded-full bg-papel"><div className={`h-2 rounded-full ${money.count >= money.size ? 'bg-whatsapp' : 'bg-rosa'}`} style={{ width: `${Math.min(money.count / Math.max(money.size, 1), 1) * 100}%` }} /></div>
+              {/* This month's account; what earlier months left goes in one line, so the money still adds up. */}
+              <p className="mt-2 text-xs leading-snug text-piedra">
+                {money.current.every((task) => task.rate === member.rate) ? `${money.count} ${money.count === 1 ? 'CV' : 'CVs'} × ${formatARS(member.rate)}` : `${money.count} ${money.count === 1 ? 'CV' : 'CVs'} (${formatARS(money.earned)})`}
+                {money.advanced ? ` − ${formatARS(money.advanced)} de adelanto` : ''}
+                {money.carry > 0 ? ` + ${formatARS(money.carry)} que te quedaron de antes` : money.carry < 0 ? ` − ${formatARS(-money.carry)} que quedaban del adelanto del mes pasado` : ''}
+                {' '}= <b className="text-ink">{formatARS(money.owed)}</b>
+              </p>
+              {/* What the earlier advance left is already covered by this month's CVs: say so, it no longer reads as a debt. */}
+              {money.carry < 0 && money.debt === 0 && <p className="mt-2 rounded-xl bg-whatsapp/10 px-3 py-2 text-xs font-semibold leading-snug text-whatsapp">✓ Ya cubriste el adelanto del mes pasado: no debés nada.</p>}
+              {/* The advance not covered yet: each CV he finishes takes its rate off. */}
+              {money.debt > 0 && <p className="mt-2 rounded-xl bg-papel/70 px-3 py-2 text-xs leading-snug text-ink">Adelanto por cubrir: <b>{formatARS(money.debt)}</b>. Cada CV que terminás lo baja {formatARS(member.rate)}: te faltan {Math.ceil(money.debt / Math.max(member.rate, 1))}.</p>}
             </section>
 
-            <section className={cardClass} aria-labelledby="months-title">
-              <h2 id="months-title" className="font-display text-base font-bold text-ciruela">Mes a mes</h2>
-              {months.length === 0 ? <p className="mt-1 text-sm text-piedra">Acá vas a ver cuántos CVs hiciste y lo que cobraste cada mes.</p> : (
-                <table className="mt-2 w-full text-sm">
-                  <thead><tr className="text-left text-[11px] uppercase tracking-wider text-piedra"><th className="pb-1.5 font-semibold">Mes</th><th className="pb-1.5 text-right font-semibold">CVs</th><th className="pb-1.5 text-right font-semibold">Cobrado</th></tr></thead>
-                  <tbody>{months.map((row) => <tr key={row.key} className="border-t border-line"><td className="py-1.5 font-semibold text-ink">{row.label}</td><td className="py-1.5 text-right">{row.packs}</td><td className="py-1.5 text-right">{formatARS(row.paid)}</td></tr>)}</tbody>
-                </table>
-              )}
-            </section>
-
-            {payments.length > 0 && (
+            {monthPayments.length > 0 && (
               <section className={cardClass} aria-labelledby="payments-title">
-                <h2 id="payments-title" className="font-display text-base font-bold text-ciruela">Tus cobros</h2>
+                <h2 id="payments-title" className="font-display text-base font-bold text-ciruela">Tus cobros de {monthName}</h2>
                 <ul className="mt-2 space-y-2 text-sm">
-                  {payments.slice(0, 8).map((payment) => (
+                  {monthPayments.map((payment) => (
                     <li key={payment.id} className="flex items-baseline justify-between gap-2 border-t border-line pt-2 first:border-0 first:pt-0">
                       <span><b className="text-ink">{payment.kind === 'pago' ? 'Pago' : 'Adelanto'}</b> · {formatDate(`${payment.paid_on}T12:00:00-03:00`)}</span>
                       <span className="font-display font-bold text-ciruela">{formatARS(payment.amount)}</span>
@@ -311,8 +437,11 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
         </div>
       </main>
 
-      {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} onStart={() => markStarted(working)} onAsk={preview ? undefined : () => { setChatTask(chatTasks.find((task) => task.id === working.id) ?? null); setChatOpen(true) }} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
+      {working && <TaskWorkspace key={working.id} task={working} onClose={closeWork} onProgress={reportProgress} onStart={() => markStarted(working)} onAsk={preview ? undefined : () => { setChatTask(chatTasks.find((task) => task.id === working.id) ?? null); setChatOpen(true) }} actions={<TaskActions task={working} preview={preview} onChanged={onChanged} onFinished={() => finishedWorking(working)} />} />}
       {notice && <p role="status" className={`fixed inset-x-4 top-[calc(1rem+env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl px-4 py-3 text-center text-sm font-bold text-white shadow-lg ${notice.ok ? 'bg-whatsapp' : 'bg-rosa-deep'}`}>{notice.text}</p>}
+      {codec && <CodecCall task={codec} />}
+      {finishNote && !celebrate &&<FinishCheer key={finishNote.at} text={finishNote.text} />}
+      {celebrate && <TeamCelebration count={batch.size} onClose={() => setCelebrate(false)} />}
       {/* Chat with Vale: a bubble in the corner (hidden in the work mode, which has its own "¿Una duda?" button). */}
       {!preview && !working && <TeamChatBubble open={chatOpen} unread={unread} onClick={() => (chatOpen ? closeChat() : setChatOpen(true))} label="Chat con Vale" className="bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4" />}
       {chatOpen && !preview && (

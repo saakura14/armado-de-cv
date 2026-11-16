@@ -1,11 +1,13 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, Camera, ClipboardCheck, Clock, Megaphone, Zap } from 'lucide-react'
+import { ArrowRight, Camera, ClipboardCheck, Clock, FileSearch, Megaphone, Zap } from 'lucide-react'
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { ProductGrid } from '@/components/product-grid'
 import { Faq, HowToBuy, SectionTitle } from '@/components/sections'
-import { CONTACT, formatARS, getProducts, whatsappUrl } from '@/lib/catalog'
+import { CONTACT, formatARS, getProducts, getTopProducts, whatsappUrl } from '@/lib/catalog'
+import { BeforeAfter } from '@/components/before-after'
+import { PackQuiz } from '@/components/pack-quiz'
 import { getFaqs } from '@/lib/faq'
 import { Testimonials } from '@/components/testimonials'
 import { pageMetadata } from '@/lib/seo'
@@ -15,7 +17,7 @@ export const metadata: Metadata = pageMetadata({ path: '/', description: 'Armado
 // Prices are edited from /admin; the page refreshes them every minute.
 export const revalidate = 60
 
-const DELIVERY_NOTE = 'Demora de cualquier pack: 3 a 4 días hábiles desde que tengo toda tu información (no trabajo fines de semana). Versión Express dentro de las 24 hs hábiles.'
+const DELIVERY_NOTE = 'Demora de cualquier pack: 3 a 4 días hábiles desde que tengo toda tu información (no trabajo fines de semana ni feriados). Versión Express dentro de las 24 hs hábiles.'
 
 // iconos.webp is a 2x2 sheet: people · info · payment · handshake
 const promises = [
@@ -27,33 +29,47 @@ const promises = [
 
 const steps = [
   { title: 'Elegí', text: 'Un pack o una guía. Tocá "Lo quiero"; en los packs sumás idiomas, plataformas o entrega express y ves el total.' },
-  { title: 'Confirmá el pedido', text: 'Creá tu cuenta o ingresá y aceptá las condiciones.' },
-  { title: 'Transferí', text: 'Te muestro los datos para transferir y subís el comprobante ahí mismo.' },
-  { title: 'Recibí', text: 'Pack de CV: me escribís por WhatsApp con tu número de pedido y arranco. Guía: la descargás desde "Mi cuenta" apenas confirmo tu pago, sin escribirme.' },
+  { title: 'Confirmá el pedido', text: 'Dejá tu nombre, WhatsApp y mail y aceptá las condiciones. No hace falta crear cuenta.' },
+  { title: 'Pagá', text: 'Por transferencia (subís el comprobante ahí mismo) o con tarjeta.' },
+  { title: 'Recibí', text: 'Pack de CV: me escribís por WhatsApp con tu número de pedido y arranco. Guía: apenas confirmo tu pago te llega el link de descarga por mail (y queda en "Mi cuenta" si tenés), sin escribirme.' },
 ]
 
+const RANKS = ['El más elegido', '2º más elegido', '3º más elegido']
+
 export default async function Home() {
-  const [cvProducts, guides, faqs] = await Promise.all([getProducts(['cv']), getProducts(['guias']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
+  const [cvProducts, guides, stageGuides, faqs] = await Promise.all([getProducts(['cv']), getProducts(['guias']), getProducts(['etapas']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
   const extraPrice = (id: string) => cvProducts.flatMap((product) => product.extras).find((group) => group.id === id)?.unitPrice ?? 15000
-  const price = { language: extraPrice('idiomas'), express: extraPrice('express'), from: cvProducts.length > 0 ? Math.min(...cvProducts.map((product) => product.price)) : null }
+  const top = await getTopProducts(cvProducts)
+  const badges = Object.fromEntries(top.products.slice(0, top.ranked).map((product, index) => [product.id, RANKS[index]]))
+  const price = { language: extraPrice('idiomas'), express: extraPrice('express'), main: cvProducts.find((product) => product.id === 'cv-simple')?.price ?? null }
   return (
     <>
       {/* Hero */}
       {/* On desktop the photo is anchored to the viewport edge; the background matches its wall so there is no seam. */}
-      <section className="relative overflow-hidden bg-white lg:bg-[#dfe3e6]">
-        <Image src="/img/hero-banner.jpg" alt="" width={1472} height={704} priority className="pointer-events-none absolute inset-y-0 -right-[120px] hidden h-full w-auto max-w-none lg:block xl:right-0" />
+      <section className="hero-wall relative overflow-hidden bg-white lg:bg-[#dfe3e6]">
+        <Image src="/img/hero-banner.jpg" alt="" width={1472} height={704} priority className="hero-wall-photo pointer-events-none absolute inset-y-0 -right-[120px] hidden h-full w-auto max-w-none lg:block xl:right-0" />
         <div className="relative mx-auto max-w-6xl lg:min-h-[600px]">
           <div className="relative z-10 px-4 pb-6 pt-10 sm:px-6 lg:max-w-[460px] lg:py-24 xl:max-w-[500px]">
             <p className="font-script text-4xl leading-none text-rosa">Hola, soy Valeria</p>
             <h1 className="mt-3 text-[34px] font-extrabold leading-[1.1] text-ciruela sm:text-5xl">Tu CV listo para pasar los filtros y llegar a la entrevista</h1>
             <p className="mt-5 text-lg leading-relaxed text-piedra">CV modernos y optimizados para ATS, perfil de LinkedIn, cartas de presentación y carga en plataformas de empleo. Armado para vos, no con plantillas.</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a href="#precios" className="inline-flex min-h-12 items-center justify-center rounded-full bg-rosa px-7 py-3.5 font-display font-bold text-white shadow-lg shadow-rosa/25 transition-colors hover:bg-rosa-deep">{price.from ? `Ver packs · desde ${formatARS(price.from)}` : 'Ver packs y precios'}</a>
+              <a href="#precios" className="inline-flex min-h-12 items-center justify-center rounded-full bg-rosa px-7 py-3.5 font-display font-bold text-white shadow-lg shadow-rosa/25 transition-colors hover:bg-rosa-deep">{price.main ? `Ver packs · CV + CV ATS ${formatARS(price.main)}` : 'Ver packs y precios'}</a>
               <a href={whatsappUrl('¡Hola! Quiero consultar por el armado de mi CV.')} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-ciruela/15 px-6 py-3 font-display font-bold text-ciruela hover:border-whatsapp hover:text-whatsapp"><WhatsAppIcon className="h-5 w-5" />Consultar</a>
             </div>
             <p className="mt-6 flex items-center gap-2 text-sm text-piedra"><Clock className="h-4 w-4 text-rosa" />3 a 4 días hábiles · Express en 24 hs hábiles · <a href="#urgente" className="font-semibold text-rosa-deep hover:underline">¿Urgente?</a></p>
+            <Link href="/test-ats" className="mt-4 inline-flex items-center gap-2 rounded-full bg-papel px-4 py-2 font-display text-sm font-bold text-ciruela transition-colors hover:bg-petalo-wash"><FileSearch className="h-4 w-4 text-rosa" />¿Tu CV pasa los filtros? Hacé el test ATS gratis<ArrowRight className="h-4 w-4" /></Link>
           </div>
           <Image src="/img/hero-banner.jpg" alt="Valeria mostrando un CV y un perfil de LinkedIn en el celular" width={1472} height={704} priority className="h-64 w-full object-cover object-[78%_center] sm:h-80 lg:hidden" />
+        </div>
+      </section>
+
+      {/* The most ordered packs (last 60 days), first thing after the hero: a swipeable row on phones */}
+      <section id="elegidos" className="scroll-mt-32 bg-papel/50 px-4 py-12 sm:px-6 lg:py-16" aria-labelledby="elegidos-title">
+        <div className="mx-auto max-w-6xl">
+          <SectionTitle id="elegidos-title" script="Los más elegidos" title="Lo que más me piden" text="Elegí el tuyo y pedilo en 2 minutos, sin crear cuenta. Pagás por transferencia o con tarjeta." />
+          <ProductGrid products={top.products} badges={badges} scroll />
+          <p className="mt-2 text-center text-sm text-piedra"><a href="#que-pack" className="font-semibold text-rosa-deep hover:underline">¿No sabés cuál? Respondé 3 preguntas</a> · <a href="#precios" className="font-semibold text-rosa-deep hover:underline">Ver todos los packs</a></p>
         </div>
       </section>
 
@@ -63,9 +79,16 @@ export default async function Home() {
           <Image src="/img/valeria-retrato.jpg" alt="Valeria, de Armado de CV" width={768} height={1060} className="h-20 w-20 shrink-0 rounded-full object-cover object-top sm:h-24 sm:w-24" />
           <div>
             <p className="leading-relaxed text-ink">Soy <b className="text-ciruela">Vale</b>, <b className="text-ciruela">Técnica en Programación de la UTN</b>, con formación en <b className="text-ciruela">RR.HH. IT y sistemas ATS</b>. Cada CV lo armo yo, sobre tu experiencia real.</p>
+            <p className="mt-1.5 text-sm text-piedra">Más de <b className="text-ciruela">17.000 personas</b> siguen mis guías en <a href={`https://instagram.com/${CONTACT.instagram}`} target="_blank" rel="noreferrer" className="font-semibold text-rosa-deep hover:underline">@{CONTACT.instagram}</a></p>
             <a href="#sobre-mi" className="mt-2 inline-flex items-center gap-1 font-display text-sm font-bold text-rosa-deep hover:underline">Conocé más sobre mí<ArrowRight className="h-4 w-4" /></a>
           </div>
         </div>
+      </section>
+
+      {/* Before and after with the real ATS score: the proof, right after who does it */}
+      <section id="antes-despues" className="scroll-mt-32 px-4 pb-16 pt-4 sm:px-6" aria-labelledby="antes-title">
+        <SectionTitle id="antes-title" script="Antes y después" title="El mismo CV, otro resultado" text="Así cambia un CV cuando lo armo: misma experiencia, contada para que la lea un sistema y la entienda un reclutador." />
+        <BeforeAfter />
       </section>
 
       {/* Promises */}
@@ -80,13 +103,19 @@ export default async function Home() {
         </ul>
       </section>
 
+      {/* Which pack: three questions and the one that fits, ready to order */}
+      <section id="que-pack" className="scroll-mt-32 bg-petalo-wash/60 px-4 py-16 sm:px-6" aria-labelledby="quiz-title">
+        <SectionTitle id="quiz-title" script="¿Qué pack necesito?" title="Te ayudo a elegir" text="Respondé hasta 3 preguntas y te digo cuál te sirve." />
+        <PackQuiz products={cvProducts} />
+      </section>
+
       {/* Packs */}
-      <section id="precios" className="scroll-mt-28 px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="cv-title">
+      <section id="precios" className="scroll-mt-32 px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="cv-title">
         <div className="mx-auto max-w-6xl">
           <SectionTitle id="cv-title" script="Catálogo" title="Packs de CV y LinkedIn" text="Cada pack incluye dos CV: uno con diseño moderno y otro optimizado para los filtros ATS que usan las empresas." />
           <ProductGrid products={cvProducts} tone="cv" />
           {/* Urgent orders: Express is picked in the order; a specific time is quoted by WhatsApp. */}
-          <div id="urgente" className="mt-14 scroll-mt-28 overflow-hidden rounded-[28px] bg-ciruela text-white shadow-[0_22px_44px_-30px_rgba(67,32,44,0.8)] md:grid md:grid-cols-2">
+          <div id="urgente" className="mt-14 scroll-mt-32 overflow-hidden rounded-[28px] bg-ciruela text-white shadow-[0_22px_44px_-30px_rgba(67,32,44,0.8)] md:grid md:grid-cols-2">
             <div className="p-6 sm:p-8">
               <p className="font-script text-4xl leading-none text-petalo">¿Lo necesitás urgente?</p>
               <p className="mt-4 flex items-center gap-2 font-display text-lg font-bold"><Zap className="h-5 w-5 text-petalo" />Versión Express: en 24 hs hábiles</p>
@@ -115,6 +144,36 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Testimonials right after the prices: proof at the moment of deciding */}
+      <section className="px-4 pb-16 sm:px-6 lg:pb-20" aria-label="Testimonios">
+        <div className="mx-auto max-w-5xl">
+          <Testimonials />
+        </div>
+      </section>
+
+      {/* Guides by age stage: their own section, apart from the other guides */}
+      {stageGuides.length > 0 && (
+        <section id="etapas" className="scroll-mt-32 bg-petalo-wash/60 px-4 py-16 sm:px-6 lg:py-20" aria-labelledby="etapas-title">
+          <div className="mx-auto max-w-6xl">
+            <SectionTitle id="etapas-title" script="Según tu etapa" title="Guías para buscar trabajo a los 20, 30, 40 y 50+" text="Cada etapa tiene sus desafíos. Elegí la guía de tu momento: qué buscan las empresas a tu edad, cómo armar tu CV, dónde buscar, cómo responder en la entrevista y un plan de 30 días. Te llega por mail, sin crear cuenta." />
+            <ProductGrid products={stageGuides} tone="asesorias" scroll />
+          </div>
+        </section>
+      )}
+
+      {/* Free ATS test: the CV is analyzed in the browser and the result offers the packs */}
+      <section className="px-4 pb-8 sm:px-6">
+        <Link href="/test-ats" className="group mx-auto flex max-w-5xl flex-col items-center gap-5 rounded-[32px] bg-ciruela p-6 text-white sm:flex-row sm:p-8">
+          <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-white/10"><FileSearch className="h-8 w-8 text-petalo" /></span>
+          <div className="flex-1 text-center sm:text-left">
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-petalo">Test gratis · 1 minuto</p>
+            <p className="mt-2 font-display text-2xl font-extrabold leading-tight">¿Tu CV pasa los filtros ATS?</p>
+            <p className="mt-2 text-white/80">Subilo en PDF y te digo cómo lo ve un sistema de selección, qué le falta y cómo corregirlo.</p>
+          </div>
+          <span className="inline-flex min-h-12 items-center gap-2 rounded-full bg-rosa px-6 py-3 font-display text-sm font-bold text-white transition-transform group-hover:translate-x-1">Hacer el test<ArrowRight className="h-4 w-4" /></span>
+        </Link>
+      </section>
+
       {/* Free checklist: a first step for people who are not ready to buy yet */}
       <section className="px-4 pb-16 sm:px-6 lg:pb-20">
         <Link href="/gratis" className="group mx-auto flex max-w-5xl flex-col items-center gap-6 rounded-[32px] border-2 border-dashed border-rosa/40 bg-white p-6 sm:flex-row sm:p-8">
@@ -130,7 +189,7 @@ export default async function Home() {
 
       {/* Self-service guides (only shown once at least one is published) */}
       {guides.length > 0 && (
-        <section id="guias" className="scroll-mt-28 bg-arena/40 px-4 py-16 sm:px-6 lg:py-20" aria-labelledby="guias-title">
+        <section id="guias" className="scroll-mt-32 bg-arena/40 px-4 py-16 sm:px-6 lg:py-20" aria-labelledby="guias-title">
           <div className="mx-auto max-w-6xl">
             <SectionTitle id="guias-title" script="Guías" title="Para tu búsqueda laboral" text="E-books prácticos para aprovechar LinkedIn, los portales de empleo y los filtros ATS. Los descargás apenas confirmo tu pago." />
             <ProductGrid products={guides} tone="asesorias" scroll />
@@ -154,7 +213,7 @@ export default async function Home() {
       </section>
 
       {/* About */}
-      <section id="sobre-mi" className="scroll-mt-28 overflow-x-clip px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="sobre-title">
+      <section id="sobre-mi" className="scroll-mt-32 overflow-x-clip px-4 py-16 sm:px-6 lg:py-24" aria-labelledby="sobre-title">
         <div className="mx-auto grid max-w-5xl items-center gap-10 md:grid-cols-[0.85fr_1.15fr]">
           <div className="relative mx-auto w-full max-w-sm">
             <div className="absolute -inset-3 -z-10 rotate-2 rounded-[36px] bg-papel" aria-hidden="true" />
@@ -172,12 +231,10 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Testimonials + community */}
+      {/* Community */}
       <section className="bg-white px-4 py-16 sm:px-6" aria-labelledby="comunidad-title">
         <div className="mx-auto max-w-5xl">
-          <Testimonials />
-
-          <h2 id="comunidad-title" className="mt-14 text-center text-xs font-semibold uppercase tracking-[0.35em] text-ciruela sm:text-sm">Sumate a la comunidad</h2>
+          <h2 id="comunidad-title" className="text-center text-xs font-semibold uppercase tracking-[0.35em] text-ciruela sm:text-sm">Sumate a la comunidad</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             <a href={CONTACT.whatsappChannel} target="_blank" rel="noreferrer" className="flex items-center gap-4 rounded-3xl border border-line bg-blanco p-5 hover:border-whatsapp md:flex-col md:text-center">
               <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-whatsapp/10"><WhatsAppIcon className="h-7 w-7 text-whatsapp" /></span>

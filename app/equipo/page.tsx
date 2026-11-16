@@ -43,6 +43,20 @@ export default function TeamPage() {
 
   useEffect(() => { if (user) { load(); syncPush(user.id) } }, [user, load])
 
+  // While the panel is on screen it tells Vale he is connected (a signal every minute, and one when he leaves).
+  const memberReady = Boolean(data?.member)
+  useEffect(() => {
+    if (!memberReady) return
+    const beat = (leaving = false) => { supabase.rpc('team_heartbeat', { p_leaving: leaving }).then(() => undefined, () => undefined) }
+    if (document.visibilityState === 'visible') beat()
+    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') beat() }, 60000)
+    const onVisibility = () => beat(document.visibilityState !== 'visible')
+    const onLeave = () => beat(true)
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', onLeave)
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('pagehide', onLeave) }
+  }, [memberReady])
+
   // New tasks and payments show up without reloading (and when the tablet wakes up).
   useEffect(() => {
     if (!user) return

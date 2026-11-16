@@ -2,8 +2,9 @@
 # Per-function settings, mirroring what is deployed.
 
 [functions.ebook-download]
-# Requires the buyer's session token.
-verify_jwt = true
+# Checks access inside the function: the buyer's session, or the private download_token emailed to buyers
+# without an account (it has to work with no session at all).
+verify_jwt = false
 
 [functions.admin-upload]
 # Authenticates with a short-lived token from public.admin_upload_tokens instead of a session.
@@ -22,3 +23,25 @@ verify_jwt = false
 [functions.daily-digest]
 # Called only by pg_cron with the private key from Vault (x-cron-key), no session.
 verify_jwt = false
+
+[functions.ats-followup]
+# Called only by pg_cron with the private key from Vault (x-cron-key), no session. Secret: RESEND_API_KEY.
+verify_jwt = false
+
+[functions.ebook-mail]
+# Called only by pg_cron with the private key from Vault (x-cron-key), no session. Secret: RESEND_API_KEY.
+verify_jwt = false
+
+[functions.meta-ads]
+# Called by pg_cron with the private key from Vault (x-cron-key), or from the panel with the admin session (checked
+# inside). Secrets: META_ADS_TOKEN (System User token with ads_read), optionally META_AD_ACCOUNT.
+verify_jwt = false
+
+[functions.order-mail]
+# Called only by pg_cron with the private key from Vault (x-cron-key), no session. Secret: RESEND_API_KEY.
+verify_jwt = false
+
+[functions.transcribe-audio]
+# From the panel with the admin session (checked inside): turns an audio of "Textos con Claude" into text with
+# Whisper on Groq and saves it next to it as "<path>.txt". Secret: GROQ_API_KEY.
+verify_jwt = true
