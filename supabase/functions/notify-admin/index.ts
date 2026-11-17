@@ -2,8 +2,11 @@
 // and for the team: a CV assigned to a member (to their phone) or finished by them (to the admin), and the team chat messages.
 // Called from the customer's browser right after the action (only for their own, fresh orders, once per kind),
 // or by the admin with { test: true } to check that notifications arrive.
+// The customer's data form (armadodecv.com/datos/<token>) has no session: { kind: 'client_form', token } is accepted
+// without one, only for a form sent in the last minutes and once per order. Everything else checks the session here
+// (the function is deployed with verify_jwt off so the form page, with only the publishable key, can reach it).
 // The VAPID keys are read from Vault through public.push_config() (service role only).
-import { createClient } from 'npm:@supabase/supabase-js@2.57.4'
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.57.4'
 import webpush from 'npm:web-push@3.6.7'
 
 const cors = {
@@ -21,21 +24,42 @@ Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (request.method !== 'POST') return json(405, { error: 'Método no permitido' })
 
-  const token = request.headers.get('Authorization')?.replace('Bearer ', '')
-  if (!token) return json(401, { error: 'Falta la sesión' })
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-  const { data: { user } } = await admin.auth.getUser(token)
-  if (!user) return json(401, { error: 'Sesión inválida' })
-
-  const body = await request.json().catch(() => ({})) as { order_id?: string; task_id?: string; message_id?: string; kind?: 'new_order' | 'receipt' | 'task_assigned' | 'task_done' | 'chat'; test?: boolean }
-  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
-  const isAdmin = profile?.role === 'admin'
+  const body = await request.json().catch(() => ({})) as { order_id?: string; task_id?: string; message_id?: string; token?: string; kind?: 'new_order' | 'receipt' | 'task_assigned' | 'task_done' | 'chat' | 'client_form'; test?: boolean }
 
   // tag: one notification per item (two packs of the same order don't replace each other); sticky: stays on screen until tapped.
-  let message: { title: string; body: string; url: string; tag?: string; sticky?: boolean }
+  let message: Message
   let logged: { order_id: string; kind: string } | null = null
   // Who gets it: the admins, unless it is a task for a team member.
   let recipients: string[] | null = null
+
+  if (body.kind === 'client_form') {
+    // The customer sent their data form: no session, the form's private token instead.
+    if (!body.token || !/^[0-9a-f-]{36}$/i.test(body.token)) return json(400, { error: 'Datos incompletos' })
+    const { data: form } = await admin.from('client_forms')
+      .select('order_id, submitted_at, orders(number, customer_name, order_items(product_name))')
+      .eq('token', body.token).maybeSingle()
+    if (!form?.submitted_at) return json(404, { error: 'Formulario no encontrado' })
+    const order = (Array.isArray(form.orders) ? form.orders[0] : form.orders) as { number: number; customer_name: string | null; order_items: { product_name: string }[] } | null
+    if (!order) return json(404, { error: 'Pedido no encontrado' })
+    if (order.number >= 90000) return json(200, { sent: 0, skipped: 'prueba' })
+    if (Date.now() - new Date(form.submitted_at).getTime() > FRESH_MINUTES * 60 * 1000) return json(200, { sent: 0, skipped: 'viejo' })
+    // Once per order: later edits show up in "Hoy" without another notification.
+    const { error: duplicate } = await admin.from('push_log').insert({ order_id: form.order_id, kind: 'client_form' })
+    if (duplicate) return json(200, { sent: 0, skipped: 'ya avisado' })
+    logged = { order_id: form.order_id, kind: 'client_form' }
+    const products = order.order_items.map((item) => item.product_name).join(' + ')
+    message = { title: `📋 Datos recibidos · pedido #${order.number}`, body: `${order.customer_name ?? 'El cliente'} completó sus datos para ${products}. Ya podés pedir los textos con Claude.`, url: '/admin#pedidos', tag: `form-${form.order_id}` }
+    return send(admin, message, recipients, logged, 'client_form')
+  }
+
+  const token = request.headers.get('Authorization')?.replace('Bearer ', '')
+  if (!token) return json(401, { error: 'Falta la sesión' })
+  const { data: { user } } = await admin.auth.getUser(token)
+  if (!user) return json(401, { error: 'Sesión inválida' })
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
+  const isAdmin = profile?.role === 'admin'
+
   if (body.test) {
     if (isAdmin) {
       message = { title: '¡Las notificaciones funcionan! 🌸', body: 'Te voy a avisar acá cuando entre un pedido o te suban un comprobante.', url: '/admin' }
@@ -100,6 +124,13 @@ Deno.serve(async (request) => {
       : { title: `🧾 Comprobante del pedido #${order.number}`, body: `${name} subió el comprobante de ${ars.format(order.total)}. Revisalo y aprobá el pago.`, url: '/admin#pedidos' }
   }
 
+  return send(admin, message, recipients, logged, body.test ? 'test' : body.kind)
+})
+
+type Message = { title: string; body: string; url: string; tag?: string; sticky?: boolean }
+
+/** Sends the notification to the recipients' devices (the admins when none given) and records the result. */
+async function send(admin: SupabaseClient, message: Message, recipients: string[] | null, logged: { order_id: string; kind: string } | null, kind: string | undefined) {
   const { data: config } = await admin.rpc('push_config')
   if (!config?.private || !config?.public) return json(500, { error: 'Faltan las claves de notificación' })
   webpush.setVapidDetails('mailto:ayuda.armadodecv@gmail.com', config.public, config.private)
@@ -124,7 +155,7 @@ Deno.serve(async (request) => {
       else console.error('push failed', status, (error as Error).message)
     }
   }
-  console.log('push result', { kind: body.test ? 'test' : body.kind, devices: subscriptions?.length ?? 0, sent, failed: errors.length })
+  console.log('push result', { kind, devices: subscriptions?.length ?? 0, sent, failed: errors.length })
   if (logged) await admin.from('push_log').update({ sent, failed: errors.length, error: errors.join(' | ') || null }).eq('order_id', logged.order_id).eq('kind', logged.kind)
   return json(200, { sent, devices: subscriptions?.length ?? 0 })
-})
+}

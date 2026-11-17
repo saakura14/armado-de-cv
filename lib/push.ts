@@ -77,3 +77,8 @@ export async function sendTestPush() {
 export function notifyAdmin(orderId: string, kind: 'new_order' | 'receipt') {
   supabase.functions.invoke('notify-admin', { body: { order_id: orderId, kind } }).then(() => undefined, () => undefined)
 }
+
+/** The customer sent their data form: Vale gets "Datos recibidos" on her phone (no session needed, the form's token). */
+export function notifyClientForm(token: string) {
+  supabase.functions.invoke('notify-admin', { body: { kind: 'client_form', token } }).then(() => undefined, () => undefined)
+}

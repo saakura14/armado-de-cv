@@ -6,6 +6,7 @@ import { Camera, Check, FileText, Loader2, ShieldCheck, Upload, X } from 'lucide
 import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { whatsappUrl } from '@/lib/catalog'
 import { FORM_CV_ACCEPT, FORM_MAX_BYTES, SECTIONS, formFileLabel, formNeeds, missingAnswers, questionsFor, takesForm, type Answers, type Question } from '@/lib/client-form'
+import { notifyClientForm } from '@/lib/push'
 import { errorMessage, supabase } from '@/lib/supabase'
 
 type FormData = {
@@ -129,6 +130,7 @@ export default function ClientFormPage() {
     setBusy('')
     if (!ok) return
     try { window.localStorage.removeItem(draftKey) } catch { /* nothing kept */ }
+    notifyClientForm(token)
     setEditing(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
