@@ -9,6 +9,7 @@ import { AppSetup } from '@/components/admin/app-setup'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { AdminTeamChat } from '@/components/team-chat'
 import { WhatsappSaleDialog } from '@/components/admin/whatsapp-sale-dialog'
+import { SharedFilesDialog } from '@/components/admin/shared-files'
 import { UpdateBanner } from '@/components/admin/update-banner'
 import { MetaAlert } from '@/components/admin/meta-alert'
 import { AuthPanel } from '@/components/auth-panel'
@@ -65,6 +66,10 @@ export default function AdminPage() {
   const [incoming, setIncoming] = useState<{ number: number; name: string; total: number } | null>(null)
   // WhatsApp sale form: opened by the button, the app shortcut (?venta=1) or by sharing a WhatsApp note to the app (?text=...).
   const [sale, setSale] = useState<string | null>(null)
+  // Files shared to the app from WhatsApp (a CV, photos, voice notes): which order they go to. The text that came with them.
+  const [sharedFiles, setSharedFiles] = useState<string | null>(null)
+  // Files shared before the app's service worker was ready: they didn't arrive and have to be shared again.
+  const [lostShare, setLostShare] = useState(false)
   const [more, setMore] = useState(false)
   const [account, setAccount] = useState(false)
   const [refresh, setRefresh] = useState(0)
@@ -75,10 +80,10 @@ export default function AdminPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const shared = [params.get('title'), params.get('text'), params.get('url')].filter(Boolean).join('\n').trim()
-    if (shared || params.has('venta')) {
-      setSale(shared)
-      history.replaceState(history.state, '', `/admin${window.location.hash}`)
-    }
+    if (params.has('archivos')) setSharedFiles(shared)
+    else if (params.has('archivos_perdidos')) setLostShare(true)
+    else if (shared || params.has('venta')) setSale(shared)
+    if (shared || params.has('venta') || params.has('archivos') || params.has('archivos_perdidos')) history.replaceState(history.state, '', `/admin${window.location.hash}`)
   }, [])
 
   /*
@@ -313,6 +318,13 @@ export default function AdminPage() {
       {incoming && <IncomingOrder order={incoming} onOpen={() => { setIncoming(null); select('pedidos', { filter: 'activos', search: '' }) }} onClose={() => setIncoming(null)} />}
       <UpdateBanner />
       {sale !== null && <WhatsappSaleDialog initialText={sale} onClose={closeOverlay} onSaved={() => setRefresh((value) => value + 1)} />}
+      {sharedFiles !== null && isAdmin && <SharedFilesDialog text={sharedFiles} onClose={() => setSharedFiles(null)} onDone={(number) => { setSharedFiles(null); select('pedidos', { filter: 'todos', search: `#${number}` }) }} />}
+      {lostShare && (
+        <div role="alert" className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-md items-start gap-3 rounded-2xl bg-ciruela px-4 py-3 text-sm text-white shadow-2xl">
+          <p className="flex-1">No llegaron los archivos que compartiste (la app se estaba actualizando). Compartilos de nuevo desde WhatsApp.</p>
+          <button type="button" onClick={() => setLostShare(false)} className="font-display text-xs font-bold text-petalo">Cerrar</button>
+        </div>
+      )}
     </div>
   )
 }

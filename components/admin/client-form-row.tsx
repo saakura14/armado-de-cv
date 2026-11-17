@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Camera, Check, ClipboardList, Copy, ExternalLink, FileText, Link2, X } from 'lucide-react'
 import { clientFormUrl, formFileLabel, formNeeds, formTarget, formatAnswers, oneForm, questionsFor, takesForm, unseenForm, type ClientForm } from '@/lib/client-form'
 import { formatDate, type Order } from '@/lib/orders'
+import { sourceLabel } from '@/lib/source-files'
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, useBackdropClose, useFlash } from './ui'
 
@@ -64,7 +65,7 @@ function ClientFormDialog({ order, firstName, onClose, onSeen }: { order: Order;
           {form && (form.files.length > 0 || form.photo) && (
             <ul className="space-y-1.5">
               {form.files.map((path) => (
-                <li key={path}><button type="button" onClick={() => open(path)} className="flex w-full items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-left text-sm hover:bg-papel"><span className="flex min-w-0 items-center gap-1.5"><FileText className="h-4 w-4 shrink-0 text-rosa" /><span className="truncate">{formFileLabel(path)}</span></span><ExternalLink className="h-4 w-4 shrink-0 text-piedra" /></button></li>
+                <li key={path}><button type="button" onClick={() => open(path)} className="flex w-full items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-left text-sm hover:bg-papel"><span className="flex min-w-0 items-center gap-1.5"><FileText className="h-4 w-4 shrink-0 text-rosa" /><span className="truncate">{path.includes('/whatsapp/') ? `${sourceLabel(path)} · de WhatsApp` : formFileLabel(path)}</span></span><ExternalLink className="h-4 w-4 shrink-0 text-piedra" /></button></li>
               ))}
               {form.photo && <li><button type="button" onClick={() => open(form.photo!)} className="flex w-full items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-left text-sm hover:bg-papel"><span className="flex min-w-0 items-center gap-1.5"><Camera className="h-4 w-4 shrink-0 text-rosa" /><span className="truncate">Foto para el CV · {formFileLabel(form.photo)}</span></span><ExternalLink className="h-4 w-4 shrink-0 text-piedra" /></button></li>}
             </ul>
@@ -98,10 +99,13 @@ export function ClientFormRow({ order, firstName, onChanged }: { order: Order; f
   if (!form || !takesForm(ids) || !going) return null
 
   const fresh = unseenForm(form)
+  // Files Vale shared from WhatsApp count as material even if the customer never opened the form.
+  const shared = (form.files ?? []).filter((path) => path.includes('/whatsapp/')).length
   const state = form.submitted_at
     ? { label: `${fresh ? 'Nuevos · ' : ''}Recibidos el ${formatDate(form.submitted_at)}`, tone: fresh ? 'bg-rosa text-white' : 'bg-whatsapp/15 text-whatsapp' }
     : form.updated_at ? { label: 'Lo empezó, no lo envió', tone: 'bg-arena text-ciruela' }
-      : { label: 'Sin completar', tone: 'bg-papel text-piedra' }
+      : shared ? { label: `Sin completar · ${shared} ${shared === 1 ? 'archivo' : 'archivos'} de WhatsApp`, tone: 'bg-arena text-ciruela' }
+        : { label: 'Sin completar', tone: 'bg-papel text-piedra' }
 
   async function copyLink() {
     try {
@@ -120,7 +124,7 @@ export function ClientFormRow({ order, firstName, onChanged }: { order: Order; f
         </p>
         <span className="flex flex-wrap gap-1.5">
           <button type="button" onClick={copyLink} className="inline-flex min-h-8 items-center gap-1 rounded-full border border-line px-3 font-display text-xs font-bold text-ciruela hover:bg-papel"><Link2 className="h-3.5 w-3.5 text-rosa" />Copiar link</button>
-          {(form.submitted_at || form.updated_at) && <button type="button" onClick={() => setViewing(true)} className="inline-flex min-h-8 items-center gap-1 rounded-full border border-rosa/40 px-3 font-display text-xs font-bold text-rosa-deep hover:bg-petalo-wash"><FileText className="h-3.5 w-3.5" />Ver datos</button>}
+          {(form.submitted_at || form.updated_at || shared > 0) && <button type="button" onClick={() => setViewing(true)} className="inline-flex min-h-8 items-center gap-1 rounded-full border border-rosa/40 px-3 font-display text-xs font-bold text-rosa-deep hover:bg-petalo-wash"><FileText className="h-3.5 w-3.5" />Ver datos</button>}
         </span>
       </div>
       {flash.node && <div className="mt-2">{flash.node}</div>}

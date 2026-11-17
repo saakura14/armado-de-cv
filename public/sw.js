@@ -32,3 +32,29 @@ self.addEventListener('notificationclick', (event) => {
     return self.clients.openWindow(url.href)
   }))
 })
+
+// Sharing to the panel app from WhatsApp (Android share sheet, see share_target in admin.webmanifest). A shared note
+// opens "Venta por WhatsApp" as always; shared files (a CV, photos, voice notes, an exported chat) wait in the
+// "compartido" cache until the panel asks which order they belong to.
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url)
+  if (event.request.method !== 'POST' || url.pathname !== '/admin/compartir') return
+  event.respondWith((async () => {
+    const data = await event.request.formData()
+    const params = new URLSearchParams()
+    for (const key of ['title', 'text', 'url']) {
+      const value = data.get(key)
+      if (typeof value === 'string' && value.trim()) params.set(key, value)
+    }
+    const files = data.getAll('files').filter((file) => file instanceof File && file.size > 0)
+    if (files.length) {
+      const cache = await caches.open('compartido')
+      for (const request of await cache.keys()) await cache.delete(request)
+      await Promise.all(files.map((file, index) => cache.put(`/compartido/${index}`, new Response(file, {
+        headers: { 'content-type': file.type || 'application/octet-stream', 'x-file-name': encodeURIComponent(file.name || `archivo-${index + 1}`) },
+      }))))
+      params.set('archivos', String(files.length))
+    }
+    return Response.redirect(`/admin${params.size ? `?${params}` : ''}`, 303)
+  })())
+})
