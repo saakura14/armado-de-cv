@@ -22,7 +22,7 @@ import { ClientFormRow } from './client-form-row'
 
 // The admin also sees every Ualá checkout opened for the order (buyers can't read that table).
 type AdminOrder = Order & { card_payments?: { uala_order_id: string; status: string; amount: number }[]; order_links?: { created_at: string }[]; order_private?: { canva_url: string | null } | { canva_url: string | null }[] | null; team_tasks?: OrderTask[]; cv_drafts?: DraftState[]; cv_builds?: BuildState[]; linkedin_drafts?: LinkedInState[] }
-const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, started_at, due_on, team_members(name)), cv_drafts(order_item_id, status, error), cv_builds(order_item_id, status, edit_url, error), linkedin_drafts(order_item_id, status, error), sessions(id, title, status, scheduled_at), client_forms(token, submitted_at, seen_at, updated_at)`
+const ADMIN_ORDER_SELECT = `${ORDER_SELECT}, card_payments(uala_order_id, status, amount), order_links(created_at), order_private(canva_url), team_tasks(id, order_item_id, status, started_at, due_on, team_members(name)), cv_drafts(order_item_id, status, error), cv_builds(order_item_id, status, edit_url, error), linkedin_drafts(order_item_id, status, error), sessions(id, title, status, scheduled_at), client_forms(token, submitted_at, seen_at, updated_at, files)`
 import { errorMessage, supabase } from '@/lib/supabase'
 import { Button, inputClass, useFlash } from './ui'
 

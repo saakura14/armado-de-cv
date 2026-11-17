@@ -65,7 +65,7 @@ export type Order = {
   client_forms?: ClientFormSummary | ClientFormSummary[] | null
 }
 
-export type ClientFormSummary = { token: string; submitted_at: string | null; seen_at: string | null; updated_at: string | null }
+export type ClientFormSummary = { token: string; submitted_at: string | null; seen_at: string | null; updated_at: string | null; files?: string[] }
 
 export type OrderSession = { id: string; title: string; status: 'to_schedule' | 'scheduled' | 'done' | 'cancelled'; scheduled_at: string | null }
 
