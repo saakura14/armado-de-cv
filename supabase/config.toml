@@ -45,3 +45,8 @@ verify_jwt = false
 # From the panel with the admin session (checked inside): turns an audio of "Textos con Claude" into text with
 # Whisper on Groq and saves it next to it as "<path>.txt". Secret: GROQ_API_KEY.
 verify_jwt = true
+
+[functions.notify-admin]
+# Push notifications. Checks the session inside; the customer's data form (no session, only the publishable key)
+# calls it with { kind: 'client_form', token }, accepted only for a form sent in the last minutes and once per order.
+verify_jwt = false
