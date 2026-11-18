@@ -9,6 +9,8 @@ export const metadata: Metadata = pageMetadata({ path: '/links', title: 'Links',
 
 const LINKS = [
   { href: '/empleos', icon: Briefcase, title: 'Búsquedas abiertas hoy', text: 'Grandes empresas con el link oficial para postularte', tone: 'bg-ciruela text-white', sub: 'text-white/80' },
+  { href: '/empleos/shoppings', icon: Briefcase, title: 'Trabajar en un shopping', text: 'Vendedores para las fiestas: avisos por zona', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
+  { href: '/empleos/seguridad', icon: Briefcase, title: 'Trabajar de vigilador/a', text: 'Requisitos, curso y búsquedas por zona', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
   { href: '/empleos/findeano', icon: Briefcase, title: 'Trabajos para las fiestas', text: 'Depósitos, supermercados y gastronomía: dónde postularte', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
   { href: '/empleos/callcenters', icon: Briefcase, title: 'Trabajar en un call center', text: 'TP, Konecta y Atento: búsquedas y cómo postularte', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
   { href: '/empleos/burgerking', icon: Briefcase, title: 'Trabajar en Burger King', text: 'Crew en más de 100 locales y cómo postularte', tone: 'bg-white text-ciruela', sub: 'text-piedra' },
