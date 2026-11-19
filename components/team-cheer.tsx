@@ -5,7 +5,31 @@ import { CheerCard, type Character } from '@/components/cheer-card'
 import { formatARS } from '@/lib/catalog'
 
 type Mood = { pending: number; today: number; month: number; count: number; size: number }
-export type CharacterId = 'freddie' | 'snake' | 'ezio'
+export type CharacterId = 'freddie' | 'snake' | 'ezio' | 'neon'
+
+/**
+ * "Ciudad Neón", a theme for a few days (Vale's idea, for the buzz of the big open-world crime game launched in
+ * November 2026): sunset, palm trees, wanted stars and loot, all drawn and written here, without the game's name,
+ * characters, logo or art. It turns on once for him on its first day and goes away by itself after NEON_UNTIL,
+ * giving him back the character he had before. Change the date to extend it.
+ */
+const NEON_UNTIL = 20261130
+const STORAGE_KEY = 'acv-cheer-character'
+function neonOn() { const now = new Date(); return now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate() <= NEON_UNTIL }
+function syncNeon() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (neonOn() && !localStorage.getItem('acv-neon-seen')) {
+      localStorage.setItem('acv-neon-seen', '1')
+      if (saved && saved !== 'neon') localStorage.setItem('acv-cheer-before-neon', saved)
+      localStorage.setItem(STORAGE_KEY, 'neon')
+    } else if (!neonOn() && saved === 'neon') {
+      localStorage.setItem(STORAGE_KEY, localStorage.getItem('acv-cheer-before-neon') ?? 'freddie')
+    }
+  } catch { /* private mode */ }
+}
+// Before any card reads the saved character.
+if (typeof window !== 'undefined') syncNeon()
 
 /**
  * A character he likes cheers him up with phrases in its own style (written here, no song lyrics). The drawings are
@@ -48,10 +72,54 @@ const CHARACTERS: Record<CharacterId, Character<Mood>> = {
       month ? `Florines del mes: ${formatARS(month)}. La Hermandad está orgullosa. 💰` : 'De techo en techo, CV a CV.',
     ],
   },
+  neon: {
+    name: '🌴 Ciudad Neón', figure: <Figure id="neon" />, card: 'bg-[linear-gradient(170deg,#2a0f45_0%,#7a1f6a_58%,#ff7a59_100%)]',
+    accent: 'text-[#5ef2e8]', bar: 'bg-[linear-gradient(90deg,#5ef2e8,#ff7ac6,#ffb36b)]', chip: 'bg-[#5ef2e8] text-[#1a0b2e]', bubble: 'bg-[#fff1f8] text-[#2a0f45]',
+    lines: ({ pending, today, month }) => [
+      'Medio mundo esperó años por su juego. Este CV no hace esperar a nadie: sale hoy. 🌴',
+      pending ? `Nivel de búsqueda ${'★'.repeat(Math.min(pending, 5))}: hay ${pending} ${pending === 1 ? 'CV que te busca' : 'CVs que te buscan'}.` : 'Cero estrellas: nadie te busca. Andá a mirar el atardecer. 🌅',
+      'Subí la radio, bajá la capota y dale al próximo CV. 📻',
+      today ? `Golpes del día: ${today}. La banda te aplaude, socio. 💸` : 'El plan está armado. Falta el primer golpe del día. 🗺️',
+      month ? `Botín del mes: ${formatARS(month)}. Y todo en blanco, eh. 😎` : 'Cada CV suma al botín. ¡A la calle!',
+      'En esta ciudad todos tienen un plan. El tuyo: un CV impecable. 🌆',
+    ],
+  },
 }
 
-/** Original silhouettes: a frontman with the mic stand up, a soldier with a bandana in his box, a hooded assassin. */
+/** Only the characters on today: Ciudad Neón goes first while it lasts and disappears after its date. */
+function activeCharacters() {
+  const { neon, ...rest } = CHARACTERS
+  return (neonOn() ? { neon, ...rest } : rest) as Record<CharacterId, Character<Mood>>
+}
+// Built once, so the card doesn't get a new list on every render.
+const ACTIVE_CHARACTERS = activeCharacters()
+
+/** Original silhouettes: a frontman with the mic stand up, a soldier with a bandana in his box, a hooded assassin, a guy in a flowered shirt at sunset. */
 function Figure({ id }: { id: CharacterId }) {
+  if (id === 'neon') return (
+    <svg viewBox="0 0 120 140" className="h-full w-full" aria-hidden>
+      {/* Sunset and a palm tree */}
+      <circle cx="64" cy="70" r="40" fill="#ffb36b" opacity="0.35" />
+      <path d="M12 140 q8 -42 -2 -78" stroke="#12061f" strokeWidth="4" fill="none" />
+      <path d="M10 62 q-14 -4 -22 6 M10 62 q-6 -14 -20 -14 M10 62 q8 -14 22 -12 M10 62 q14 0 20 12" stroke="#12061f" strokeWidth="4" fill="none" strokeLinecap="round" />
+      {/* Wanted stars */}
+      <text x="64" y="20" textAnchor="middle" fontSize="15" fill="#ffd166" fontFamily="system-ui" letterSpacing="2">★★★</text>
+      {/* Head: slicked hair, neon sunglasses, a grin */}
+      <circle cx="64" cy="48" r="11" fill="#d9a77f" />
+      <path d="M53 46 q0 -14 12 -13 q11 1 10 11 q-4 -6 -11 -6 q-7 0 -11 8 z" fill="#1d1418" />
+      <path d="M55 46 h8 v3 q-4 4 -8 0 z M66 46 h8 v3 q-4 4 -8 0 z" fill="#5ef2e8" />
+      <path d="M63 47 h3" stroke="#12061f" strokeWidth="1.4" />
+      <path d="M59 54 q5 3 10 0" stroke="#4a2a1c" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      {/* Arm up with the phone, flowered shirt, white trousers */}
+      <path d="M82 70 l10 -16" stroke="#ff7ac6" strokeWidth="8" strokeLinecap="round" />
+      <rect x="89" y="36" width="9" height="15" rx="2" fill="#12061f" stroke="#5ef2e8" strokeWidth="1.5" />
+      <path d="M44 62 h40 l4 42 h-48 z" fill="#ff7ac6" />
+      <path d="M58 62 l6 13 l6 -13" fill="#d9a77f" />
+      <circle cx="51" cy="74" r="2.5" fill="#ffd166" /><circle cx="78" cy="80" r="2.5" fill="#ffd166" /><circle cx="54" cy="94" r="2.5" fill="#5ef2e8" /><circle cx="76" cy="96" r="2.5" fill="#ffd166" />
+      <path d="M44 72 l-8 22" stroke="#ff7ac6" strokeWidth="8" strokeLinecap="round" />
+      <path d="M44 104 h40 l-4 32 h-11 l-5 -24 l-5 24 h-11 z" fill="#f4f1ea" />
+    </svg>
+  )
   if (id === 'freddie') return (
     <svg viewBox="0 0 120 140" className="h-full w-full" aria-hidden>
       <path d="M10 0 L50 140 L-20 140 Z" fill="#f6c945" opacity="0.14" />
@@ -107,7 +175,7 @@ function Figure({ id }: { id: CharacterId }) {
 /** His favorite characters cheer him up: a phrase that changes, what he made this month and how close the next payment is. */
 export function TeamCheer(mood: Mood) {
   return (
-    <CheerCard characters={CHARACTERS} storageKey="acv-cheer-character" mood={mood} 
+    <CheerCard characters={ACTIVE_CHARACTERS} storageKey={STORAGE_KEY} mood={mood}
       meter={{ label: 'Este mes juntaste', value: formatARS(mood.month), side: <>Cobro: <b className="text-white">{mood.count}/{mood.size}</b></>, progress: mood.count / Math.max(mood.size, 1), progressLabel: 'Próximo cobro' }} />
   )
 }
@@ -116,13 +184,13 @@ const CELEBRATION: Record<CharacterId, { title: string; text: (count: number) =>
   freddie: { title: '¡Eeeeee-oh!', text: (count) => `¡${count} CVs, darling! El estadio entero está de pie aplaudiéndote. ¡Sos una leyenda! 👑🎤` },
   snake: { title: 'MISIÓN CUMPLIDA ★', text: (count) => `${count} objetivos completados sin que nadie te detecte. Rango: leyenda. ¿Te hice esperar, eh? Extracción con el cobro asegurada. 📦` },
   ezio: { title: 'Sincronización 100%', text: (count) => `${count} CVs completados. La Hermandad celebra tu trabajo: ¡salto de fe hacia tu cobro! 🦅` },
+  neon: { title: '¡GOLPE MAESTRO!', text: (count) => `${count} CVs y ni una sirena. El botín del cobro ya es tuyo, socio. 🌴💸` },
 }
 const CONFETTI = ['#f6c945', '#ff4f7b', '#7dffa8', '#6fb6ff', '#ffffff', '#ff8a3d']
 
 /** Full screen party when he completes the CVs of a payment: his character jumps, confetti falls and it congratulates him. */
 export function TeamCelebration({ count, onClose }: { count: number; onClose: () => void }) {
-  const [id, setId] = useState<CharacterId>('freddie')
-  useEffect(() => { try { const saved = localStorage.getItem('acv-cheer-character'); if (saved && saved in CHARACTERS) setId(saved as CharacterId) } catch { /* private mode */ } }, [])
+  const id = useCheerCharacter()
   const look = CHARACTERS[id]
   const words = CELEBRATION[id]
   return (
@@ -146,7 +214,7 @@ export function TeamCelebration({ count, onClose }: { count: number; onClose: ()
 export function useCheerCharacter() {
   const [id, setId] = useState<CharacterId>('freddie')
   useEffect(() => {
-    function read() { try { const saved = localStorage.getItem('acv-cheer-character'); if (saved && saved in CHARACTERS) setId(saved as CharacterId) } catch { /* private mode */ } }
+    function read() { try { const saved = localStorage.getItem(STORAGE_KEY); if (saved && saved in ACTIVE_CHARACTERS) setId(saved as CharacterId) } catch { /* private mode */ } }
     read()
     window.addEventListener('acv-character', read)
     return () => window.removeEventListener('acv-character', read)
@@ -159,6 +227,7 @@ const URGENT_MARK: Record<CharacterId, { icon: string; label: string }> = {
   snake: { icon: '❗', label: '¡Alerta!' },
   ezio: { icon: '🗡️', label: 'Objetivo prioritario' },
   freddie: { icon: '🎤', label: 'Abre el show' },
+  neon: { icon: '🚨', label: 'Te buscan' },
 }
 export function UrgentMark({ compact = false, short = false }: { compact?: boolean; short?: boolean }) {
   const id = useCheerCharacter()
@@ -192,9 +261,16 @@ const DONE_LINES: Record<CharacterId, string[]> = {
     'La Hermandad está orgullosa. Los Templarios te miran: no les des el gusto de un atraso.',
     'Otro objetivo menos. Si el próximo no sale a tiempo, te toca subir a todas las atalayas de Florencia. A pie. 🦅',
   ],
+  neon: [
+    'Trabajo limpio. Si el próximo se atrasa, te toca manejar el auto de escape… en bici. 🚲',
+    'Impecable, socio. Un CV tarde y las estrellas aparecen arriba de TU cabeza. ⭐',
+    'Golpe perfecto. Atrasate con el próximo y lavás todos los autos de la banda. 🧽',
+    'Buenísimo. Si el siguiente se demora, tu próximo auto de escape es un carrito de supermercado. 🛒',
+    'Otro botín a la bolsa. Un atraso y te dejo de copiloto con la misma canción en loop todo el viaje. 📻',
+  ],
 }
 
-const BURST: Record<CharacterId, string> = { snake: '★', ezio: '🍂', freddie: '✨' }
+const BURST: Record<CharacterId, string> = { snake: '★', ezio: '🍂', freddie: '✨', neon: '💸' }
 
 /** The message when he finishes a CV: his character's colors, a phrase of its own and how it went (his time, the next one). */
 export function FinishCheer({ text }: { text: string }) {
