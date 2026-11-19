@@ -27,6 +27,11 @@ export const PANEL_THEMES: Record<CharacterId, {
     strip: 'bg-white/10 text-white ring-1 ring-[#f6c945]/40 backdrop-blur-sm',
     groups: ['🎤 Abren el show', 'Lista de temas'], empty: 'Todavía no hay temas en la lista. Cuando Vale te pase un CV, te llega un aviso.',
   },
+  neon: {
+    page: 'bg-[linear-gradient(180deg,#140726_0%,#2a0f45_55%,#4a1550_100%)]', hello: 'text-[#ff7ac6]', text: 'text-white/80', label: 'text-[#5ef2e8]/90',
+    strip: 'bg-white/10 text-white ring-1 ring-[#ff7ac6]/50 backdrop-blur-sm',
+    groups: ['🚨 Te buscan · primero estos', 'Próximos golpes'], empty: 'Ciudad tranquila: no hay CVs. Cuando Vale te pase uno, te llega un aviso.',
+  },
 }
 
 /** The background of each theme, behind everything: scanlines; rooftops and an eagle crossing now and then; stage lights. */
@@ -53,7 +58,27 @@ export function ThemeBackdrop({ id }: { id: CharacterId }) {
           <div className="absolute -top-10 right-[10%] h-[70vh] w-40 origin-top animate-[spot-sway_11s_ease-in-out_infinite_reverse] bg-[#ff4f7b]/10 [clip-path:polygon(42%_0,58%_0,100%_100%,0_100%)] motion-reduce:animate-none" />
         </>
       )}
+      {id === 'neon' && (
+        <>
+          {/* Sunset with stripes, palm trees and a neon grid floor */}
+          <div className="absolute bottom-24 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-[linear-gradient(180deg,#ffd166_0%,#ff7a59_55%,#ff4f9a_100%)] opacity-25 [mask-image:repeating-linear-gradient(180deg,#000_0_14px,transparent_14px_20px)]" />
+          <svg viewBox="0 0 400 120" preserveAspectRatio="xMidYMax meet" className="absolute inset-x-0 bottom-0 h-56 w-full opacity-60">
+            <path d="M40 120 q10 -50 -4 -92 M36 28 q-20 -6 -32 8 M36 28 q-8 -18 -28 -18 M36 28 q10 -18 30 -14 M36 28 q20 0 28 16" stroke="#12061f" strokeWidth="5" fill="none" strokeLinecap="round" />
+            <path d="M360 120 q-8 -40 6 -74 M366 46 q-18 -6 -28 6 M366 46 q-6 -16 -24 -16 M366 46 q10 -16 26 -12 M366 46 q18 0 24 14" stroke="#12061f" strokeWidth="5" fill="none" strokeLinecap="round" />
+          </svg>
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(rgba(94,242,232,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(94,242,232,0.18)_1px,transparent_1px)] bg-[size:40px_20px] [mask-image:linear-gradient(to_top,#000,transparent)]" />
+        </>
+      )}
     </div>
+  )
+}
+
+/** Ciudad Neón: five wanted stars, lit one per CV in the list (up to five). */
+function WantedStars({ count }: { count: number }) {
+  return (
+    <span className="shrink-0 font-display text-lg leading-none tracking-wider" aria-hidden>
+      {Array.from({ length: 5 }, (_, index) => <span key={index} className={index < count ? 'text-[#ffd166] drop-shadow-[0_0_6px_rgba(255,209,102,0.8)]' : 'text-white/20'}>★</span>)}
+    </span>
   )
 }
 
@@ -86,10 +111,11 @@ export function ThemeStrip({ id, urgent, pending }: { id: CharacterId; urgent: T
   let text: string
   if (id === 'snake') text = pending.length ? `Radar: ${urgent.length ? `${urgent.length} ${urgent.length === 1 ? 'urgente' : 'urgentes'} · ` : ''}${others} en la zona.${first ? ` Objetivo: ${first.client_name} #${first.order_number}.` : ''}` : 'Radar limpio. Sin CVs en la zona.'
   else if (id === 'ezio') text = urgent.length ? `Vista de águila: ${urgent.length === 1 ? 'el urgente brilla' : `los ${urgent.length} urgentes brillan`}, el resto espera. Empezá por ${first!.client_name}.` : pending.length ? `Sin objetivos urgentes. Seguí en orden: ${first!.client_name} primero.` : 'La Hermandad descansa: no hay CVs pendientes.'
+  else if (id === 'neon') text = pending.length ? `Nivel de búsqueda: ${urgent.length ? `${urgent.length} con sirenas · ` : ''}${pending.length} en la ciudad. Arrancá por ${first!.client_name}.` : 'Cero estrellas: la ciudad está tranquila. 🌅'
   else text = pending.length ? `Lista de temas de hoy: ${pending.length}. ${urgent.length ? 'Abre el show' : 'Arranca'} ${first!.client_name}${urgent.length ? ' 🎤' : ''}.` : 'Telón abajo: no hay temas pendientes. 👑'
   return (
     <div className={`mt-3 flex items-center gap-3 rounded-2xl px-3 py-2 text-[13px] font-semibold leading-snug ${theme.strip}`}>
-      {id === 'snake' ? <Radar urgent={urgent.length} others={others} /> : <span aria-hidden className="text-2xl">{id === 'ezio' ? '👁️' : '🎤'}</span>}
+      {id === 'snake' ? <Radar urgent={urgent.length} others={others} /> : id === 'neon' ? <WantedStars count={Math.min(pending.length, 5)} /> : <span aria-hidden className="text-2xl">{id === 'ezio' ? '👁️' : '🎤'}</span>}
       <p className="min-w-0 flex-1">{text}</p>
     </div>
   )
