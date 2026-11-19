@@ -294,3 +294,29 @@ export function FinishCheer({ text }: { text: string }) {
     </div>
   )
 }
+
+/** While Ciudad Neón lasts: the message on the "new version" banner of his panel. */
+export function neonUpdateMessage() {
+  return neonOn() ? '🌴🎮 Hay una versión nueva del panel, con guiño a GTA 6. ¡Actualizá y mirá!' : undefined
+}
+
+/** Once, the first time he opens the panel with Ciudad Neón on: what's new and how to go back to his character. */
+export function NeonWelcome() {
+  const [open, setOpen] = useState(false)
+  useEffect(() => { try { if (neonOn() && !localStorage.getItem('acv-neon-welcomed')) setOpen(true) } catch { /* private mode */ } }, [])
+  if (!open) return null
+  const look = CHARACTERS.neon
+  function close() { setOpen(false); try { localStorage.setItem('acv-neon-welcomed', '1') } catch { /* private mode */ } }
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#140726]/70 p-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Versión nueva del panel">
+      <div className={`relative w-full max-w-sm animate-[goal-in_0.5s_ease-out] overflow-hidden rounded-3xl p-5 text-center text-white shadow-2xl ${look.card}`}>
+        <p className={`font-display text-xs font-extrabold uppercase tracking-[0.25em] ${look.accent}`}>Versión nueva</p>
+        <p className="mt-1 font-display text-2xl font-extrabold">🌴 Ciudad Neón</p>
+        <div className="mx-auto mt-2 h-40 w-32 animate-[cheer-bounce_1.6s_ease-in-out_infinite] motion-reduce:animate-none">{look.figure}</div>
+        <p className={`mt-3 rounded-2xl px-4 py-3 text-sm font-bold leading-snug ${look.bubble}`}>Tu panel se vistió con guiño a GTA 6 hasta el 30/11: estrellas de búsqueda, golpes y botín. 😎</p>
+        <p className="mt-2 text-xs leading-snug text-white/85">Si extrañás a tu personaje, lo volvés a elegir en la tarjeta de ánimo.</p>
+        <button type="button" onClick={close} className={`mt-4 rounded-full px-8 py-3 font-display text-base font-extrabold shadow-lg ${look.chip}`}>¡A la calle! 🚗</button>
+      </div>
+    </div>
+  )
+}

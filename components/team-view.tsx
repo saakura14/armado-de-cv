@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { CalendarClock, CheckCircle2, ChevronRight, ListTodo, MessageCircle, PlayCircle, Trophy, Wallet, X } from 'lucide-react'
 import { TaskRow, TaskTexts, TaskWorkspace } from '@/components/team-task-card'
 import { progressShare } from '@/components/admin/task-progress'
-import { FinishCheer, TeamCelebration, TeamCheer, useCheerCharacter } from '@/components/team-cheer'
+import { FinishCheer, NeonWelcome, TeamCelebration, TeamCheer, useCheerCharacter } from '@/components/team-cheer'
 import { CodecCall, PANEL_THEMES, ThemeBackdrop, ThemeStrip } from '@/components/team-theme'
 import { TeamChat, TeamChatBubble, TeamChatWindow, useTeamUnread, type ChatTask } from '@/components/team-chat'
 import { Button, cardClass, inputClass, useFlash } from '@/components/admin/ui'
@@ -442,6 +442,8 @@ export function TeamView({ member, tasks, payments, preview, headerRight, setup,
       {codec && <CodecCall task={codec} />}
       {finishNote && !celebrate &&<FinishCheer key={finishNote.at} text={finishNote.text} />}
       {celebrate && <TeamCelebration count={batch.size} onClose={() => setCelebrate(false)} />}
+      {/* Ciudad Neón (a few days): what is new, once. */}
+      {!celebrate && <NeonWelcome />}
       {/* Chat with Vale: a bubble in the corner (hidden in the work mode, which has its own "¿Una duda?" button). */}
       {!preview && !working && <TeamChatBubble open={chatOpen} unread={unread} onClick={() => (chatOpen ? closeChat() : setChatOpen(true))} label="Chat con Vale" className="bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4" />}
       {chatOpen && !preview && (
