@@ -7,15 +7,16 @@ import type { Order, OrderItem } from '@/lib/orders'
 import { formMaterial } from '@/lib/client-form'
 import { SOURCE_ACCEPT, isAudio, sourceLabel, uploadSource, withTranscript } from '@/lib/source-files'
 import { errorMessage, supabase } from '@/lib/supabase'
-import { ATS_ONLY_PACKS, PACKS_WITH_LETTER, TASK_STATUS, TEAM_PACKS, type TaskStatus, type TeamMember } from '@/lib/team'
+import { ATS_ONLY_PACKS, PACKS_WITH_LETTER, TASK_STATUS, TEAM_PACKS, type TaskStatus, type TeamMember, type Translation } from '@/lib/team'
 import { BuildButton, BuildDialog, type BuildState } from './build-cv'
+import { cleanTranslations, itemLanguages, missingTranslation, TranslationFields, withLanguages } from './translations'
 import { TaskStart } from './task-start'
 import { Button, Field, inputClass, useBackdropClose, useFlash } from './ui'
 
 export type OrderTask = { id: string; order_item_id: string; status: TaskStatus; started_at: string | null; due_on?: string | null; team_members: { name: string } | { name: string }[] | null }
 /** "Textos con Claude": where each pack's texts are (the scheduled task on Vale's computer writes them). */
 export type DraftState = { order_item_id: string; status: 'pedido' | 'generando' | 'corregir' | 'listo' | 'error'; error: string | null }
-type Draft = { source_text: string; target_job: string | null; files: string[]; has_letter: boolean; status: DraftState['status']; cv_modern: string | null; cv_ats: string | null; letter: string | null; error: string | null; feedback?: string | null }
+type Draft = { source_text: string; target_job: string | null; files: string[]; has_letter: boolean; status: DraftState['status']; cv_modern: string | null; cv_ats: string | null; letter: string | null; translations: Translation[]; error: string | null; feedback?: string | null }
 
 const DRAFT_STATE: Record<DraftState['status'], { label: string; tone: string }> = {
   pedido: { label: '✨ Claude en cola', tone: 'bg-papel text-piedra' },
@@ -45,6 +46,8 @@ function AssignDialog({ order, item, clientName, onClose, onSaved }: { order: Or
   // What she pays for this CV: the member's rate unless she changes it (e.g. less for a single ATS CV).
   const [rate, setRate] = useState('')
   const [letter, setLetter] = useState('')
+  // The CV in the languages the client asked for: he builds those pages too, with these texts.
+  const [translations, setTranslations] = useState<Translation[]>(() => withLanguages(itemLanguages(item), []))
   const [notes, setNotes] = useState('')
   // Express orders start as urgent: he sees a small lightning bolt on the CV.
   // Urgent means the customer bought the 24 h Express: it comes ticked for those.
@@ -56,12 +59,13 @@ function AssignDialog({ order, item, clientName, onClose, onSaved }: { order: Or
 
   // Texts Claude already wrote for this pack come pre-filled (she reviews them before assigning).
   useEffect(() => {
-    supabase.from('cv_drafts').select('status, cv_modern, cv_ats, letter, has_letter').eq('order_item_id', item.id).maybeSingle().then(({ data }) => {
-      const draft = data as Pick<Draft, 'status' | 'cv_modern' | 'cv_ats' | 'letter' | 'has_letter'> | null
+    supabase.from('cv_drafts').select('status, cv_modern, cv_ats, letter, has_letter, translations').eq('order_item_id', item.id).maybeSingle().then(({ data }) => {
+      const draft = data as Pick<Draft, 'status' | 'cv_modern' | 'cv_ats' | 'letter' | 'has_letter' | 'translations'> | null
       if (draft?.status !== 'listo') return
       setModern((current) => current || draft.cv_modern || '')
       setAts((current) => current || draft.cv_ats || '')
       setLetter((current) => current || draft.letter || '')
+      setTranslations((current) => (current.some((row) => row.cv_ats.trim() || row.cv_modern.trim()) ? current : withLanguages(itemLanguages(item), draft.translations)))
       if (draft.letter) setHasLetter(true)
       setFromClaude(true)
     })
@@ -88,6 +92,7 @@ function AssignDialog({ order, item, clientName, onClose, onSaved }: { order: Or
       member_id: member.id, order_id: order.id, order_item_id: item.id, order_number: order.number,
       client_name: clientName, pack_name: item.product_name,
       cv_modern: atsOnly ? '' : modern.trim(), cv_ats: ats.trim(), has_letter: !atsOnly && hasLetter, letter: !atsOnly && hasLetter ? letter.trim() || null : null,
+      translations: cleanTranslations(translations, atsOnly),
       notes: notes.trim() || null, due_on: due || null, urgent, rate: rate === '' ? member.rate : Number(rate),
     }).select('id').single()
     setBusy(false)
@@ -106,7 +111,8 @@ function AssignDialog({ order, item, clientName, onClose, onSaved }: { order: Or
     onClose()
   }
 
-  const ready = memberId && (atsOnly || modern.trim()) && ats.trim()
+  // A language version without its text can't go: he would build pages with nothing to paste.
+  const ready = memberId && (atsOnly || modern.trim()) && ats.trim() && !missingTranslation(translations, atsOnly)
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="assign-title" {...backdrop}>
       <div className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-2xl sm:rounded-[28px]">
@@ -130,6 +136,7 @@ function AssignDialog({ order, item, clientName, onClose, onSaved }: { order: Or
           <Field label="Texto del CV ATS"><textarea value={ats} onChange={(event) => setAts(event.target.value)} rows={atsOnly ? 10 : 7} placeholder={atsOnly ? 'Pegá el texto tal cual se lo mandabas por WhatsApp' : undefined} className={inputClass} /></Field>
           {!atsOnly && <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={hasLetter} onChange={(event) => setHasLetter(event.target.checked)} className="accent-rosa" />Lleva carta de presentación</label>}
           {!atsOnly && hasLetter && <Field label="Texto de la carta (opcional)"><textarea value={letter} onChange={(event) => setLetter(event.target.value)} rows={5} className={inputClass} /></Field>}
+          <TranslationFields list={translations} atsOnly={atsOnly} rows={7} onChange={setTranslations} empty="Falta el texto traducido: pedíselo a Claude en Textos con Claude o pegalo acá." />
           <Field label="Le pagás por este CV"><input inputMode="numeric" value={rate} onChange={(event) => setRate(event.target.value.replace(/\D/g, ''))} className={inputClass} /></Field>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Para cuándo"><input type="date" value={due} onChange={(event) => setDue(event.target.value)} className={inputClass} /></Field>
@@ -168,6 +175,9 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
   const [modern, setModern] = useState('')
   const [ats, setAts] = useState('')
   const [letter, setLetter] = useState('')
+  // The same CV in the languages the client asked for: Claude writes them with the Spanish texts.
+  const languages = itemLanguages(item)
+  const [translations, setTranslations] = useState<Translation[]>(() => withLanguages(languages, []))
   const [feedback, setFeedback] = useState('')
   // Screenshots that go with the correction (pasted or uploaded): stored paths plus a local preview of each.
   const [shots, setShots] = useState<{ path: string; preview: string }[]>([])
@@ -176,11 +186,12 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
 
   // Loads again when Claude changes the status (the board is live), so the texts show up without closing the window.
   useEffect(() => {
-    supabase.from('cv_drafts').select('source_text, target_job, files, has_letter, status, cv_modern, cv_ats, letter, error, feedback').eq('order_item_id', item.id).maybeSingle().then(async ({ data }) => {
+    supabase.from('cv_drafts').select('source_text, target_job, files, has_letter, status, cv_modern, cv_ats, letter, translations, error, feedback').eq('order_item_id', item.id).maybeSingle().then(async ({ data }) => {
       const row = data as Draft | null
       if (row) {
         setDraft(row); setSource(row.source_text); setTarget(row.target_job ?? ''); setFiles(row.files ?? []); setHasLetter(row.has_letter)
         setModern(row.cv_modern ?? ''); setAts(row.cv_ats ?? ''); setLetter(row.letter ?? '')
+        setTranslations(withLanguages(itemLanguages(item), row.translations))
         if (row.status === 'listo') setFeedback('')
       } else {
         const form = await formMaterial(order.id, productIds.split(','))
@@ -262,7 +273,18 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
     onClose()
   }
 
-  const texts = { cv_modern: atsOnly ? '' : modern.trim(), cv_ats: ats.trim(), letter: !atsOnly && hasLetter ? letter.trim() || null : null }
+  const texts = { cv_modern: atsOnly ? '' : modern.trim(), cv_ats: ats.trim(), letter: !atsOnly && hasLetter ? letter.trim() || null : null, translations: cleanTranslations(translations, atsOnly) }
+
+  // The texts came without a language version (asked before it existed, or it failed): Claude writes only that.
+  async function askTranslations() {
+    setBusy(true)
+    const missing = translations.filter((row) => !row.cv_ats.trim() || (!atsOnly && !row.cv_modern.trim())).map((row) => row.language)
+    const { error } = await supabase.from('cv_drafts').update({ ...texts, feedback: `Falta la versión en ${missing.join(', ')}: traducí el CV ${atsOnly ? 'ATS' : 'moderno y el CV ATS'} tal como están. No cambies los textos en español.`, feedback_files: [], status: 'corregir', error: null, requested_at: new Date().toISOString() }).eq('order_item_id', item.id)
+    setBusy(false)
+    if (error) { flash.show('error', errorMessage(error)); return }
+    onSaved()
+    onClose()
+  }
 
   // Claude keeps what's right (and her own edits) and changes only what she points out.
   async function correct() {
@@ -335,7 +357,7 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
         <div className="flex items-start justify-between gap-4 bg-ciruela px-5 py-4 text-white sm:px-7">
           <div>
             <p id="draft-title" className="flex items-center gap-2 font-display text-lg font-bold"><Sparkles className="h-5 w-5" />{review ? 'Revisá los textos' : 'Textos con Claude'}</p>
-            <p className="text-sm text-white/85">Pedido #{order.number} · {item.product_name} de {firstName}. {atsOnly ? 'Lleva solo el CV ATS.' : `CV moderno + CV ATS${hasLetter ? ' + carta' : ''}.`}</p>
+            <p className="text-sm text-white/85">Pedido #{order.number} · {item.product_name} de {firstName}. {atsOnly ? 'Lleva solo el CV ATS' : `CV moderno + CV ATS${hasLetter ? ' + carta' : ''}`}{languages.length ? `, también en ${languages.join(', ')}` : ''}.</p>
           </div>
           <button type="button" onClick={onClose} className="rounded-full bg-white/15 p-2 hover:bg-white/25" aria-label="Cerrar"><X className="h-5 w-5" /></button>
         </div>
@@ -353,6 +375,13 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-papel px-4 py-3 text-sm text-ink">
                   <span><b>Este pack lleva carta</b> y se pidió sin ella.</span>
                   <Button variant="secondary" busy={busy} onClick={askLetter}><Sparkles className="h-4 w-4" />Pedir la carta a Claude</Button>
+                </div>
+              )}
+              <TranslationFields list={translations} atsOnly={atsOnly} rows={12} onChange={setTranslations} />
+              {missingTranslation(translations, atsOnly) && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-papel px-4 py-3 text-sm text-ink">
+                  <span><b>Falta la versión en {translations.filter((row) => !row.cv_ats.trim() || (!atsOnly && !row.cv_modern.trim())).map((row) => row.language).join(', ')}.</b></span>
+                  <Button variant="secondary" busy={busy} onClick={askTranslations}><Sparkles className="h-4 w-4" />Pedir la traducción a Claude</Button>
                 </div>
               )}
               <div className="rounded-2xl border border-rosa/30 bg-petalo-wash/40 p-3">
@@ -406,7 +435,7 @@ function DraftDialog({ order, item, firstName, status, onClose, onSaved, onAppro
   )
 }
 
-type SentTask = { pack_name: string; cv_modern: string; cv_ats: string; has_letter: boolean; letter: string | null; notes: string | null; design_url: string | null; assigned_at: string }
+type SentTask = { pack_name: string; cv_modern: string; cv_ats: string; has_letter: boolean; letter: string | null; translations: Translation[]; notes: string | null; design_url: string | null; assigned_at: string }
 
 /** What the team member got for a pack (read only), to check the finished CV against it. */
 function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; order: Order; firstName: string; onClose: () => void }) {
@@ -418,7 +447,7 @@ function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; orde
   const [whole, setWhole] = useState<string[]>([])
 
   useEffect(() => {
-    supabase.from('team_tasks').select('pack_name, cv_modern, cv_ats, has_letter, letter, notes, design_url, assigned_at').eq('id', taskId).maybeSingle().then(({ data }) => setTask(data as SentTask | null))
+    supabase.from('team_tasks').select('pack_name, cv_modern, cv_ats, has_letter, letter, translations, notes, design_url, assigned_at').eq('id', taskId).maybeSingle().then(({ data }) => setTask(data as SentTask | null))
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
@@ -429,6 +458,10 @@ function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; orde
     { label: 'CV moderno', text: task.cv_modern },
     { label: 'CV ATS', text: task.cv_ats },
     { label: 'Carta de presentación', text: task.has_letter ? task.letter ?? '' : '' },
+    ...(task.translations ?? []).flatMap((row) => [
+      { label: `CV moderno en ${row.language}`, text: row.cv_modern ?? '' },
+      { label: `CV ATS en ${row.language}`, text: row.cv_ats ?? '' },
+    ]),
   ].filter((section) => section.text.trim()) : []
 
   function copy(label: string, text: string) {
