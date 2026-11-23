@@ -332,16 +332,26 @@ function CopyBlock({ storageKey, label, text, whole = false, focus = false, hidd
   )
 }
 
-/** The texts of a task, in order: CV moderno, CV ATS and the letter when there is one. */
-export function sectionsOf(task: Pick<TeamTask, 'cv_modern' | 'cv_ats' | 'has_letter' | 'letter'>) {
+/**
+ * The texts of a task, in order: CV moderno, CV ATS and the letter when there is one, and then the same CV in each
+ * language the client asked for (its own pages after the Spanish ones, never with a letter).
+ */
+export function sectionsOf(task: Pick<TeamTask, 'cv_modern' | 'cv_ats' | 'has_letter' | 'letter' | 'translations'>) {
   // The first job pack has only the ATS CV: no modern text, no tab for it.
-  const list: { id: string; label: string; text: string; whole?: boolean }[] = [
+  const list: { id: string; label: string; text: string; whole?: boolean; language?: string }[] = [
     ...(task.cv_modern.trim() ? [{ id: 'moderno', label: 'CV moderno', text: task.cv_modern }] : []),
     { id: 'ats', label: 'CV ATS', text: task.cv_ats },
   ]
   if (task.has_letter && task.letter) list.push({ id: 'carta', label: 'Carta', text: task.letter, whole: true })
+  for (const [index, version] of (task.translations ?? []).entries()) {
+    if (version.cv_modern?.trim()) list.push({ id: `moderno-${index}`, label: `CV moderno en ${version.language}`, text: version.cv_modern, language: version.language })
+    if (version.cv_ats?.trim()) list.push({ id: `ats-${index}`, label: `CV ATS en ${version.language}`, text: version.cv_ats, language: version.language })
+  }
   return list
 }
+
+/** The languages of a task with their texts, for the list ("+ Inglés"). */
+export const taskLanguages = (task: Pick<TeamTask, 'translations'>) => (task.translations ?? []).filter((version) => version.cv_ats?.trim() || version.cv_modern?.trim()).map((version) => version.language)
 
 /**
  * Work mode: one CV at a time, full screen, made to sit next to Canva in split screen (it works narrow).
@@ -425,11 +435,15 @@ export function TaskWorkspace({ task, actions, onClose, onAsk, onStart, onProgre
           {sections.map((section, index) => {
             const following = sections[index + 1]
             return (
-              <CopyBlock key={section.id} focus hidden={tab !== section.id} onCopied={task.status === 'asignado' ? onStart : undefined} storageKey={`${task.id}-${section.id}`} label={section.label} text={section.text} whole={section.whole}
+              <div key={section.id} className={tab === section.id ? 'space-y-3' : 'contents'}>
+              {/* A language version goes on its own pages after the Spanish ones, and the template's titles are in Spanish. */}
+              {section.language && tab === section.id && <p className="rounded-2xl bg-papel px-3.5 py-2.5 text-sm text-ink"><b>🌎 Versión en {section.language}:</b> va en páginas aparte, después de las de español. Copiá también los <b>títulos de las secciones</b>: en la plantilla están en español.</p>}
+              <CopyBlock focus hidden={tab !== section.id} onCopied={task.status === 'asignado' ? onStart : undefined} storageKey={`${task.id}-${section.id}`} label={section.label} text={section.text} whole={section.whole}
                 onProgress={reporters[section.id]}
                 nextStep={following
                   ? { label: `Seguir con ${following.label === 'Carta' ? 'la carta' : `el ${following.label}`}`, go: () => goTo(following.id) }
                   : actions ? { label: 'Listo: marcalo como terminado', go: () => actionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) } : undefined} />
+              </div>
             )
           })}
 
@@ -479,9 +493,7 @@ export function TaskTexts({ task }: { task: TeamTask }) {
   return (
     <div className="space-y-2">
       {task.notes && <p className="rounded-xl bg-papel px-3 py-2 text-sm text-ink"><b>Notas de Vale:</b> {task.notes}</p>}
-      {task.cv_modern.trim() && <CopyBlock storageKey={`${task.id}-moderno`} label="CV moderno" text={task.cv_modern} />}
-      <CopyBlock storageKey={`${task.id}-ats`} label="CV ATS" text={task.cv_ats} />
-      {task.has_letter && task.letter && <CopyBlock storageKey={`${task.id}-carta`} label="Carta de presentación" text={task.letter} whole />}
+      {sectionsOf(task).map((section) => <CopyBlock key={section.id} storageKey={`${task.id}-${section.id}`} label={section.id === 'carta' ? 'Carta de presentación' : section.label} text={section.text} whole={section.whole} />)}
       {task.has_letter && !task.letter && <p className="px-1 text-xs font-semibold text-rosa-deep">Lleva carta: el texto te lo pasa Vale.</p>}
     </div>
   )
@@ -521,7 +533,7 @@ export function TaskRow({ task, action, onOpen, children, reported }: { task: Te
               {due && <span className={`shrink-0 rounded-full px-2 py-px font-display text-[11px] font-bold ${due.urgent ? 'bg-rosa-deep text-white' : 'bg-papel text-ciruela'}`}>{due.text}</span>}
             </p>
             <p className="mt-1 truncate text-xs text-piedra">
-              {task.pack_name}{task.has_letter ? ' · con carta' : ''}
+              {task.pack_name}{task.has_letter ? ' · con carta' : ''}{taskLanguages(task).length > 0 && <b className="font-semibold text-ciruela"> · 🌎 + {taskLanguages(task).join(', ')}</b>}
               {task.status !== 'terminado' && progress > 0 && <b className="font-semibold text-rosa-deep"> · {Math.round(progress * 100)}% copiado</b>}
             </p>
             {/* Vale's note in sight on the card itself, before and after it is finished (the whole note is inside the CV). */}

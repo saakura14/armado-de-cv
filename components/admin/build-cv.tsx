@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { ExternalLink, Palette, X } from 'lucide-react'
 import type { Order, OrderItem } from '@/lib/orders'
 import { errorMessage, supabase } from '@/lib/supabase'
-import { ATS_ONLY_PACKS, PACKS_WITH_LETTER } from '@/lib/team'
+import { ATS_ONLY_PACKS, PACKS_WITH_LETTER, type Translation } from '@/lib/team'
+import { cleanTranslations, itemLanguages, TranslationFields, withLanguages } from './translations'
 import { Button, Field, inputClass, useBackdropClose, useFlash } from './ui'
 
 /** "Armarlo yo": the CV built in Canva by the scheduled Claude task on Vale's computer, with the client's own link. */
@@ -22,8 +23,7 @@ const PAGE_LABEL: Record<string, string> = { moderno: 'CV moderno', ats: 'CV ATS
 /** The Spanish pages the pack takes, and the languages that add their own CV pages after them. */
 export function buildPages(item: OrderItem, hasLetter: boolean) {
   const pages = ATS_ONLY_PACKS.includes(item.product_id) ? ['ats'] : hasLetter ? ['moderno', 'ats', 'carta'] : ['moderno', 'ats']
-  const languages = item.extras.filter((extra) => extra.group_id === 'idiomas' && extra.option_id !== 'espanol').map((extra) => extra.detail?.trim() || extra.label)
-  return { pages, languages }
+  return { pages, languages: itemLanguages(item) }
 }
 
 /** The texts come from what she sent the team (if it's assigned) or from Claude's texts; she can still change them. */
@@ -36,25 +36,28 @@ export function BuildDialog({ order, item, clientName, onClose, onSaved }: { ord
   const [letter, setLetter] = useState('')
   const [hasLetter, setHasLetter] = useState(!atsOnly && PACKS_WITH_LETTER.includes(item.product_id))
   const [notes, setNotes] = useState('')
+  // The same CV in the languages the client asked for: Claude puts these texts on the language pages as they are.
+  const [translations, setTranslations] = useState<Translation[]>(() => withLanguages(itemLanguages(item), []))
   const [source, setSource] = useState<'equipo' | 'claude' | 'nada' | null>(null)
   const [busy, setBusy] = useState(false)
   const flash = useFlash()
 
   useEffect(() => {
     Promise.all([
-      supabase.from('cv_builds').select('gender, cv_modern, cv_ats, letter, notes').eq('order_item_id', item.id).maybeSingle(),
-      supabase.from('team_tasks').select('cv_modern, cv_ats, letter, has_letter, notes').eq('order_item_id', item.id).maybeSingle(),
-      supabase.from('cv_drafts').select('status, cv_modern, cv_ats, letter, has_letter').eq('order_item_id', item.id).maybeSingle(),
+      supabase.from('cv_builds').select('gender, cv_modern, cv_ats, letter, notes, translations').eq('order_item_id', item.id).maybeSingle(),
+      supabase.from('team_tasks').select('cv_modern, cv_ats, letter, has_letter, notes, translations').eq('order_item_id', item.id).maybeSingle(),
+      supabase.from('cv_drafts').select('status, cv_modern, cv_ats, letter, has_letter, translations').eq('order_item_id', item.id).maybeSingle(),
     ]).then(([build, task, draft]) => {
-      const previous = build.data as { gender: 'mujer' | 'hombre'; cv_modern: string; cv_ats: string; letter: string | null; notes: string | null } | null
-      const sent = task.data as { cv_modern: string; cv_ats: string; letter: string | null; has_letter: boolean; notes: string | null } | null
-      const claude = draft.data as { status: string; cv_modern: string | null; cv_ats: string | null; letter: string | null; has_letter: boolean } | null
+      const previous = build.data as { gender: 'mujer' | 'hombre'; cv_modern: string; cv_ats: string; letter: string | null; notes: string | null; translations: Translation[] } | null
+      const sent = task.data as { cv_modern: string; cv_ats: string; letter: string | null; has_letter: boolean; notes: string | null; translations: Translation[] } | null
+      const claude = draft.data as { status: string; cv_modern: string | null; cv_ats: string | null; letter: string | null; has_letter: boolean; translations: Translation[] } | null
       const texts = previous ?? sent ?? (claude?.status === 'listo' ? claude : null)
       if (previous) setGender(previous.gender)
       if (texts) {
         setModern(texts.cv_modern ?? '')
         setAts(texts.cv_ats ?? '')
         setLetter(texts.letter ?? '')
+        setTranslations(withLanguages(itemLanguages(item), texts.translations))
         if (!atsOnly) setHasLetter(Boolean(texts.letter) || (sent?.has_letter ?? claude?.has_letter ?? hasLetter))
       }
       setNotes(previous?.notes ?? sent?.notes ?? '')
@@ -81,6 +84,7 @@ export function BuildDialog({ order, item, clientName, onClose, onSaved }: { ord
     const { error } = await supabase.from('cv_builds').upsert({
       order_item_id: item.id, order_id: order.id, client_name: clientName, gender, pages, languages,
       cv_modern: atsOnly ? '' : modern.trim(), cv_ats: ats.trim(), letter: hasLetter ? letter.trim() : null, notes: notes.trim() || null,
+      translations: cleanTranslations(translations, atsOnly),
       status: 'pedido', design_id: null, edit_url: null, error: null, requested_at: new Date().toISOString(), built_at: null,
     })
     setBusy(false)
@@ -120,6 +124,7 @@ export function BuildDialog({ order, item, clientName, onClose, onSaved }: { ord
           <Field label="CV ATS"><textarea value={ats} onChange={(event) => setAts(event.target.value)} rows={8} className={inputClass} /></Field>
           {!atsOnly && <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={hasLetter} onChange={(event) => setHasLetter(event.target.checked)} className="accent-rosa" />Lleva carta de presentación</label>}
           {!atsOnly && hasLetter && <Field label="Carta de presentación"><textarea value={letter} onChange={(event) => setLetter(event.target.value)} rows={6} className={inputClass} /></Field>}
+          <TranslationFields list={translations} atsOnly={atsOnly} rows={6} onChange={setTranslations} empty="Si lo dejás vacío, Claude lo traduce al armarlo y te avisa para que lo revises." />
           <Field label="Notas para Claude (opcional)"><input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Ej.: sin foto, que el título diga Administrativa contable" className={inputClass} /></Field>
           <p className="rounded-2xl bg-papel px-4 py-3 text-sm text-ink">Cuando esté, te llega un aviso y aparece <b>Abrir en Canva</b> en el pedido. Revisalo, poné la foto del cliente y descargalo como siempre.</p>
         </div>

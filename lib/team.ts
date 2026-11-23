@@ -4,6 +4,9 @@ import { isDayOff } from './holidays'
 /** Someone who builds the CVs in Canva from Vale's texts (signs in with Google at /equipo). */
 export type TeamMember = { id: string; email: string; name: string; rate: number; batch_size: number; active: boolean; user_id: string | null; created_at: string }
 
+/** One language version of a CV: the same CV moderno and CV ATS, translated (cv_modern is empty in the ATS-only pack). */
+export type Translation = { language: string; cv_modern: string; cv_ats: string }
+
 export type TaskStatus = 'asignado' | 'haciendo' | 'terminado'
 export type TeamTask = {
   id: string
@@ -17,6 +20,8 @@ export type TeamTask = {
   cv_ats: string
   has_letter: boolean
   letter: string | null
+  /** The same CV in the languages the client asked for (the "idiomas" extra), after the Spanish texts. */
+  translations?: Translation[]
   notes: string | null
   due_on: string | null
   /** Vale marked it as urgent: a small lightning bolt in his list. */
@@ -37,7 +42,7 @@ export type TeamTask = {
 /** "pago" closes the batch (the counter starts again); "adelanto" is money ahead, discounted from the current batch. */
 export type TeamPayment = { id: string; member_id: string; kind: 'pago' | 'adelanto'; amount: number; paid_on: string; note: string | null; created_at: string; packs: number | null; settled_in: string | null }
 
-export const TASK_SELECT = 'id, member_id, order_id, order_item_id, order_number, client_name, pack_name, cv_modern, cv_ats, has_letter, letter, notes, due_on, urgent, status, rate, assigned_at, started_at, finished_at, design_url, paid_in, progress, progress_at'
+export const TASK_SELECT = 'id, member_id, order_id, order_item_id, order_number, client_name, pack_name, cv_modern, cv_ats, has_letter, letter, translations, notes, due_on, urgent, status, rate, assigned_at, started_at, finished_at, design_url, paid_in, progress, progress_at'
 
 /** Only the CV packs are made by the team (LinkedIn, platforms, sessions and corrections stay with Vale). */
 export const TEAM_PACKS = ['cv-primer-empleo', 'cv-simple', 'cv-medium', 'cv-premium']

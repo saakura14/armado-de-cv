@@ -30,14 +30,14 @@ Deno.serve(async (request) => {
     const waiting = `status.in.(pedido,corregir),and(status.eq.generando,requested_at.lt.${stale})`
     const [cv, li, builds, templates] = await Promise.all([
       admin.from('cv_drafts')
-        .select('order_item_id, order_id, source_text, target_job, files, has_letter, ats_only, status, requested_at, feedback, feedback_files, cv_modern, cv_ats, letter, orders(number, customer_name), order_items(product_id, product_name)')
+        .select('order_item_id, order_id, source_text, target_job, files, has_letter, ats_only, status, requested_at, feedback, feedback_files, cv_modern, cv_ats, letter, translations, orders(number, customer_name), order_items(product_id, product_name, extras)')
         .or(waiting).order('requested_at'),
       admin.from('linkedin_drafts')
         .select('order_item_id, order_id, source_text, target_job, files, status, requested_at, feedback, feedback_files, sections, orders(number, customer_name), order_items(product_id, product_name)')
         .or(waiting).order('requested_at'),
       // "Armarlo yo": CVs to build in Canva (or stuck "armando" for more than 20 minutes), with the base templates.
       admin.from('cv_builds')
-        .select('order_item_id, client_name, gender, pages, languages, cv_modern, cv_ats, letter, notes, orders(number), order_items(product_name)')
+        .select('order_item_id, client_name, gender, pages, languages, cv_modern, cv_ats, letter, translations, notes, orders(number), order_items(product_name)')
         .or(`status.eq.pedido,and(status.eq.armando,requested_at.lt.${stale})`).order('requested_at'),
       admin.from('cv_templates').select('gender, design_id'),
     ])
@@ -46,15 +46,17 @@ Deno.serve(async (request) => {
     const drafts = []
     for (const draft of cv.data ?? []) {
       const order = draft.orders as unknown as { number: number; customer_name: string | null } | null
-      const item = draft.order_items as unknown as { product_id: string; product_name: string } | null
+      const item = draft.order_items as unknown as { product_id: string; product_name: string; extras?: { group_id: string; option_id: string; label: string; detail?: string | null }[] } | null
       drafts.push({
         order_item_id: draft.order_item_id, order_number: order?.number, client_name: order?.customer_name,
         pack: item?.product_name, ats_only: draft.ats_only, has_letter: draft.has_letter,
+        // The CV goes also in these languages (the "idiomas" extra): the same CV moderno and ATS, translated, in `translations`.
+        languages: (item?.extras ?? []).filter((extra) => extra.group_id === 'idiomas' && extra.option_id !== 'espanol').map((extra) => extra.detail?.trim() || extra.label),
         target_job: draft.target_job, source_text: draft.source_text, files: await signed(draft.files as string[]),
         // A correction keeps the texts (with her own edits) and changes only what she asked; the screenshots show what is wrong.
         mode: draft.feedback ? 'correccion' : 'nuevo', feedback: draft.feedback,
         feedback_files: draft.feedback ? await signed(draft.feedback_files as string[]) : [],
-        current: draft.feedback ? { cv_modern: draft.cv_modern, cv_ats: draft.cv_ats, letter: draft.letter } : null,
+        current: draft.feedback ? { cv_modern: draft.cv_modern, cv_ats: draft.cv_ats, letter: draft.letter, translations: draft.translations } : null,
       })
     }
     const linkedin = []
