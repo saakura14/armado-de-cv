@@ -9,7 +9,7 @@ import { track } from '@/lib/pixel'
 
 // Promo of the 20.400 followers (1 to 8/11): the ATS guide comes free with the Pack Simple or the Medium.
 const PROMO_UNTIL = Date.parse('2026-11-09T03:00:00Z')
-const PACKS = ['cv-primer-empleo', 'cv-simple', 'cv-medium']
+const PACKS = ['cv-primer-empleo', 'cv-simple', 'cv-medium', 'cv-premium']
 
 /** The packs to buy on the web and, for whoever prefers to talk, WhatsApp with a message that already says "I want to buy". */
 export function PromoPacks() {

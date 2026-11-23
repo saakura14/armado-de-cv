@@ -7,7 +7,7 @@ import { WhatsAppIcon } from '@/components/whatsapp-icon'
 import { trackWhatsapp } from '@/components/visit-tracker'
 import { track } from '@/lib/pixel'
 
-const PACKS = ['cv-primer-empleo', 'cv-simple', 'cv-medium']
+const PACKS = ['cv-primer-empleo', 'cv-simple', 'cv-medium', 'cv-premium']
 const GUIDES = ['guia-ats', 'guia-portales']
 
 /**
