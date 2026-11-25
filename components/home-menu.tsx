@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
 const ITEMS = [
+  { id: 'busquedas', label: '💼 Búsquedas laborales', href: '/empleos' },
   { id: 'elegidos', label: 'Más elegidos' },
   { id: 'precios', label: 'Packs y precios' },
   { id: 'antes-despues', label: 'Antes y después' },

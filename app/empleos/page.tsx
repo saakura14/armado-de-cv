@@ -1,14 +1,31 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
-import Link from 'next/link'
 import { ArrowRight, FileCheck2, MousePointerClick, Search } from 'lucide-react'
 import { COMPANIES, getOpenings } from '@/lib/empleos'
 import { pageMetadata } from '@/lib/seo'
 import { EmpleosOffer } from './[empresa]/empleos-offer'
+import { JobsBySector, type JobCard, type Sector } from './jobs-by-sector'
 
 export const revalidate = 3600
 
-export const metadata: Metadata = pageMetadata({ path: '/empleos', title: 'Búsquedas abiertas en grandes empresas', description: 'Las búsquedas laborales abiertas hoy en Aeropuertos Argentina, Starbucks, Burger King, La Anónima, call centers y trabajos de fin de año, con el link oficial para postularte a cada una.' })
+export const metadata: Metadata = pageMetadata({ path: '/empleos', title: 'Búsquedas laborales por sector', description: 'Búsquedas laborales abiertas hoy por sector: comercio y shoppings, gastronomía, temporada de fiestas, supermercados, aeropuertos, seguridad y call centers, con el link oficial para postularte a cada una.' })
+
+// The sectors of the job pages, in this order (the one spreading on Instagram first). A page with no sector here goes to "Otras".
+const SECTORS: Sector[] = [
+  { id: 'comercio', label: '🛍️ Comercio y ventas' },
+  { id: 'gastronomia', label: '🍔 Gastronomía y comida rápida' },
+  { id: 'temporada', label: '🎄 Temporada de fiestas' },
+  { id: 'supermercados', label: '🛒 Supermercados' },
+  { id: 'aeropuertos', label: '✈️ Aeropuertos y transporte' },
+  { id: 'seguridad', label: '🛡️ Seguridad' },
+  { id: 'callcenters', label: '📞 Call centers' },
+  { id: 'otras', label: 'Otras empresas' },
+]
+const SECTOR_OF: Record<string, string> = {
+  shoppings: 'comercio', burgerking: 'gastronomia', starbucks: 'gastronomia', findeano: 'temporada',
+  laanonima: 'supermercados', aeropuertos: 'aeropuertos', seguridad: 'seguridad', callcenters: 'callcenters',
+}
+// Inside a sector, these go first (the posts of the week).
+const FIRST = ['shoppings', 'burgerking', 'seguridad', 'aeropuertos']
 
 const STEPS = [
   { icon: Search, title: 'Elegí la empresa', text: 'Mirá las búsquedas abiertas hoy, por zona y por puesto.' },
@@ -25,36 +42,28 @@ export default async function EmpleosHub() {
   }))
   // Only real openings add up (the fin de año page counts portals, not openings).
   const total = companies.reduce((sum, { company, count }) => sum + (company.countText.includes('búsqueda') ? count ?? 0 : 0), 0)
+  const rank = (slug: string) => { const index = FIRST.indexOf(slug); return index < 0 ? FIRST.length : index }
+  const cards: JobCard[] = [...companies].sort((a, b) => rank(a.slug) - rank(b.slug)).map(({ slug, company, count }) => ({
+    slug, title: company.heading ?? company.name, logo: company.logo, logoSize: company.logoSize, alt: company.legalName,
+    count: count ? `${count} ${company.countText}` : 'Búsquedas en su portal oficial', sector: SECTOR_OF[slug] ?? 'otras',
+  }))
 
   return (
     <>
       <section className="bg-arena/40 px-4 py-10 sm:px-6 lg:py-14">
         <div className="mx-auto max-w-5xl">
-          <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-rosa-deep">Búsquedas abiertas hoy</p>
-          <h1 className="mt-2 max-w-3xl font-display text-4xl font-extrabold leading-tight text-ciruela sm:text-5xl">Buscá trabajo en grandes empresas, desde un solo lugar</h1>
+          <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-rosa-deep">Búsquedas laborales</p>
+          <h1 className="mt-2 max-w-3xl font-display text-4xl font-extrabold leading-tight text-ciruela sm:text-5xl">Las búsquedas abiertas hoy, por sector</h1>
           <p className="mt-4 max-w-2xl text-lg leading-relaxed text-piedra">
             {total > 0 && <>Hoy hay <b className="text-ciruela">{total} búsquedas abiertas</b> en sus portales oficiales. </>}
-            Te las junté con el link directo para postularte a cada una, y se actualizan solas.
+            Elegí tu sector y entrá a cada una: tienen el link directo para postularte y se actualizan solas.
           </p>
+          <a href="#tu-cv" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-rosa px-6 font-display text-sm font-bold text-white shadow-lg shadow-rosa/25 hover:bg-rosa-deep">¿Tu CV pasa el filtro? Pedilo listo para postularte<ArrowRight className="h-4 w-4" /></a>
         </div>
       </section>
 
       <section className="px-4 py-10 sm:px-6">
-        <ul className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {companies.map(({ slug, company, count }) => (
-            <li key={slug}>
-              <Link href={`/empleos/${slug}`} className="group flex h-full flex-col rounded-[28px] bg-white p-5 shadow-[0_22px_44px_-30px_rgba(67,32,44,0.55)] transition-transform hover:-translate-y-1">
-                {/* Always a white card: the brand logos are dark and must stay readable in the dark theme. */}
-                <span className="flex h-28 items-center justify-center rounded-2xl bg-[#fff]">
-                  <Image src={company.logo} alt={company.legalName} width={company.logoSize[0]} height={company.logoSize[1]} className="h-auto max-h-24 w-auto max-w-[180px]" />
-                </span>
-                <span className="mt-4 font-display text-xl font-bold text-ciruela">{company.heading ?? company.name}</span>
-                <span className="mt-1 text-sm text-piedra">{count ? `${count} ${company.countText}` : 'Búsquedas en su portal oficial'}</span>
-                <span className="mt-auto inline-flex items-center gap-1 pt-4 font-display text-sm font-bold text-rosa-deep">Ver búsquedas y postularme<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <JobsBySector sectors={SECTORS} cards={cards} />
         <p className="mx-auto mt-6 max-w-5xl text-sm text-piedra">Cada semana sumamos empresas nuevas. ¿Cuál querés que agreguemos? Contanos por Instagram.</p>
       </section>
 
