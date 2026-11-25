@@ -36,6 +36,16 @@ const steps = [
 
 const RANKS = ['El más elegido', '2º más elegido', '3º más elegido']
 
+// "Búsquedas de esta semana": whoever comes from an Instagram post through the bio link lands here and must find that
+// post's page in one tap (the shoppings post went viral on 24/11 and most visitors landed on the home). The first one
+// is the post that is spreading now; change the list as the posts change.
+const THIS_WEEK = [
+  { href: '/empleos/shoppings', emoji: '🛍️', label: 'Shoppings: vendedores para las fiestas' },
+  { href: '/empleos/burgerking', emoji: '🍔', label: 'Burger King: crew en 111 locales' },
+  { href: '/empleos/seguridad', emoji: '🛡️', label: 'Vigiladores' },
+  { href: '/empleos/aeropuertos', emoji: '✈️', label: 'Aeropuertos Argentina' },
+]
+
 export default async function Home() {
   const [cvProducts, guides, stageGuides, faqs] = await Promise.all([getProducts(['cv']), getProducts(['guias']), getProducts(['etapas']), getFaqs({ sections: ['cv', 'general'], onPageOnly: true })])
   const extraPrice = (id: string) => cvProducts.flatMap((product) => product.extras).find((group) => group.id === id)?.unitPrice ?? 15000
@@ -44,6 +54,23 @@ export default async function Home() {
   const price = { language: extraPrice('idiomas'), express: extraPrice('express'), main: cvProducts.find((product) => product.id === 'cv-simple')?.price ?? null }
   return (
     <>
+      {/* The pages of this week's posts, first thing on the screen (people come from the bio link looking for them). */}
+      <section aria-labelledby="semana-title" className="bg-ciruela px-4 py-3 text-white sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <p id="semana-title" className="shrink-0 font-display text-xs font-extrabold uppercase tracking-[0.18em] text-petalo">🔎 ¿Venís por las búsquedas de Instagram?</p>
+          <ul className="flex flex-wrap gap-2">
+            {THIS_WEEK.map((item, index) => (
+              <li key={item.href}>
+                <Link href={item.href} className={`inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 py-2 font-display text-sm font-bold transition-colors ${index === 0 ? 'bg-rosa text-white shadow-lg shadow-black/20 hover:bg-rosa-deep' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                  <span aria-hidden>{item.emoji}</span>{item.label}<ArrowRight className="h-4 w-4" />
+                </Link>
+              </li>
+            ))}
+            <li><Link href="/empleos" className="inline-flex min-h-10 items-center px-2 font-display text-sm font-bold text-white/80 underline-offset-4 hover:underline">Ver todas</Link></li>
+          </ul>
+        </div>
+      </section>
+
       {/* Hero */}
       {/* On desktop the photo is anchored to the viewport edge; the background matches its wall so there is no seam. */}
       <section className="hero-wall relative overflow-hidden bg-white lg:bg-[#dfe3e6]">
