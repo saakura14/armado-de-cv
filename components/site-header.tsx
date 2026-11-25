@@ -13,15 +13,17 @@ import { HomeMenu } from '@/components/home-menu'
 export const SECTIONS = [
   { href: '/', label: 'Armado de CV' },
   { href: '/asesorias', label: 'Asesorías' },
+  { href: '/empleos', label: 'Búsquedas laborales' },
 ] as const
 
 export function isAsesorias(pathname: string) {
   return pathname.startsWith('/asesorias')
 }
 
-/** Current section, or null outside the two sales pages (cuenta, admin, legales...). */
+/** Current section, or null outside the sales pages (cuenta, admin, legales...). */
 function activeSection(pathname: string) {
   if (isAsesorias(pathname)) return '/asesorias'
+  if (pathname.startsWith('/empleos')) return '/empleos'
   // Revalidated (ISR) renders of the home page report "/index" instead of "/".
   return pathname === '/' || pathname === '/index' ? '/' : null
 }
@@ -30,7 +32,7 @@ function activeSection(pathname: string) {
 function SectionTabs({ variant }: { variant: 'desktop' | 'mobile' }) {
   const active = activeSection(usePathname())
   return (
-    <nav aria-label="Secciones" className={variant === 'mobile' ? 'grid grid-cols-2' : 'flex h-full gap-8'}>
+    <nav aria-label="Secciones" className={variant === 'mobile' ? 'grid grid-cols-3' : 'flex h-full gap-8'}>
       {SECTIONS.map((section) => {
         const current = active === section.href
         return (
