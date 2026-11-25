@@ -36,7 +36,7 @@ function Part({ label, hint, value }: { label: string; hint: string; value: numb
 function PackOffer({ score }: { score: number }) {
   const [packs, setPacks] = useState<Product[] | null>(null)
   useEffect(() => {
-    const ids = score >= 85 ? ['cv-medium', 'cv-premium'] : ['cv-primer-empleo', 'cv-simple', 'cv-medium']
+    const ids = score >= 85 ? ['cv-medium', 'cv-premium'] : ['cv-primer-empleo', 'cv-simple', 'cv-medium', 'cv-premium']
     getProducts(['cv']).then((list) => setPacks(ids.flatMap((id) => list.filter((product) => product.id === id))))
   }, [score])
   if (!packs?.length) return null
@@ -269,6 +269,21 @@ export function AtsTest() {
         <p className="mt-2 text-ink">{result.score >= 85
           ? 'Con el Pack Premium reviso y potencio tu CV, y sumás tu perfil de LinkedIn y la carta de presentación.'
           : 'Te armo dos CV: una versión moderna con foto, para mandar por mail o entregar, y otra optimizada para ATS, sin foto, que pasa los filtros. En 3 a 4 días hábiles.'}</p>
+        {/* A low score: what she fixes, built from what the test found (the titles only once the details are unlocked). */}
+        {result.score < 85 && (
+          <div className="mt-4 rounded-2xl bg-white p-4">
+            <p className="font-display font-bold text-ciruela">Lo que dejo resuelto en tu CV nuevo:</p>
+            <ul className="mt-2 space-y-1.5 text-sm text-ink">
+              {stage === 'detalle'
+                ? failed.slice(0, 4).map((check) => <li key={check.id} className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#1f9d5a]" />{check.title}</li>)
+                : failed.length > 0 && <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#1f9d5a]" />{`${failed.length === 1 ? 'La cosa que marcó' : `Las ${failed.length} cosas que marcó`} el test`}</li>}
+              <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#1f9d5a]" />Un formato que el sistema lee entero, sin columnas ni tablas</li>
+              <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#1f9d5a]" />Las palabras clave del puesto que buscás</li>
+              <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#1f9d5a]" />Tu experiencia contada con logros, no solo con tareas</li>
+            </ul>
+            <p className="mt-3 text-sm text-piedra">⚡ ¿Te estás postulando ya? Pedilo con <b className="text-ciruela">Express en 24 hs hábiles</b> (+$15.000).</p>
+          </div>
+        )}
         <p className="mt-2 text-sm text-piedra">Lo pedís acá mismo en 2 minutos, sin crear cuenta, y pagás por transferencia o con tarjeta.</p>
         <PackOffer score={result.score} />
         <div className="mt-5 flex flex-wrap gap-3">
