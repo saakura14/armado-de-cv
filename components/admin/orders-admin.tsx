@@ -56,7 +56,10 @@ export function openBusinessWhatsapp(event: React.MouseEvent<HTMLAnchorElement>,
   }
 }
 
-/** Fix or complete a WhatsApp sale: what was bought (e.g. Express added later), amount charged, name, phone and payment date. */
+/**
+ * "Modificar venta": fix or complete a WhatsApp sale or a web order (e.g. the customer asked to drop the Express): what
+ * was bought, amount, name, phone and payment date (web orders not paid yet have no date).
+ */
 function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }) {
   const toDay = (value: string | null) => (value ? new Date(new Date(value).getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10) : '')
   const [open, setOpen] = useState(false)
@@ -101,21 +104,23 @@ function EditSale({ order, onSaved }: { order: AdminOrder; onSaved: () => void }
   }
 
   if (!open) {
-    return <button type="button" onClick={() => setOpen(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-rosa-deep hover:underline"><Pencil className="h-3.5 w-3.5" />Editar venta</button>
+    return <button type="button" onClick={() => setOpen(true)} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-rosa-deep hover:underline"><Pencil className="h-3.5 w-3.5" />Modificar venta</button>
   }
   const lines = totalOf(items)
   // Something was added to what she had already charged for.
   const added = items.length > initialItems.length
   return (
     <div className="mt-3 rounded-2xl border border-rosa/40 bg-petalo-wash/60 p-4">
-      <p className="font-display text-sm font-bold text-ciruela">Editar venta por WhatsApp</p>
+      <p className="font-display text-sm font-bold text-ciruela">Modificar venta {order.source === 'web' ? 'de la web' : 'por WhatsApp'}</p>
+      {order.source === 'web' && <p className="mt-1 text-xs text-piedra">Por ejemplo, si el cliente pidió sacar el Express o cambiar de pack. Lo que cambies se ve en su pedido{order.status === 'pending_payment' ? ', con el nuevo total a transferir' : ''}.</p>}
       <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-piedra">Qué compró</p>
       <SaleItemsEditor items={items} onChange={changeItems} products={products} extras={extras} />
       <div className="mt-3 grid grid-cols-2 gap-3">
         <label className="col-span-2 text-xs font-semibold uppercase tracking-wider text-piedra sm:col-span-1">Cliente<input value={name} onChange={(event) => setName(event.target.value)} className={inputClass} /></label>
         <label className="col-span-2 text-xs font-semibold uppercase tracking-wider text-piedra sm:col-span-1">WhatsApp<input type="tel" inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className={inputClass} /></label>
-        <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Fecha de pago<input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={inputClass} /></label>
-        <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Total cobrado (todo el pedido)<input inputMode="numeric" value={total} onChange={(event) => { setTotal(event.target.value.replace(/\D/g, '')); setTotalTouched(true) }} className={inputClass} /></label>
+        {/* A web order not paid yet has no payment date to fix. */}
+        {(order.source === 'whatsapp' || order.paid_at) && <label className="text-xs font-semibold uppercase tracking-wider text-piedra">Fecha de pago<input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={inputClass} /></label>}
+        <label className="text-xs font-semibold uppercase tracking-wider text-piedra">{order.source === 'web' && !order.paid_at ? 'Total a pagar (todo el pedido)' : 'Total cobrado (todo el pedido)'}<input inputMode="numeric" value={total} onChange={(event) => { setTotal(event.target.value.replace(/\D/g, '')); setTotalTouched(true) }} className={inputClass} /></label>
       </div>
       {/* Adding something sold later: the amount is the whole order, not just the new item. */}
       {added && Number(total) < order.total && (
@@ -455,7 +460,8 @@ function OrderCard({ order, buyer, fresh, reason, onDragStart, onChanged }: { or
             {order.status !== 'cancelled' && order.status !== 'delivered' && <Button variant="danger" busy={busy === 'cancelled'} onClick={() => setStatus('cancelled')}>Cancelar pedido</Button>}
             {order.payment_method !== 'card' && <Button variant="danger" busy={busy === 'delete'} onClick={deleteSale}><Trash2 className="h-4 w-4" />Eliminar venta repetida</Button>}
           </div>
-          {order.source === 'whatsapp' && <EditSale order={order} onSaved={onChanged} />}
+          {/* WhatsApp sales, and web orders unless already paid by card (Ualá charged that amount). */}
+          {(order.source === 'whatsapp' || (order.source === 'web' && order.status !== 'cancelled' && !(order.payment_method === 'card' && order.status !== 'pending_payment'))) && <EditSale order={order} onSaved={onChanged} />}
         </div>
       )}
       {flash.node && <div className="mt-3">{flash.node}</div>}
