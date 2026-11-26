@@ -11,8 +11,9 @@ export type TaskStatus = 'asignado' | 'haciendo' | 'terminado'
 export type TeamTask = {
   id: string
   member_id: string
-  order_id: string
-  order_item_id: string
+  /** Null when the task was voided with "Reiniciar textos" and kept to be paid (no longer tied to the pack). */
+  order_id: string | null
+  order_item_id: string | null
   order_number: number
   client_name: string
   pack_name: string
