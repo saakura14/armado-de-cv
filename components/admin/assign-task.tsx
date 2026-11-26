@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Copy, FileText, Mic, Sparkles, Upload, Users, X } from 'lucide-react'
+import { Check, Copy, FileText, Mic, RotateCcw, Sparkles, Upload, Users, X } from 'lucide-react'
 import { hasExpress, teamDueOn } from '@/lib/dashboard'
 import type { Order, OrderItem } from '@/lib/orders'
 import { formMaterial } from '@/lib/client-form'
@@ -537,6 +537,80 @@ function SentTexts({ taskId, order, firstName, onClose }: { taskId: string; orde
   )
 }
 
+/**
+ * "Reiniciar textos": the pack goes back to zero to load the right material (Vale loaded another person's by mistake).
+ * Removes Claude's texts (and the files she uploaded for them; the customer's own form files stay), the Canva build
+ * request (the design itself stays in Canva) and the team task. If the team member already built it, she can still pay
+ * that work: the task stays in his history, no longer tied to the pack.
+ */
+function ResetDialog({ order, item, task, memberName, onClose, onDone }: { order: Order; item: OrderItem; task: OrderTask | undefined; memberName: string; onClose: () => void; onDone: () => void }) {
+  const backdrop = useBackdropClose(onClose)
+  const worked = Boolean(task && task.status !== 'asignado')
+  const [pay, setPay] = useState(worked)
+  const [busy, setBusy] = useState(false)
+  const flash = useFlash()
+
+  async function reset() {
+    setBusy(true)
+    const { data: draft } = await supabase.from('cv_drafts').select('files, feedback_files').eq('order_item_id', item.id).maybeSingle()
+    if (draft) {
+      const stored = [...((draft.files as string[] | null) ?? []), ...((draft.feedback_files as string[] | null) ?? [])].filter((path) => !path.startsWith('forms/'))
+      if (stored.length) await supabase.storage.from('cv-sources').remove(stored)
+      const { error } = await supabase.from('cv_drafts').delete().eq('order_item_id', item.id)
+      if (error) { setBusy(false); flash.show('error', errorMessage(error)); return }
+    }
+    const { error: buildError } = await supabase.from('cv_builds').delete().eq('order_item_id', item.id)
+    if (buildError) { setBusy(false); flash.show('error', errorMessage(buildError)); return }
+    if (task) {
+      const { data: row } = await supabase.from('team_tasks').select('client_name, notes').eq('id', task.id).maybeSingle()
+      const today = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+      const { error } = worked && pay
+        ? await supabase.from('team_tasks').update({
+          order_id: null, order_item_id: null, client_name: `${row?.client_name ?? ''} (armado anulado)`.trim(),
+          notes: `${row?.notes ? `${row.notes} ` : ''}Anulado el ${today}: los textos no eran de esta clienta. Se paga igual.`,
+        }).eq('id', task.id)
+        : await supabase.from('team_tasks').delete().eq('id', task.id)
+      if (error) { setBusy(false); flash.show('error', errorMessage(error)); return }
+    }
+    setBusy(false)
+    onDone()
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ciruela/55 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="reset-title" {...backdrop}>
+      <div className="w-full overflow-hidden rounded-t-[28px] bg-blanco shadow-2xl sm:max-w-lg sm:rounded-[28px]">
+        <div className="flex items-start justify-between gap-4 bg-ciruela px-5 py-4 text-white sm:px-7">
+          <div>
+            <p id="reset-title" className="flex items-center gap-2 font-display text-lg font-bold"><RotateCcw className="h-5 w-5" />Reiniciar textos</p>
+            <p className="text-sm text-white/85">Pedido #{order.number} · {item.product_name}</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-full bg-white/15 p-2 hover:bg-white/25" aria-label="Cerrar"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="space-y-3 px-5 py-5 text-sm text-ink sm:px-7">
+          <p>El pack vuelve a cero para cargar el material correcto. Se borran:</p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>Los textos de Claude y los archivos que subiste para ellos (el formulario del cliente queda).</li>
+            <li>El pedido de armado en Canva (si ya existe el diseño, queda en tu Canva).</li>
+            {task && <li>La tarea de {memberName}{worked ? `, que ya ${task.status === 'terminado' ? 'la terminó' : 'la empezó'}` : ''}.</li>}
+          </ul>
+          {worked && (
+            <label className="flex items-start gap-2 rounded-2xl bg-papel px-4 py-3 font-semibold">
+              <input type="checkbox" checked={pay} onChange={(event) => setPay(event.target.checked)} className="mt-0.5 accent-rosa" />
+              <span>Pagarle igual a {memberName} el armado que ya hizo <span className="block font-normal text-piedra">Queda en su historial como &quot;armado anulado&quot; y suma a lo que le debés.</span></span>
+            </label>
+          )}
+          <p className="text-xs text-piedra">No se puede deshacer.</p>
+        </div>
+        <div className="border-t border-line bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 sm:px-7 sm:pb-5">
+          {flash.node && <div className="mb-2">{flash.node}</div>}
+          <Button className="w-full" busy={busy} onClick={reset}><RotateCcw className="h-4 w-4" />Reiniciar el pack</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** On a CV order: each pack with who is building it, or a button to assign it. */
 /** clientName (nombre y apellido) is what the team sees, so two clients with the same first name don't get mixed up. */
 export function TeamRow({ order, tasks, drafts = [], builds = [], firstName, clientName, onChanged }: { order: Order; tasks: OrderTask[]; drafts?: DraftState[]; builds?: BuildState[]; firstName: string; clientName: string; onChanged: () => void }) {
@@ -544,6 +618,7 @@ export function TeamRow({ order, tasks, drafts = [], builds = [], firstName, cli
   const [building, setBuilding] = useState<OrderItem | null>(null)
   const closeBuild = useCallback(() => setBuilding(null), [])
   const [drafting, setDrafting] = useState<OrderItem | null>(null)
+  const [resetting, setResetting] = useState<OrderItem | null>(null)
   const close = useCallback(() => setAssigning(null), [])
   const closeDraft = useCallback(() => setDrafting(null), [])
   const [viewing, setViewing] = useState<string | null>(null)
@@ -577,6 +652,7 @@ export function TeamRow({ order, tasks, drafts = [], builds = [], firstName, cli
                   <button type="button" onClick={() => setViewing(task.id)} className="inline-flex min-h-8 items-center gap-1 rounded-full border border-line px-3 font-display text-xs font-bold text-ciruela hover:bg-papel"><FileText className="h-3.5 w-3.5 text-rosa" />Ver textos</button>
                   {/* An urgent one the team can't get to: she builds it herself in Canva with the same texts. */}
                   <BuildButton build={build} onOpen={() => setBuilding(item)} />
+                  <button type="button" onClick={() => setResetting(item)} title="Reiniciar textos (material equivocado)" aria-label="Reiniciar textos" className="inline-flex min-h-8 items-center gap-1 rounded-full border border-line px-2.5 font-display text-xs font-bold text-piedra hover:bg-papel hover:text-ciruela"><RotateCcw className="h-3.5 w-3.5" />Reiniciar</button>
                 </span>
               ) : (
                 <span className="flex flex-wrap items-center justify-end gap-1.5">
@@ -588,6 +664,7 @@ export function TeamRow({ order, tasks, drafts = [], builds = [], firstName, cli
                     Asignar
                   </button>
                   <BuildButton build={build} onOpen={() => setBuilding(item)} />
+                  {(draft || build) && <button type="button" onClick={() => setResetting(item)} title="Reiniciar textos (material equivocado)" aria-label="Reiniciar textos" className="inline-flex min-h-8 items-center gap-1 rounded-full border border-line px-2.5 font-display text-xs font-bold text-piedra hover:bg-papel hover:text-ciruela"><RotateCcw className="h-3.5 w-3.5" />Reiniciar</button>}
                 </span>
               )}
               {/* When he started it, and a reset in case it was a mistaken tap. */}
@@ -599,6 +676,7 @@ export function TeamRow({ order, tasks, drafts = [], builds = [], firstName, cli
       {assigning && <AssignDialog order={order} item={assigning} clientName={clientName} onClose={close} onSaved={onChanged} />}
       {building && <BuildDialog order={order} item={building} clientName={clientName} onClose={closeBuild} onSaved={onChanged} />}
       {viewing && <SentTexts taskId={viewing} order={order} firstName={firstName} onClose={closeViewing} />}
+      {resetting && <ResetDialog order={order} item={resetting} task={tasks.find((row) => row.order_item_id === resetting.id)} memberName={(() => { const task = tasks.find((row) => row.order_item_id === resetting.id); const member = task ? (Array.isArray(task.team_members) ? task.team_members[0] : task.team_members) : null; return member?.name?.split(' ')[0] ?? 'el equipo' })()} onClose={() => setResetting(null)} onDone={onChanged} />}
       {drafting && <DraftDialog order={order} item={drafting} firstName={firstName} status={drafts.find((row) => row.order_item_id === drafting.id)?.status} onClose={closeDraft} onSaved={onChanged} onApprove={() => { setAssigning(drafting); setDrafting(null) }} />}
     </div>
   )
