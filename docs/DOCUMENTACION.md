@@ -84,7 +84,9 @@ Hay tres formas de comprar: en la web (cuenta + transferencia + comprobante), co
 | `/asesorias` | Asesorías para entrevistas y psicotécnicos (e-books, Pack Plus, Pack Premium con Meet, Asesoría para entrevistas) y test vocacional. |
 | `/cursos` | Cursos pregrabados publicados (hoy vacío). |
 | `/gratis` | Checklist "Revisá tu CV en 10 minutos": descarga sin registro (evento Lead del píxel), para la palabra clave CHECKLIST de Instagram. |
-| `/test-ats` | **Test ATS gratis**: la persona sube su CV en PDF y el navegador lo analiza (no se sube ni se guarda): si un ATS puede leerlo, columnas o tablas, contacto, secciones, perfil, largo, fechas, logros, datos personales de más, íconos, título "Curriculum Vitae", viñetas con verbos, frases genéricas y, si pega un aviso, las palabras clave que le faltan. Mide lo mismo que un ATS real: arma la **ficha del candidato** (nombre, contacto, trabajos con fechas, estudios, habilidades y años de experiencia, "Así te lee un ATS"), la **compara con el puesto** (las palabras del aviso pegado o de un área elegida, `lib/ats-roles.ts`; elegir área es obligatorio) y revisa el **formato**. Puntaje: 35% formato, 30% ficha, 35% coincidencia. Las secciones cuentan solo como títulos reales y un problema grave pone un techo (columnas: 60; sin título de Experiencia: 70; sin contacto o sin experiencia visible: 45; sin ningún trabajo con fechas: 50; menos años de los que pide el aviso: 55; casi sin palabras del puesto: 60; 6 problemas o más: 40). El área queda guardada en `ats_checks.area`. Calibrado con CVs reales: los ATS hechos por Vale dan 84–96, los modernos con columnas 60; el detalle se desbloquea con nombre y WhatsApp (1 por número, `ats_check_submit`) y termina ofreciendo los packs. Los interesados aparecen en **Panel → Test ATS** con el mensaje de WhatsApp listo. |
+| `/test-ats` | **Test ATS gratis**: la persona sube su CV en PDF y el navegador lo analiza (no se sube ni se guarda): si un ATS puede leerlo, columnas o tablas, contacto, secciones, perfil, largo, fechas, logros, datos personales de más, íconos, título "Curriculum Vitae", viñetas con verbos, frases genéricas y, si pega un aviso, las palabras clave que le faltan. Mide lo mismo que un ATS real: arma la **ficha del candidato** (nombre, contacto, trabajos con fechas, estudios, habilidades y años de experiencia, "Así te lee un ATS"), la **compara con el puesto** (las palabras del aviso pegado o de un área elegida, `lib/ats-roles.ts`; elegir área es obligatorio) y revisa el **formato**. Puntaje: 35% formato, 30% ficha, 35% coincidencia. Las secciones cuentan solo como títulos reales y un problema grave pone un techo (columnas: 60; sin título de Experiencia: 70; sin contacto o sin experiencia visible: 45; sin ningún trabajo con fechas: 50; menos años de los que pide el aviso: 55; casi sin palabras del puesto: 60; 6 problemas o más: 40). El área queda guardada en `ats_checks.area`. Calibrado con CVs reales: los ATS hechos por Vale dan 84–96, los modernos con columnas 60; el detalle se desbloquea con nombre y WhatsApp (1 por número, `ats_check_submit`) y termina ofreciendo los packs. Con menos de 85 (desde el 25/11), la oferta muestra **"Lo que dejo resuelto en tu CV nuevo"** (los puntos que marcó el test, más formato, palabras clave y logros), suma el Pack Premium y avisa del Express en 24 hs. Los interesados aparecen en **Panel → Test ATS** con el mensaje de WhatsApp listo. |
+| `/empleos` | **Búsquedas laborales** (pestaña propia del encabezado desde el 25/11): todas las páginas de búsquedas **agrupadas por sector** (Comercio y ventas, Gastronomía, Temporada de fiestas, Supermercados, Aeropuertos, Seguridad, Call centers) con filtros arriba (`app/empleos/jobs-by-sector.tsx`; el sector de cada página está en `SECTOR_OF` de `app/empleos/page.tsx`), el total de búsquedas abiertas hoy, el botón "¿Tu CV pasa el filtro? Pedilo listo para postularte" y, al final, los packs (Premium incluido). |
+| `/empleos/<empresa>` | Una página por empresa o rubro (`lib/empleos.ts`): Starbucks, Burger King, La Anónima, Aeropuertos (se actualizan solas desde sus portales) y call centers, fin de año, shoppings y seguridad (tipo `links`: avisos revisados a mano con fecha `checked`, hay que volver a revisarlos antes de promocionarlos). Cada una tiene un link corto (`/shoppings`, `/seguridad`…, en `next.config.mjs`) y termina con los packs (Primer Empleo, Simple, Medium y Premium). |
 | `/comprar` | Resumen del pedido, datos de contacto, aceptación de términos y confirmación. Muestra los datos de transferencia **solo después** de confirmar. Opción "Pedilo por WhatsApp". |
 | `/pedido/<token>` | Link de pedido armado por Vale: detalle, total (o precio especial) y compra normal. |
 | `/datos/<token>` | **Tus datos para el CV**: formulario privado de cada pedido de CV o LinkedIn (reemplaza al formulario de Google). Contacto, puesto objetivo, descripción, fortalezas, experiencia (o "busco mi primer empleo"), estudios, cursos, idiomas, herramientas, carta y LinkedIn según el pack, foto (si el pack tiene CV moderno) y CV actual (PDF, Word o fotos). Se guarda en el celu y con "Guardar y seguir después"; al enviar queda en el pedido. Abierto mientras el pedido está sin pagar, pago o en proceso (o con el LinkedIn pendiente). No se indexa. |
@@ -93,7 +95,7 @@ Hay tres formas de comprar: en la web (cuenta + transferencia + comprobante), co
 | `/admin` | Panel de administración (solo la cuenta admin). App "Armado de CV - Admin". |
 | `/equipo` | Panel del equipo (solo integrantes cargados en Equipo). App "Armado de CV - Equipo". |
 
-En todo el sitio público: encabezado con pestañas "Armado de CV" / "Asesorías", botón de modo claro/oscuro y Mi cuenta; barra inferior en el celu (Precios, Cómo comprar, Mi cuenta, WhatsApp); Sakura; pie con legales; aviso de cookies.
+En todo el sitio público: encabezado con pestañas "Armado de CV" / "Asesorías" / "Búsquedas laborales" (en la home del celu, el primer botón del menú de secciones es "💼 Búsquedas laborales"), botón de modo claro/oscuro y Mi cuenta; barra inferior en el celu (Precios, Cómo comprar, Mi cuenta, WhatsApp); Sakura; pie con legales; aviso de cookies.
 
 ### 2.2 Catálogo y precios
 
@@ -177,7 +179,7 @@ Plazo: 4 días hábiles desde el pago (Express 1). Después de las 17 hs o en fi
 | Pestaña | Para qué sirve |
 |---|---|
 | **Inicio** | Saludo, contadores en vivo (Para hacer vos, Listos del equipo, En el equipo, Entregados del mes; aparte, pagos por revisar y esperando al cliente), lo más urgente, **Cómo viene el mes** (ventas, facturado, ticket, visitas, conversión, facturación semana a semana y de 6 meses, lo más vendido), **de dónde vienen las ventas** (web, anuncio, WhatsApp, link), embudo **Del clic a la venta** (entraron → Lo quiero → llegaron a comprar → confirmaron → pagaron, más los que pasaron de la web a WhatsApp y las ventas por WhatsApp), reporte Excel anual con la marca y tarjeta para instalar la app y activar los avisos. |
-| **Pedidos** | Pedidos por etapas con buscador. Ficha simple con una acción principal, botón de WhatsApp con el mensaje del paso (y "Copiar mensaje y número" para WhatsApp Business), comprobante, link privado de Canva, notas, "Editar venta" en las de WhatsApp, "Link de pedido" y **bloque Equipo**: un renglón por pack con su botón **Asignar** (manda los textos del CV al equipo). |
+| **Pedidos** | Pedidos por etapas con buscador. Ficha simple con una acción principal, botón de WhatsApp con el mensaje del paso (y "Copiar mensaje y número" para WhatsApp Business), comprobante, link privado de Canva, notas, "Editar venta" en las de WhatsApp, "Link de pedido" y **bloque Equipo**: un renglón por pack con **Textos con Claude** (pide, revisa y corrige los textos; si el pack lleva otro idioma, también la versión traducida), **Asignar** (manda los textos al equipo), **Armarlo yo** (Claude lo arma en Canva) y **Reiniciar** (vuelve el pack a cero si se cargó el material de otra persona). Pestaña "Textos para el equipo": packs pagos todavía sin asignar. |
 | **Sesiones** | Agendar las sesiones 1 a 1: fecha, link de Meet y estado. |
 | **Equipo** | Ver 2.7. |
 | **Packs y precios** | Productos, precios, características, destacados, activo/inactivo, extras y e-books. |
@@ -191,15 +193,19 @@ Desde el 03/10/2026, los CV en Canva los arma un integrante del equipo a partir 
 
 **Flujo:**
 1. Vale manda "Pedir los datos" (WhatsApp con el link `armadodecv.com/datos/<token>`). Cuando el cliente lo envía, el pedido aparece en Hoy como **Datos recibidos** y las respuestas y el CV vienen cargados en "Textos con Claude". Con eso (o el material que le mandaron por WhatsApp) salen los textos con el Master Prompt.
-2. En Pedidos → ficha → bloque Equipo toca **Asignar**: elige al integrante y pega el CV moderno, el CV ATS y la carta (si el pack la incluye), con notas y fecha.
+2. En Pedidos → ficha → bloque Equipo, **Vale elige en cada pack** quién lo arma (desde el 18/11 Claude ya no arma en Canva por su cuenta): **Asignar** (elige al integrante, con el CV moderno, el CV ATS y la carta si el pack la incluye, notas y fecha) o **Armarlo yo** (Claude lo arma en Canva con la plantilla de mujer o de hombre). Si el pack lleva el extra de **idiomas**, viaja también el mismo CV traducido (moderno y ATS, nunca la carta); sin esa versión no deja asignar.
 3. El pedido pago pasa solo a **En proceso** (trigger de la base) y al integrante le llega un **aviso push** "Nuevo CV asignado".
 4. El integrante abre el CV en su app, lo arma en Canva copiando los textos y toca **Terminé este CV** (con el link de Canva). A Vale le llega el aviso y el pedido aparece como "CV del equipo listo".
 5. Vale revisa, entrega al cliente y paga cada 10 packs (puede adelantar).
+
+**Si se cargó el material equivocado:** el botón **Reiniciar** del pack borra los textos de Claude (y los archivos subidos para ellos, no los del formulario del cliente), el pedido de armado en Canva y la tarea del equipo. Si el integrante ya lo había armado, Vale puede tildar "Pagarle igual": la tarea queda en su historial como "(armado anulado)", sin pack, y sigue sumando a lo que se le debe.
 
 **Pantalla del equipo (`/equipo`, app "Armado de CV - Equipo")** — `components/team-view.tsx`:
 - Resumen compacto: CVs pendientes, terminados, lo que tiene a cobrar y el próximo cobro.
 - Lista en renglones agrupada en **"Para hoy o atrasados"** y **"Próximos"**, con Empezar/Seguir y cuánto copió.
 - **Modo trabajo**: un CV a pantalla completa para usar al lado de Canva. Los textos se separan por **sección** (título y contenido en la misma burbuja; la carta va en un solo bloque). Dos modos: **"Tocar copia el renglón"** y **"Seleccionar texto"** + "Copiar lo seleccionado". Lo copiado queda tildado y el texto no desaparece. Copiar marca el CV como "Haciéndolo".
+- **Versiones en otro idioma**: pestañas propias ("CV moderno en Inglés", "CV ATS en Inglés"), con el aviso de que van en páginas aparte y de copiar también los títulos (la plantilla los tiene en español). En la lista, el CV muestra "🌎 + Inglés".
+- **Personaje y tema del panel**: Freddie, Snake o Ezio (dibujos y frases propios). Del 19 al 30/11 hay un cuarto tema temporal, **Ciudad Neón** (guiño a GTA 6, sin logo ni arte del juego), que se activa solo una vez con un cartel de bienvenida y desaparece después de `NEON_UNTIL` (`components/team-cheer.tsx`), devolviéndole el personaje que tenía.
 - **Terminé este CV**: confirmación en la misma pantalla, limpia el link de Canva y abre solo el siguiente.
 - **Tus marcas 🏆**: racha de días con CVs terminados (los fines de semana no la cortan), tiempo de hoy y mejor tiempo por pack; al terminar avisa si fue una **nueva marca**.
 - Mes a mes, cobros recibidos, **video tutorial** (`public/tutorial-equipo.mp4`) y chat con Vale.
@@ -344,7 +350,11 @@ Historial completo en `supabase/migrations/` (se aplica en orden; nunca se edita
 | `payment_settings` · `card_payments` | Datos de transferencia, tarjeta (apagada) y pagos de Ualá. |
 | `faqs` · `testimonials` | Sakura y testimonios. |
 | `team_members` | Integrantes: email (Gmail con el que entran), nombre, tarifa por pack, cada cuántos se paga, cuenta vinculada. |
-| `team_tasks` | Un CV asignado por renglón de pedido: textos (moderno, ATS, carta), notas, vencimiento, estado (`asignado` / `haciendo` / `terminado`), `started_at`, `finished_at`, link de Canva, pago que lo cubrió. |
+| `team_tasks` | Un CV asignado por renglón de pedido: textos (moderno, ATS, carta), `translations` (jsonb `[{language, cv_modern, cv_ats}]`, desde el 23/11), notas, vencimiento, urgente, estado (`asignado` / `haciendo` / `terminado`), `started_at`, `finished_at`, `progress`, link de Canva, pago que lo cubrió. `order_id` y `order_item_id` pueden ser nulos desde el 26/11: es una tarea anulada con "Reiniciar" que se paga igual. |
+| `cv_drafts` | "Textos con Claude" de cada pack: material del cliente (`source_text`, `target_job`, `files` en `cv-sources`), estado (`pedido` / `generando` / `corregir` / `listo` / `error`), textos, `translations`, pedido de corrección (`feedback`, `feedback_files`). Se borra al asignar. |
+| `cv_builds` | "Armarlo yo": pedido de armado en Canva por Claude (`gender`, `pages`, `languages`, textos, `translations`, `notes`, estado, `design_id`, `edit_url`). Plantillas en `cv_templates`. |
+| `linkedin_drafts` | "LinkedIn con Claude": material y bloques del perfil (`sections`). |
+| `ats_checks` | Interesados del test ATS: nombre, WhatsApp, mail, puntaje, `issues`, área, y el seguimiento por mail (hasta 3 mails, nunca más). |
 | `team_payments` | Pagos y adelantos al equipo, con los packs que cubre. |
 | `team_messages` | Chat Vale ↔ equipo, con CV referido y leído. |
 | `push_subscriptions` · `push_log` | Dispositivos con avisos activados (admin y equipo) y avisos enviados. |
@@ -400,6 +410,8 @@ Historial completo en `supabase/migrations/` (se aplica en orden; nunca se edita
 | `verify-receipt` | Sesión del cliente | Lectura del comprobante con IA (apagada sin `ANTHROPIC_API_KEY`). |
 | `admin-upload` | Token de un solo uso | Sube PDFs de e-books o archivos al bucket público `social`. Borrar el token después de usarlo. |
 | `uala` | Sesión / webhook | Pago con tarjeta por Ualá Bis; vuelve a consultar cada orden en Ualá antes de aprobar. Apagado en la web. |
+| `cv-drafts` | Clave del cron (Vault) | Lo llama la tarea programada `textos-cv-claude` (en la compu de Vale): `pending` devuelve los textos de CV y LinkedIn pedidos (con links temporales a los archivos, y los **idiomas** del pack desde el 23/11) y los armados en Canva pedidos, con sus traducciones; `notify` avisa al celu de Vale. Las instrucciones de la tarea (master prompt, traducciones en el paso d2, armado en Canva) viven en `~/.claude/scheduled-tasks/textos-cv-claude/SKILL.md`. |
+| `ats-followup` | Clave del cron (Vault) | Seguimiento por mail del test ATS: hasta 3 mails por persona (resultado, cómo corregirlo, último aviso), nunca a quien compró o se dio de baja. |
 
 ### 3.6 Almacenamiento de archivos (Storage)
 
@@ -458,6 +470,8 @@ Las piezas de Instagram programadas en Metricool se sirven desde `public/social/
 | Mandar un pedido armado al cliente | Pedidos → **Link de pedido** |
 | Aprobar un pago | Pedidos → abrir el comprobante → "Aprobar pago" |
 | Pasarle un CV al equipo | Pedidos → ficha → bloque Equipo → **Asignar** (pegar textos) |
+| Que Claude arme el CV en Canva | Pedidos → ficha → bloque Equipo → **Armarlo yo** |
+| Corregir un pack cargado con el material de otra persona | Pedidos → ficha → bloque Equipo → **Reiniciar** (y elegir si se le paga igual al equipo) |
 | Ver cómo va el equipo y cuánto tarda | Panel → **Equipo** (Le debés, Tiempos, Mes a mes) |
 | Pagarle al equipo | Equipo → **Registrar pago** (cada 10 packs o adelanto) |
 | Hablar con el equipo | Burbuja de chat del panel |
@@ -467,8 +481,8 @@ Las piezas de Instagram programadas en Metricool se sirven desde `public/social/
 | Cambiar alias o CBU | Panel → Datos de pago |
 
 **Producción de CVs:**
-1. El cliente completa sus datos en `armadodecv.com/datos/<token>` (o los manda por WhatsApp) y Vale arma los textos con su **Master Prompt** (solo las 3 experiencias más relevantes para el puesto).
-2. Los asigna al equipo desde el pedido.
+1. El cliente completa sus datos en `armadodecv.com/datos/<token>` (o los manda por WhatsApp) y Vale pide los textos en **Textos con Claude** (master prompt: solo las 3 experiencias más relevantes para el puesto; si el pack lleva idiomas, Claude escribe también la versión traducida).
+2. Los revisa y elige: **Asignar** al equipo o **Armarlo yo** (Claude en Canva).
 3. El equipo duplica en Canva un trabajo anterior del mismo género y con la misma cantidad de hojas (Simple: 2; con carta: 3), lo renombra "Cv - NOMBRE APELLIDO", pega los textos y marca "Terminé este CV" con el link.
 4. Vale revisa, manda el link de Canva como boceto y, con el OK, descarga el PDF y entrega.
 
@@ -477,7 +491,10 @@ Las piezas de Instagram programadas en Metricool se sirven desde `public/social/
 ## 5. Marketing e integraciones externas
 
 - **Instagram @armadodecv.ok** con **Metricool** (marca conectada). Lo que mejor funciona: la serie **"Cómo y dónde postularme a…"** (carruseles 1080×1350 con el logo de cada empresa). Historias 1080×1920. Reels dinámicos con subtítulos en Montserrat y placa final con el logo. No se repiten fotos.
-- **Publicidad solo en Instagram**, con tope total de **US$ 23 por día** (dos campañas de mensajes: US$ 10 + US$ 13). Límite de gasto de la cuenta: US$ 200.
+- **Publicidad solo en Instagram.** Al 26/11: una campaña activa, **"Mensajes IG + WhatsApp"**, con US$ 15 por día (US$ 0,28 a 0,35 por conversación). Límite de gasto de la cuenta: **US$ 50** (hay que restablecerlo cada ~3 días y avisar en el panel con "Ya pagué y restablecí"). Los posts "cómo y dónde" no se promocionan con objetivo Mensajes.
+- **Lo que mejor funciona en Instagram** (noviembre): una sola empresa o rubro con un número concreto y una página con los links (Aeropuertos 120 mil personas, La Anónima 82 mil, **shoppings 44 mil y 1.700 compartidos** el 23/11). Los temas genéricos llegan a 1 a 7 mil.
+- **El link de la bio lleva a la home**: por eso las búsquedas tienen su propia pestaña "Búsquedas laborales" (ver 2.1).
+- **Respuestas automáticas de Meta** (Business Suite → Automatizaciones): "Links de búsquedas laborales" en **comentarios** (palabras como link, postular, dónde, shopping, vigilador, búsqueda: responde en público y manda por privado los links de las búsquedas y los packs) y en **mensajes** (link, shopping, postular, búsquedas). Actualizar sus links cuando cambien los posts de la semana. Siguen las de las guías (GUÍA 20/30/40/50, SUELDO, CHECKLIST, TEST ATS) y "Comentarios que piden info".
 - **Canva:** CV de clientes y contenido. Las apps de Canva y el autocompletado de plantillas requieren Canva Enterprise, y Canva no se puede embeber dentro del panel.
 - **Google Drive y Sheets:** formulario "Carga de datos para CV / Carta de presentación" para clientes sin CV previo.
 - **Destacadas de Instagram:** Web, Servicios, Clientes, Tips, Ofertas, En medios, Info.
@@ -539,9 +556,10 @@ Revisión del 05/10/2026 con los datos propios (visitas y embudo desde el 28/09)
 
 ## 8. Pendientes y próximos pasos
 
+- **Al 26/11:** decidir si se promociona la parte 2 de shoppings (27/11, ~US$ 4 por día de viernes a domingo) y un anuncio para quienes hicieron el test ATS (~US$ 2 por día); GOcuotas como medio de pago (falta la comisión y los plazos de la cuenta); pedido #158 a la espera de los datos de la clienta.
 - **Equipo:** activar las notificaciones en la tablet del integrante (hoy 0 dispositivos) y actualizar la app a la última versión.
 - **Chat:** confirmar con un mensaje real de ida y vuelta.
-- **Anuncios:** el límite de gasto de US$ 200 alcanza para ~7–8 días a US$ 23 por día; revisarlo antes de que se corte.
+- **Anuncios:** el límite de gasto de US$ 50 alcanza para ~3 días a US$ 16 por día; restablecerlo antes de que se corte.
 - **Emails:** configurar un SMTP propio (por ejemplo Resend) para que lleguen los mails de recuperación, y traducir la plantilla "Reset password".
 - **Cursos:** cargar el primero.
 - **Contenido:** siguiente guía "Cómo y dónde".
@@ -658,3 +676,7 @@ Revisión del 05/10/2026 con los datos propios (visitas y embudo desde el 28/09)
 | 23/11 | **CV en otro idioma para el equipo y para Claude**: cuando el pack lleva el extra de idiomas (por ejemplo inglés), Claude escribe con los textos en español el mismo CV moderno y CV ATS traducidos (columna `translations` en cv_drafts, team_tasks y cv_builds; nunca la carta). Vale los revisa y corrige en Textos con Claude (o los pide con "Pedir la traducción a Claude"), viajan al equipo al asignar (no se puede asignar sin ellos) y Gustavo los ve como pestañas "CV moderno en Inglés" / "CV ATS en Inglés" con aviso de copiar también los títulos. "Armarlo yo" usa esas mismas traducciones en las páginas de idioma. También: el Pack Premium aparece en las páginas de empleos y en /promo. |
 | 16/11 | **Formulario de datos propio** (reemplaza al formulario de Google): cada pedido tiene `armadodecv.com/datos/<token>` (tabla `client_forms`, funciones `client_form_*`, subida a `cv-sources/forms/<token>/`). "Pedir los datos" manda el link; la ficha del pedido muestra **Datos del cliente** (sin completar, empezado o recibido, "Copiar link" y "Ver datos" con archivos y "Copiar todas las respuestas"); un envío nuevo aparece en Hoy como **Datos recibidos**; Textos con Claude (CV y LinkedIn) se abre con las respuestas y el CV del cliente cargados; Mi cuenta muestra "Completar mis datos". Los archivos del formulario no se borran al asignar el CV (los usa el LinkedIn). Al enviarlo, a Vale le llega el aviso "📋 Datos recibidos" al celu (`notify-admin`, tipo `client_form`) |
 | 17/11 | **Compartir archivos desde WhatsApp al panel** (Android): la app "Armado de CV - Admin" recibe archivos compartidos (CV en PDF o Word, fotos, notas de voz, chat exportado; `share_target` POST en `admin.webmanifest`). El service worker (`public/sw.js`) los guarda un momento en la caché `compartido` y abre el panel con "¿A qué pedido va?" (`components/admin/shared-files.tsx`): se busca el pedido de CV o LinkedIn por nombre, número o teléfono y los archivos se suman a los datos del cliente (`cv-sources/forms/<token>/whatsapp/`, los audios se transcriben solos) y a los borradores de Textos con Claude que ya existan. Compartir solo texto sigue abriendo Venta por WhatsApp. Si el service worker no estaba listo, `/admin/compartir` redirige y avisa que hay que compartir de nuevo. `client_form_save` conserva esos archivos cuando el cliente guarda su formulario |
+| 18/11 | **Equipo y Claude**: Gustavo vuelve a tener acceso (`team_members.active`). Claude ya no arma en Canva cada CV al terminar los textos: en cada pack Vale elige Asignar (equipo) o Armarlo yo (Claude). **Tema temporal "Ciudad Neón"** en el panel del equipo (guiño a GTA 6, del 19 al 30/11), con cartel de bienvenida y aviso de versión nueva con el guiño. |
+| 23/11 | **Pack Premium en las páginas de empleos y en /promo** (antes solo Primer Empleo, Simple y Medium). Carruseles de Burger King (111 locales) y la actualización de Aeropuertos (29 búsquedas). |
+| 25/11 | **Búsquedas laborales como sección del sitio**: pestaña en el encabezado y primer botón del menú de la home en el celu, que lleva a `/empleos`, ahora **por sector** con filtros y el pedido del CV arriba (se probó una barra arriba de la home y se sacó). En /shoppings se quitó el aviso de Unicenter, que cerró. **Test ATS**: con menos de 85, la oferta muestra lo que se deja resuelto en el CV nuevo, suma el Premium y el Express. Respuestas automáticas de Meta "Links de búsquedas laborales" (comentarios y mensajes). |
+| 26/11 | **Botón Reiniciar en cada pack** (material de otra persona cargado por error): borra textos, armado y tarea; si el equipo ya lo armó se puede pagar igual como "armado anulado" (`team_tasks.order_id` y `order_item_id` opcionales, migración `tarea_anulada`). Primer uso: pedido #158. |
