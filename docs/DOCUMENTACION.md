@@ -95,7 +95,7 @@ Hay tres formas de comprar: en la web (cuenta + transferencia + comprobante), co
 | `/admin` | Panel de administración (solo la cuenta admin). App "Armado de CV - Admin". |
 | `/equipo` | Panel del equipo (solo integrantes cargados en Equipo). App "Armado de CV - Equipo". |
 
-En todo el sitio público: encabezado con pestañas "Armado de CV" / "Asesorías" / "Búsquedas laborales" (en la home del celu, el primer botón del menú de secciones es "💼 Búsquedas laborales"), botón de modo claro/oscuro y Mi cuenta; barra inferior en el celu (Precios, Cómo comprar, Mi cuenta, WhatsApp); Sakura; pie con legales; aviso de cookies.
+En todo el sitio público: encabezado con pestañas "Armado de CV" / "Asesorías" / "Búsquedas laborales" (en la home del celu, el primer botón del menú de secciones es "💼 Búsquedas laborales"), botón de modo claro/oscuro y Mi cuenta; barra inferior en el celu (Precios, Cómo comprar, Mi cuenta, WhatsApp) (en las páginas de búsquedas, desde el 27/11, la barra es "Tu CV listo para postularte · Primer CV $20.000 · CV + ATS $35.000" con "Pedilo" y WhatsApp con el mensaje de la página); Sakura; pie con legales; aviso de cookies.
 
 ### 2.2 Catálogo y precios
 
@@ -681,3 +681,4 @@ Revisión del 05/10/2026 con los datos propios (visitas y embudo desde el 28/09)
 | 25/11 | **Búsquedas laborales como sección del sitio**: pestaña en el encabezado y primer botón del menú de la home en el celu, que lleva a `/empleos`, ahora **por sector** con filtros y el pedido del CV arriba (se probó una barra arriba de la home y se sacó). En /shoppings se quitó el aviso de Unicenter, que cerró. **Test ATS**: con menos de 85, la oferta muestra lo que se deja resuelto en el CV nuevo, suma el Premium y el Express. Respuestas automáticas de Meta "Links de búsquedas laborales" (comentarios y mensajes). |
 | 26/11 | **Botón Reiniciar en cada pack** (material de otra persona cargado por error): borra textos, armado y tarea; si el equipo ya lo armó se puede pagar igual como "armado anulado" (`team_tasks.order_id` y `order_item_id` opcionales, migración `tarea_anulada`). Primer uso: pedido #158. |
 | 26/11 | **Modificar venta también en pedidos de la web** (antes solo en las ventas por WhatsApp): sacar el Express, cambiar de pack o corregir el total, el nombre o el teléfono; el cliente ve el nuevo total en su pedido. No se puede si se pagó con tarjeta. Migración `modificar_venta_web`. Primer uso: pedido #184 (Primer Empleo sin Express, $20.000). |
+| 27/11 | **Barra de pedido del CV en las páginas de búsquedas** (celu): reemplaza a la barra de Precios/Cómo comprar en `/empleos` y cada página de empresa, para convertir las visitas de los posts virales (shoppings: 110 mil personas, 200 a 280 visitas por día a /shoppings). |
