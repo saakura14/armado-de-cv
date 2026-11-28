@@ -157,15 +157,26 @@ export const COMPANIES: Record<string, Company> = {
     ],
     more: 'Proyección de Randstad publicada en octubre de 2026. Los links llevan a los portales oficiales, revisados el 15/11/2026.',
   },
-  // Checked by hand on 18/11/2026 (Computrabajo "vendedor shopping" and IRSA's own portal): re-check before promoting again.
+  // Checked by hand on 18/11 and 27/11/2026 (Computrabajo "vendedor shopping" and IRSA's own portal): re-check before promoting again.
   shoppings: {
     name: 'shoppings',
     legalName: 'los locales de los shoppings',
     logo: '/img/empresas/shoppings.png',
     logoSize: [1000, 600],
-    heading: 'Trabajar en un shopping para las fiestas',
-    intro: 'Los locales de los shoppings buscan vendedores y cajeros para las fiestas y las vacaciones. Si entrás como temporario, cobrás lo mismo que un efectivo de tu categoría por el convenio de comercio, y los equipos se cierran antes del Black Friday (27/11).',
-    source: { kind: 'links', checked: '25/11/2026', openings: [
+    heading: 'Trabajar en un shopping: fiestas y verano',
+    intro: 'Los locales de los shoppings buscan vendedores y cajeros para las fiestas y el verano, y algunas búsquedas son hasta marzo. Si entrás como temporario, cobrás lo mismo que un efectivo de tu categoría por el convenio de comercio.',
+    source: { kind: 'links', checked: '27/11/2026', openings: [
+      // New on 27/11/2026 (Computrabajo, published in the last 7 days).
+      { title: 'Vendedor/a de temporada para stands (dic a mar)', place: 'CABA', detail: 'Shoppings de CABA y zona norte, Bigbox', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-vendedora-de-temporada-para-stands-en-shoppings-caba-y-zona-norte-dic-a-mar-en-nunez-EF1DC93396B86D8561373E686DCF3405', entry: true },
+      { title: 'Vendedor/a de isla de electrónica', place: 'CABA', detail: 'Dot Baires Shopping', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-vendedora-isla-electronica-dot-baires-shopping-dot-baires-shopping-ciudad-autonoma-de-buenos-aires-en-saavedra-CC96273C1849074861373E686DCF3405', entry: true },
+      { title: 'Vendedor/a de juguetería', place: 'CABA', detail: 'Dot Baires Shopping', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-vendedor-jugueterias-shopping-dot-en-la-paternal-44B6F5FB2FD3309061373E686DCF3405', entry: true },
+      { title: 'Vendedor/a de blanquería', place: 'CABA', detail: 'Abasto Shopping, full time', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-vendedora-para-shopping-abasto-blalqueria-full-time-en-balvanera-511F022AA80152F361373E686DCF3405', entry: true },
+      { title: 'Vendedor/a', place: 'GBA Norte', detail: 'Unicenter Shopping, Martínez', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-vendedor-unicenter-shopping-en-martinez-1363824A9D089C3061373E686DCF3405', entry: true },
+      { title: 'Vendedor/a de isla de electrónica', place: 'Interior', detail: 'Los Gallegos Shopping, Mar del Plata', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-vendedora-de-isla-de-electronica-los-gallegos-shopping-mar-del-plata-mar-del-plata-provincia-de-buenos-aires-en-mar-del-plata-C89DC83E764D0AFD61373E686DCF3405', entry: true },
+      { title: 'Vendedora (Open Candy)', place: 'Interior', detail: 'Shopping de Rosario', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-vendedora-en-shopping-rosario-en-rosario-521DC73448E38B4D61373E686DCF3405', entry: true },
+      { title: 'Consultor/a de belleza (Juleriaque)', place: 'Interior', detail: 'Rosario', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-consultora-de-belleza-rosario-en-rosario-83929FB931D0703561373E686DCF3405', entry: true },
+      { title: 'Vendedora de góndola', place: 'Interior', detail: 'Nuevocentro Shopping, Córdoba (30 hs semanales)', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-vendedora-gondola-nuevocentro-shopping-30-horas-semanales-turnos-rotativos-en-cordoba-46176479D535C40461373E686DCF3405', entry: true },
+      { title: 'Asesores/as de ventas eventuales (ManpowerGroup)', place: 'Interior', detail: 'Córdoba', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-asesoresas-de-ventas-eventual-cordoba-req20267174-en-cordoba-F51DCDF3117F64D761373E686DCF3405', entry: true },
       { title: 'Vendedoras/es para fiestas y vacaciones (Mimo & Co)', place: 'CABA', detail: 'Shoppings de CABA, full time', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-vendedorases-para-shopping-de-caba-para-periodo-de-fiestas-y-vacaciones-presencial-full-time-en-retiro-2C71357010DBEB5661373E686DCF3405', entry: true },
       { title: 'Vendedoras/es eventuales de noviembre y diciembre', place: 'CABA', detail: 'Galerías Pacífico y Palermo', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-vendedoras-y-vendedores-eventuales-noviembre-y-diciembre-zona-caba-galerias-pacifico-y-palermo-en-retiro-6B16C05DAA8FE00D61373E686DCF3405', entry: true },
       { title: 'Asesoras comerciales de refuerzo (Tune)', place: 'CABA', detail: 'San Nicolás', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-asesoras-comerciales-de-refuerzo-en-san-nicolas-BCF99F9F19874FEC61373E686DCF3405', entry: true },
@@ -184,15 +195,15 @@ export const COMPANIES: Record<string, Company> = {
       { title: 'Vendedores (Riiing, Diggit, JBL)', place: 'Interior', detail: 'Mendoza Plaza Shopping', posted: '', url: 'https://ar.computrabajo.com/ofertas-de-trabajo/oferta-de-trabajo-de-vendedores-riiingdiggitjbl-en-mendoza-plaza-shopping-en-mendoza-780EA721C23BDDDF61373E686DCF3405', entry: true },
     ] },
     portal: 'https://ar.computrabajo.com/trabajo-de-vendedora-shopping',
-    countText: 'búsquedas para las fiestas',
+    countText: 'búsquedas para las fiestas y el verano',
     group: { by: 'place', title: 'Búsquedas por zona', text: 'Elegí las que te queden cerca: vivir en la zona es un filtro. Leé los requisitos de cada aviso.' },
     steps: [
       'Elegí el aviso que te quede cerca y tocá "Postularme".',
       'Cargá tu CV en PDF con tu disponibilidad arriba de todo: fines de semana, feriados, 24 y 31.',
       'Contá la experiencia en caja y atención al público, aunque sea en el negocio familiar o vendiendo por Instagram.',
-      'Postulate antes del 27/11: después del Black Friday la mayoría de los equipos ya está cerrado.',
+      'Postulate cuanto antes: las búsquedas de fiestas y verano se llenan rápido.',
     ],
-    more: 'Avisos de los portales oficiales de cada empresa y de Computrabajo, revisados el 18/11/2026. Hay más de 220 búsquedas de vendedores en shoppings en Computrabajo.',
+    more: 'Avisos de los portales oficiales de cada empresa y de Computrabajo, revisados el 18/11 y el 27/11/2026.',
   },
   seguridad: {
     name: 'seguridad privada',
